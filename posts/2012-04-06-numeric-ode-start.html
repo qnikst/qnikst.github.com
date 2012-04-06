@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></meta>
+        <title>QnikstBlog - Запуск проекта numeric-ode</title>
+        <link rel="stylesheet" type="text/css" href="../css/screen.css"></link>
+    </head>
+    <body>
+        <div id="header">
+            QnikstBlog - Запуск проекта numeric-ode
+
+            <div id="navigation">
+                <a href="../index.html">Home</a>
+                <a href="../posts.html">All posts</a>
+		<a href="../projects.html">Projects</a>
+                <a href="../contact.html">Contact</a>
+            </div>
+        </div>
+
+        <h1>Запуск проекта numeric-ode</h1>
+
+<p>by <em>qnikst</em> on <strong>2012-01-05</strong></p>
+
+<p>Наконец-то нашёл в себе силы и немного времени начать новый проект на haskell. Решалку ODE, в принципе этих решалок и так дофига, но мне оказались нужны определенные хитрые алгоритмы многие их, которых строятся на функциях высшего порядка, и писать их на c/fortran/matlab было бы достаточно грустно, а известные реализации с трудом прикладываются к моим задачам. В общем надеюсь, что-то путное выйдет. Если кому интересно и кто видит явные косяки буду рад любым замечаниям.</p>
+<p>Страница проекта: <a href="https://github.com/qnikst/numeric-ode">odessolver</a></p>
+<p>Немного о том, как всё будет работать все методы работают на основе интегратора (функции для каждой системы, которая по шагу и начальной координате возвращает следующую). В целом видно, что существуют и более сложные варианты, напр. возвращение следующей координаты и нового интегратора, но это уже потом.</p>
+<p>Ну и для разминки привожу, пример, простейших учебных методов (Examples/LottkaVolterra.hs), собственно весь этот пост является .lhs файлом и может быть запущен, похоже, что в решении есть косяк, но пока я ещё не разобрался с тем проблема в исходном коде или в коде какой либо из используемых библиотек.</p>
+<pre><code>&gt; {-# LANGUAGE FlexibleInstances, BangPatterns, TypeFamilies #-}
+&gt; module Examples.LottkaVollterra
+&gt;    where
+
+First we import some stuff that we will use for compulations.
+All computations will run it ST monad and we will use Vector 
+to store results, it not the most effective way to do it in 
+haskell but it is quite common in numerical engines (like Octave, 
+Matlab, etc.)
+For generazation of algorithms on arbitrary space we'll use
+VectorSpace.
+
+&gt; import Prelude hiding (sequence)
+&gt; import Control.Monad.ST
+&gt; import Control.Monad
+&gt; import Data.Vector (Vector,(!))
+&gt; import qualified Data.Vector as V
+&gt; import Data.AdditiveGroup
+&gt; import Data.VectorSpace
+
+Then we import some stuff for plotting graphs
+
+&gt; import Data.Accessor
+&gt; import Graphics.Rendering.Chart
+&gt; import Data.Colour.Names
+&gt; import Data.Colour
+
+And now our main part
+
+
+&gt; import Math.Integrators
+&gt; import Math.Integrators.ExplicitEuler
+&gt; import Math.Integrators.ImplicitEuler
+&gt; import Math.Integrators.ImplicitMidpointRule
+&gt; import Math.Integrators.SympleticEuler
+
+
+First model will be Lotka-Volterra model, that was used to 
+estimate predators-prey number
+
+[1] http://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equation
+\begin{equation}
+    \left\{ 
+        \begin{array}{ccc}
+            \dot{u} &amp; = &amp; u (v - 2) \\
+            \dot{v} &amp; = &amp; v (1 - u) 
+        \end{array}
+     \right.
+\end{equation}
+
+To store our $R^2$ space we'll use special data type, that is
+strict and has fixed size
+
+&gt; data T2 = T2 !Double !Double
+&gt;    deriving (Eq,Show)
+
+To be able to use it we need to make it instance of vector space:
+
+&gt; instance AdditiveGroup T2 where
+&gt;    zeroV = T2 0 0
+&gt;    negateV (T2 x y) = T2 (-x) (-y)
+&gt;    (T2 a1 a2) ^+^ (T2 b1 b2) = T2 (a1+b1) (a2+b2)
+
+&gt; instance VectorSpace T2 where
+&gt;    type Scalar T2 = Double
+&gt;    c *^ (T2 a1 a2) = T2 (c*a1) (c*a2)
+
+
+Now let's define our equation:
+
+&gt; lv :: T2 -&gt; T2
+&gt; lv (T2 u v) = T2 (u * (v-2)) (v * (1-u))
+
+Create initial condition list (maybe I'll use it)
+
+&gt; ics = [ T2 2 2, T2 4 8, T2 4 2,T2 6 2]
+
+Create initial conditions for testing purposes
+
+&gt; ic = T2 2 2
+
+That LV equation has next first integral that should be preserved:
+
+&gt; realline :: T2 -&gt; Double
+&gt; realline (T2 u v) = (log u) - u + 2*(log v) -v
+
+Define a function that find difference in first integrals (i.e. error)
+
+&gt; errorV ic v = V.map (\x -&gt; abs $! (realline x) - (realline ic)) v
+
+We'll use solve equation from 0 to 100 with 0.12 step
+
+&gt; tm = V.enumFromStepN 0 0.12 100
+
+Our solvers:
+
+&gt; solve1 ic tm = runST $ integrateV (explicitEuler lv) ic tm
+&gt; solve2 ic tm = runST $ integrateV (implicitEuler lv norm) ic tm
+&gt; solve3 ic tm = runST $ integrateV (imr lv norm) ic tm
+
+some results:
+
+&gt; result1 = solve1 ic tm 
+&gt; result2 = solve2 ic tm 
+&gt; result3 = solve3 ic tm 
+
+to use sympletic method we should redefine out equation
+in this place I really need an advice how to do it implictly in terms
+of First Order functions
+
+&gt; splitIc :: T2 -&gt; (Double,Double)
+&gt; splitIc (T2 u v) = (u,v)
+
+&gt; splitLv :: ((Double -&gt; Double -&gt; Double),(Double-&gt;Double-&gt;Double))
+&gt; splitLv = (\u v -&gt; u*(v-2), \u v -&gt; v*(1-u))
+
+&gt; solve4 ic tm = runST $ integrateV (sympleticEuler1 splitLv abs) (splitIc ic) tm
+&gt; result4 = solve4 ic tm 
+
+Some helpers: norm on T2 space
+
+&gt; norm :: T2 -&gt; Double
+&gt; norm (T2 a b) = a*a+b*b
+
+Now lets create charts:
+ first: plot all graphs on the same plot:
+
+&gt; plot1 = renderableToPNGFile (mychart) 640 480 &quot;all.png&quot;
+&gt;       where
+&gt;               mychart = chart &quot;All methods&quot; lst
+&gt;               lst = [(&quot;Explicit Euler&quot;, blue, f solve1)
+&gt;                     ,(&quot;Implicit Euler&quot;, green, f solve2)
+&gt;                     ,(&quot;Implicit Midpoint Rule&quot;, red, f solve3)
+&gt;                     ,(&quot;Sympletic Euler&quot;, magenta, f' solve4)]
+&gt;               f g = v2d $! g ic tm
+&gt;               f' g = V.toList $! g ic tm
+&gt; plotI fn nm f ics = renderableToPNGFile (mychart) 640 480 fn
+&gt;       where
+&gt;               mychart = chart nm lst
+&gt;               lst = zipWith3 (\x y z -&gt; (x,y,z)) (map show ics) [blue,green,red,magenta,orange] (map f ics)
+&gt; plotE fn nm f ics = renderableToPNGFile (mychart) 640 480 fn
+&gt;       where
+&gt;               mychart = chart nm lst
+&gt;               lst = zipWith3 (\x y z -&gt; (x,y,z)) (map show ics) [blue,green,red,magenta,orange] 
+&gt;                                                  (map (\i -&gt; zipWith (,) (V.toList tm) (V.toList $! errorV i $! f i)) ics)
+&gt; plot2 = plotI &quot;1.png&quot; &quot;Explicit Euler&quot; (v2d . (flip solve1 tm)) ics
+&gt; plot3 = plotI &quot;2.png&quot; &quot;Implicit Euler&quot; (v2d . (flip solve2 tm)) ics
+&gt; plot4 = plotI &quot;3.png&quot; &quot;IMR&quot; (v2d . (flip solve3 tm)) ics
+&gt; plot5 = plotI &quot;4.png&quot; &quot;Sypletic&quot; (V.toList . (flip solve4 tm)) ics
+&gt; plot6 = plotE &quot;1e.png&quot; &quot;Explicit Euler Error&quot; (flip solve1 tm) ics
+&gt; plot7 = plotE &quot;2e.png&quot; &quot;Implicit Euler Error&quot; (flip solve2 tm) ics
+&gt; plot8 = plotE &quot;3e.png&quot; &quot;IMR Error&quot; (flip solve3 tm) ics
+&gt; --plot7 = plotE &quot;2e.png&quot; &quot;Implicit Euler Error&quot; (flip solve2 tm) ics
+
+&gt; chart tit lst = toRenderable layout
+&gt;       where
+&gt;               plotList = map (Left . toPlot . mtp) lst
+&gt;               mtp (tit,clr,dt) = plot_lines_style .&gt; line_color ^= opaque clr
+&gt;                                $ plot_lines_title ^= tit
+&gt;                                $ plot_lines_values ^= [dt]
+&gt;                                $ defaultPlotLines
+&gt;               layout = layout1_plots ^= plotList
+&gt;                      $ layout1_title ^= tit
+&gt;                      $ defaultLayout1
+&gt; v2d = (map (\(T2 x y) -&gt; (x,y))) . V.toList
+
+&gt; main = plot1 &gt;&gt; plot2 &gt;&gt; plot3 &gt;&gt; plot4 &gt;&gt; plot5 &gt;&gt; plot6 &gt;&gt; plot7 &gt;&gt; plot8</code></pre>
+<p>а для осиливших немножно незжатых картинок:</p>
+<img src="../images/2012-03-06/all.png" alt="image"></img>
+<img src="../images/2012-03-06/1.png" alt="image"></img>
+<img src="../images/2012-03-06/1e.png" alt="image"></img>
+<img src="../images/2012-03-06/2.png" alt="image"></img>
+<img src="../images/2012-03-06/2e.png" alt="image"></img>
+<img src="../images/2012-03-06/3.png" alt="image"></img>
+<img src="../images/2012-03-06/3e.png" alt="image"></img>
+<img src="../images/2012-03-06/4.png" alt="image"></img>
+<img src="../images/2012-03-06/4e.png" alt="image"></img>
+
+
+        <div id="footer">
+            Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </div>
+    </body>
+</html>

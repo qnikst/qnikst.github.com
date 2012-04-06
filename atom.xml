@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>A simple blog</title>
+    <link href="http://example.com/atom.xml" rel="self" />
+    <link href="http://example.com" />
+    <id>http://example.com/atom.xml</id>
+    <author>
+        <name>Jasper Van der Jeugt</name>
+    </author>
+    <updated>2012-04-05T00:00:00Z</updated>
+    <entry>
+    <title>A first post</title>
+    <link href="http://example.com/posts/2012-04-05-a-first-post.html" />
+    <id>http://example.com/posts/2012-04-05-a-first-post.html</id>
+    <published>2012-04-05T00:00:00Z</published>
+    <updated>2012-04-05T00:00:00Z</updated>
+    <summary type="html"><![CDATA[$description$]]></summary>
+</entry>
+<entry>
+    <title>Запуск проекта numeric-ode</title>
+    <link href="http://example.com/posts/2012-04-06-numeric-ode-start.html" />
+    <id>http://example.com/posts/2012-04-06-numeric-ode-start.html</id>
+    <published>2012-04-06T00:00:00Z</published>
+    <updated>2012-04-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[$description$]]></summary>
+</entry>
+
+</feed>
