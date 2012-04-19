@@ -24,5 +24,13 @@
     <updated>2012-04-06T00:00:00Z</updated>
     <summary type="html"><![CDATA[$description$]]></summary>
 </entry>
+<entry>
+    <title>Прогресс в numeric-ode</title>
+    <link href="http://example.com/posts/2012-04-17-numeric-ode-1.html" />
+    <id>http://example.com/posts/2012-04-17-numeric-ode-1.html</id>
+    <published>2012-04-17T00:00:00Z</published>
+    <updated>2012-04-17T00:00:00Z</updated>
+    <summary type="html"><![CDATA[$description$]]></summary>
+</entry>
 
 </feed>
