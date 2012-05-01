@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></meta>
+        <title>QnikstBlog - cabal-dev</title>
+        <link rel="stylesheet" type="text/css" href="../css/screen.css"></link>
+    </head>
+    <body>
+        <div id="header">
+            QnikstBlog - cabal-dev
+
+            <div id="navigation">
+                <a href="../index.html">Home</a>
+                <a href="../posts.html">All posts</a>
+		<a href="../projects.html">Projects</a>
+                <a href="../contact.html">Contact</a>
+            </div>
+        </div>
+
+        <h1>cabal-dev</h1>
+
+<p>by <em>qnikst</em> on <strong>2012-01-30</strong></p>
+
+<blockquote>
+<p>Q: how to use cabal?</p>
+<p>A: just cabal install cabal-dev</p>
+</blockquote>
+<p>Cabal is a great system of building and packaging Haskell libraries but is has some downsides such as:</p>
+<blockquote>
+<p>1 it has very poor handling of library versions and tracking dependecies.</p>
+<p>2 it can’t have multiply versions of same library (really it can but then it becomes a pain to use them)</p>
+</blockquote>
+<p>So sometimes it becomes a pain to fix haskell tree.</p>
+<p>Cabal-dev is a cabal-install wrapper that build project and dependencies in sandboxed enviromnent, this allowes to use multiple version of the same library and so chanses to break system are very low. Additionally it generates image of installed application so you can check how it will be installed on your system without real installation.</p>
+<p>Of cause as there are some problems:</p>
+<blockquote>
+<p>1 cabal-dev is <em>slow</em>, because you should install all dependencies in sandbox environment (unless they are installed system wide).</p>
+<p>2 cabal-dev can’t handle some Setup.hs options at least it was true in Dec-2011.</p>
+</blockquote>
+<p>First problem easily fixed in gentoo, one can install basic dependencies with emerge, so portage will track tree consitency with `haskell-updater &lt;<a href="http://www.haskell.org/haskellwiki/Gentoo#haskell-updater">http://www.haskell.org/haskellwiki/Gentoo#haskell-updater</a>&gt;` (replacement tool for ghc-updater) and has all other features out of the box. So cabal-dev will be using most of libs from system and some other will be sandboxed.</p>
+<p>For second one I had a workaround by creating makefile that run setup.hs and then <code>cabal-dev intall</code>.</p>
+<p>Also cabal-dev has additional feature of running built program in ghc (i.e. run ghci and load every module in project) it can be done with</p>
+<blockquote>
+<p>cabal-dev build &amp;&amp; cabal-dev ghci</p>
+</blockquote>
+<p>Usefull links:</p>
+<blockquote>
+<ul>
+<li><a href="https://github.com/creswick/cabal-dev">docs</a></li>
+<li><a href="http://hackage.haskell.org/package/cabal-dev">hackage</a></li>
+</ul>
+</blockquote>
+
+<div id="disqus_thread"></div>
+
+<script type="text/javascript">
+//
+/* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+/* * * DON'T EDIT BELOW THIS LINE * * */
+(function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+//
+</script>
+
+
+
+        <div id="footer">
+            Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+	     
+	    Blog comments powered by <a href="http://disqus.com" class="dsq-brlink"><span class="logo-disqus">Disqus</span></a>
+        </div>
+    </body>
+</html>
