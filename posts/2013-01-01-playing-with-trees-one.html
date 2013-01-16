@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></meta>
+    <title>Qnikst blog - Playing with trees: prefix map</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="../js/bootstrap.min.js"></script>
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+            <h1>Playing with trees: prefix map <small>by <em>Alexander Vershilov</em> on <strong>January 1, 2013</strong></small></h1>
+</div>
+
+<p>We introduce a binary tree like data structure with next structure.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span>
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (<span class="fu">head</span>, <span class="fu">length</span>, <span class="fu">drop</span>, <span class="fu">take</span>, <span class="fu">lookup</span>, <span class="fu">null</span>)
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Data.Function</span>
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">hiding</span> (empty)
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Test.QuickCheck</span>
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> <span class="co">--        [Node (current value) l v r eq]</span>
+<span class="fu">&gt;</span> <span class="co">--                              | | |  +------------------------------------+</span>
+<span class="fu">&gt;</span> <span class="co">--        +---------------------+ | +------------------+                    |</span>
+<span class="fu">&gt;</span> <span class="co">--        |                       |                    |                    |</span>
+<span class="fu">&gt;</span> <span class="co">--        +                       |                    +                    |</span>
+<span class="fu">&gt;</span> <span class="co">--  element less            value or nothing        elements that        elements that</span>
+<span class="fu">&gt;</span> <span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span>
+<span class="fu">&gt;</span> <span class="co">--                              node                current              as prefix</span>
+<span class="fu">&gt;</span> <span class="co">-- </span></code></pre>
+<p>Top level item represent empty value and can have a value.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="fu">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</code></pre>
+<p>Inner tree is either an empty value or node, that has left/right children and maybe can have a value and next element</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span>
+<span class="fu">&gt;</span>              <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)
+<span class="fu">&gt;</span>              <span class="co">{-   current    less      value        more    eq   -}</span>
+<span class="fu">&gt;</span>              <span class="kw">deriving</span> (<span class="kw">Show</span>)</code></pre>
+<p>Having PrefixMap as a additional layer we can assume, that we have a non-null prefix on each level.</p>
+<p>Introduce simple builders</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> empty ::</span> <span class="dt">PrefixMap</span> a
+<span class="fu">&gt;</span> empty <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">E</span>)
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span><span class="ot"> node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
+<span class="fu">&gt;</span> node b a <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, <span class="dt">E</span>) 
+<span class="fu">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="kw">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
+<p>Now inserting elements it’s a bit tricky and may be simplified in the way of removing not needed insances</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
+<span class="fu">&gt;</span> insert b a (v,n) <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, n)
+<span class="fu">&gt;</span>                  <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (v, inner b a n)</code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a
+<span class="fu">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="kw">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
+<span class="fu">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b' l v r e) <span class="fu">|</span> <span class="fu">null</span> b     <span class="fu">=</span> n
+<span class="fu">&gt;</span>                            <span class="fu">|</span> <span class="fu">otherwise</span>  <span class="fu">=</span> 
+<span class="fu">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span>
+<span class="fu">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' (inner b a l) v r e   <span class="co">-- value less then current</span>
+<span class="fu">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' l v (inner b a r) e   <span class="co">-- value more then current</span>
+<span class="fu">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b' <span class="co">-- value has common part</span>
+<span class="fu">&gt;</span>               c <span class="fu">=</span> <span class="fu">take</span> x b
+<span class="fu">&gt;</span>               c'<span class="fu">=</span> <span class="fu">take</span> x b'
+<span class="fu">&gt;</span>               n' <span class="fu">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b') <span class="dt">E</span> v <span class="dt">E</span> e
+<span class="fu">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b'       <span class="co">-- b' isPrefix of b</span>
+<span class="fu">&gt;</span>                  <span class="kw">then</span> 
+<span class="fu">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b    <span class="co">-- b' == b </span>
+<span class="fu">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="kw">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
+<span class="fu">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b']</span>
+<span class="fu">&gt;</span>                  <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span>
+<span class="fu">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b
+<span class="fu">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c' l (<span class="kw">Just</span> a) r n'
+<span class="fu">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="kw">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n')
+<span class="fu">&gt;</span>   <span class="kw">where</span> 
+<span class="fu">&gt;</span>     fq a _ <span class="fu">=</span> a</code></pre>
+<p>lookup function</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> lookup ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
+<span class="fu">&gt;</span> <span class="fu">lookup</span> b (v, n) <span class="fu">|</span> <span class="fu">null</span> b <span class="fu">=</span> v 
+<span class="fu">&gt;</span>                 <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> lookinner b n</code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
+<span class="fu">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="kw">Nothing</span>
+<span class="fu">&gt;</span> lookinner b (<span class="dt">N</span> b' l v r e) <span class="fu">=</span>
+<span class="fu">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span>
+<span class="fu">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> lookinner b l
+<span class="fu">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> lookinner b r
+<span class="fu">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b'
+<span class="fu">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b'
+<span class="fu">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e
+<span class="fu">&gt;</span>                 <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="fu">&gt;</span> commonPart a b <span class="fu">=</span> go <span class="dv">0</span>
+<span class="fu">&gt;</span>   <span class="kw">where</span> 
+<span class="fu">&gt;</span><span class="ot">     go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="fu">&gt;</span>     go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x
+<span class="fu">&gt;</span>          <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="dv">+1</span>)
+<span class="fu">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span>             <span class="fu">=</span> x
+<span class="fu">&gt;</span>     y <span class="fu">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b
+<span class="fu">&gt;</span>     findex <span class="fu">=</span> <span class="fu">flip</span> <span class="fu">index</span>
+<span class="fu">&gt;</span>     <span class="ot">{-# INLINE findex #-}</span>
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> comparing <span class="fu">=</span> on <span class="fu">compare</span></code></pre>
+<p>Check if we are right</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> 
+<span class="fu">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls
+<span class="fu">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="kw">Just</span> (<span class="fu">pack</span> l)) ls
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> main <span class="fu">=</span> quickCheck prop_InsertList</code></pre>
+<p>What interesting is what properties to we have, ideally we can rewrite code thinking of a N c l v r e as a Tree (M v e)</p>
+<p>Caveats:</p>
+<ul>
+<li><p>this tree is unbalanced so we don’t have best case: this can be fixed by rewriting structure as RB-tree so tree on each level will be sorted.</p></li>
+<li><p>this tree doesn’t pack data as it possible: to pack data correctly one need to store a lenght of full bytestring in each node and replace element by the longer string, and copy bytestiring at the leaf node. It this variant we will smallest overhead.</p></li>
+<li><p>Node can be rewritten as N (PMap a) (PMap a) (PrefixTree a) this will add a level of indirection but will simplify an insert and lookup a bit.</p></li>
+</ul>
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+      Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+      <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+    </footer>
+  </div>
+</body>
+</html>
