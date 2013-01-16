@@ -1,0 +1,42 @@
+--
+title: cabal-dev
+author: Alexander Vershilov
+date: January 30, 2010
+--
+
+> Q: how to use cabal?
+>
+> A: just cabal install cabal-dev
+
+Cabal is a great system of building and packaging Haskell libraries but is has some downsides such as:
+
+  1. it has very poor handling of library versions and tracking dependecies.
+
+  2. it can’t have multiply versions of same library (really it can but then it becomes a pain to use them)
+
+So sometimes it becomes a pain to fix haskell tree.
+
+   Cabal-dev is a cabal-install wrapper that build project and dependencies in sandboxed enviromnent, 
+   this allowes to use multiple version of the same library and so chanses to break system are very low. 
+   Additionally it generates image of installed application so you can check how it will be installed 
+   on your system without real installation.
+
+Of cause as there are some problems:
+
+   1. cabal-dev is slow, because you should install all dependencies in sandbox environment (unless they are installed system wide).
+
+   2. cabal-dev can’t handle some Setup.hs options at least it was true in Dec-2011.
+
+First problem easily fixed in gentoo, one can install basic dependencies with emerge, so portage 
+will track tree consitency with `haskell-updater <http://www.haskell.org/haskellwiki/Gentoo#haskell-updater>` 
+(replacement tool for ghc-updater) and has all other features out of the box. 
+So cabal-dev will be using most of libs from system and some other will be sandboxed.
+
+For second one I had a workaround by creating makefile that run setup.hs and then cabal-dev intall.
+
+Also cabal-dev has additional feature of running built program in ghc (i.e. run ghci and load every module in project) it can be done with
+
+`cabal-dev build && cabal-dev ghci`
+
+
+
