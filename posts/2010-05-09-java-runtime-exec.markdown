@@ -2,7 +2,7 @@
 title: java//Runtime exec
 date: 2010/05/09
 author: Alexander Vershilov
-keywords: java, exec, runtime, process, IO
+tag: java, exec, runtime, process, IO
 ----
 
 Поскольку в одной совершенно не требующей этого задаче мне пришлось столкнуться с тем, 

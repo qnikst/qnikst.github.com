@@ -1,8 +1,9 @@
---
+----
 title: cabal-dev
 author: Alexander Vershilov
 date: January 30, 2010
---
+tags: haskell
+----
 
 > Q: how to use cabal?
 >
