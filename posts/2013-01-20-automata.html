@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></meta>
+    <title>Qnikst blog - 2013-01-20-automata</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="../js/bootstrap.min.js"></script>
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+            <h1>2013-01-20-automata <small>by <em>Alexander Vershilov</em> on <strong>January 20, 2013</strong></small></h1>
+</div>
+
+<p>About a half year ago I had a next task: I should run a list of event listeners on a wire and on each handled event that event listener can change (i.e. start listening another event, produce new event listeners, and send requests to the wire). Yes, sound like a FRP task, and once you are familar to FRP this article is not interested for you, except you may try to help me to generalize all logic.</p>
+<p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all theese computation had to carry additional information, so I end up with function approach: each function returns a command and next function and special runner change it’s state based on this information but I ended with some problems: functions were bloated, function should be written from the end to begining, all additional variables should be passed explicitelly through the functions, function can’t be composed as they had types constraints. It was a hell.. A day ago I have read the great arrows totorial http://ertes.de/new/tutorials/arrows.html by Ertugrul Söylemez, and realized that it was an arrow, after some thinking I’ve found a nice solution.</p>
+<p>This is a literate haskell port so you can just copy it and compile.</p>
+<p>We will need it at the very end to show arrow notation</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span></code></pre>
+<p>We need this for defining new arrow instance.</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> ((<span class="fu">.</span>), <span class="fu">id</span>)
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Arrow</span>
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Category</span></code></pre>
+<p>We need this for describing outter world</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Monad</span>
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent.STM</span>
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent</span>
+<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Exception</span></code></pre>
+<p>Let’s prepare to solve our problem. At first we need to define an outter world bus i.e. an computation that can recieve requests, and sends responce. We define 2 channels for this purpose: input - requests, output - responce. This will not break generalization as you always can insert a channel based proxy between your computation and real-world bus.</p>
+<p>So our realworld wrapper will look like:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> run ::</span> <span class="dt">FIO</span> a b c <span class="ot">-&gt;</span> <span class="dt">Generator</span> b c <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> a
+<span class="fu">&gt;</span> run f g i <span class="fu">=</span> 
+<span class="fu">&gt;</span>   bracket (<span class="kw">do</span> in_  <span class="ot">&lt;-</span> newTChanIO 
+<span class="fu">&gt;</span>               out_ <span class="ot">&lt;-</span> newTChanIO 
+<span class="fu">&gt;</span>               t <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> g in_ out_
+<span class="fu">&gt;</span>               atomically <span class="fu">$</span> writeTChan in_ i
+<span class="fu">&gt;</span>               <span class="fu">return</span> (t,in_,out_))
+<span class="fu">&gt;</span>           (\(t, _, _) <span class="ot">-&gt;</span> killThread t)
+<span class="fu">&gt;</span>           (\(_, i, o) <span class="ot">-&gt;</span> f i o)</code></pre>
+<p>, where FIO and Generator are helper types:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">FIO</span> a b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> a
+<span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">Generator</span> b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</code></pre>
+<p>A side node that we need to pass initial value as we use bus-driven logic: a message from the bus starts computaion.</p>
+<p>Let’s write some generators:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> idGenerator ::</span> <span class="dt">Generator</span> a a
+<span class="fu">&gt;</span> idGenerator <span class="fu">=</span> fGenerator <span class="fu">id</span>
+<span class="fu">&gt;</span><span class="ot"> fGenerator ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> <span class="dt">Generator</span> b a
+<span class="fu">&gt;</span> fGenerator f ic oc <span class="fu">=</span> forever <span class="fu">.</span> atomically <span class="fu">$</span> readTChan oc <span class="fu">&gt;&gt;=</span> writeTChan ic <span class="fu">.</span> f</code></pre>
+<p>Now we can review our problem.</p>
+<p>We need to define an finite automata, that can either finish it’s computation or return next state. Will write a type for it:</p>
+<ol style="list-style-type: decimal">
+<li>it will be a newtype (let’s name Auto 2) that has step function</li>
+</ol>
+<p>newtype Auto2 &lt;..&gt; = Auto2 { stepAuto :: &lt;..&gt; }</p>
+<ol start="2" style="list-style-type: decimal">
+<li>as it’s an automata it should get input value of type a and return either a new value b or new computation:</li>
+</ol>
+<p>newtype Auto2 &lt;..&gt; a b = Auto2 { stepAuto :: a -&gt; Either &lt;..&gt; b }</p>
+<ol start="3" style="list-style-type: decimal">
+<li>we need to carry information about real world bus through all computations and it can’t change</li>
+</ol>
+<p>newtype Auto2 i o a b = Auto2 {stepAuto :: a -&gt; Either (o, &lt;..&gt;) b}</p>
+<ol start="4" style="list-style-type: decimal">
+<li>final note is that if we return a new value request than our type is bound by RW-bus: Auto i o i b. So finally we get:</li>
+</ol>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">newtype</span> <span class="dt">Auto2</span> i o a b <span class="fu">=</span> <span class="dt">Auto2</span> {<span class="ot"> stepAuto ::</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> (o, <span class="dt">Auto2</span> i o i b) b}</code></pre>
+<p>[TBD: I need to add a nice pictures rendered in latex]</p>
+<p>This is not a function, this is a computation, so we need to write explicit runner to make it work:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> runner auto i o <span class="fu">=</span> <span class="kw">do</span>
+<span class="fu">&gt;</span>     x <span class="ot">&lt;-</span> atomically <span class="fu">$</span> readTChan i
+<span class="fu">&gt;</span>     <span class="fu">putStr</span> <span class="fu">$</span> <span class="st">&quot;input: &quot;</span><span class="fu">++</span>(<span class="fu">show</span> x) 
+<span class="fu">&gt;</span>     <span class="kw">let</span> ret <span class="fu">=</span> stepAuto auto x
+<span class="fu">&gt;</span>     <span class="kw">case</span> ret <span class="kw">of</span>
+<span class="fu">&gt;</span>       <span class="kw">Left</span> (req, next) <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="fu">&gt;</span>           <span class="fu">putStrLn</span> <span class="fu">$</span> <span class="st">&quot; requesting: &quot;</span> <span class="fu">++</span> <span class="fu">show</span> req
+<span class="fu">&gt;</span>           atomically (writeTChan o req)
+<span class="fu">&gt;</span>           runner next i o
+<span class="fu">&gt;</span>       <span class="kw">Right</span> ok <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> (<span class="st">&quot; result: &quot;</span><span class="fu">++show</span> ok) <span class="fu">&gt;&gt;</span> <span class="fu">return</span> ok</code></pre>
+<p>Will write a simple test function that require incremented value:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> upTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
+<span class="fu">&gt;</span> upTo n f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">&gt;=</span> n
+<span class="fu">&gt;</span>                      <span class="kw">then</span> <span class="kw">Right</span> <span class="fu">$</span> f x
+<span class="fu">&gt;</span>                      <span class="kw">else</span> <span class="kw">Left</span> ((x<span class="dv">+1</span>),  upTo n f)</code></pre>
+<p><em>Main&gt; run (runner (upTo 2 (</em>2))) (idGenerator) 0</p>
+<p>Loading package array-0.4.0.1 … linking … done.</p>
+<p>Loading package stm-2.4.2 … linking … done.</p>
+<p>input: 0 requesting: 1</p>
+<p>input: 1 requesting: 2</p>
+<p>input: 2 result: 4</p>
+<p>4</p>
+<p>So far so good but, but I’d like not to write requests explicitly, rather to use some ‘request’ function that will break flow:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> request ::</span> o <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a i
+<span class="fu">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="kw">Right</span> y)</code></pre>
+<p>*Main&gt; run (runner (request 5)) idGenerator 0</p>
+<p>input: 0 requesting: 5</p>
+<p>input: 5 result: 5</p>
+<p>5</p>
+<p>One thing is bad: we need an input to request a state, that input will be ignored, it seems that it’s not a problem and will never hit user, however I have no strong explanation.</p>
+<p>Now we need a way to compose such computation, not a problem, because this is a Category, so we need just to write an instance:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Category</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="fu">&gt;</span>     <span class="fu">id</span> <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> x
+<span class="fu">&gt;</span>     auto2 <span class="fu">.</span> auto1 <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
+<span class="fu">&gt;</span>               <span class="kw">let</span> out1 <span class="fu">=</span> stepAuto auto1 x
+<span class="fu">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
+<span class="fu">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
+<span class="fu">&gt;</span>                   <span class="kw">Left</span> (o,auto1') <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1'))</code></pre>
+<p>id will just return a result and have no effects. Composition will run internal computation and if it’s succeed start outter, otherwise continue to run new inner automata untill it succeeds.</p>
+<p>At this point we doesn’t gain many advantages as we have only composition of automata, and will have a problems once we will leave the types pipeline.</p>
+<p>Now we’ll define an arrow instance so we will be able to lift opaque functions to the Automata level and create a side channels to carry values alongside with computation:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="fu">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> (f x)
+<span class="fu">&gt;</span>     first (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \(x, y) <span class="ot">-&gt;</span> 
+<span class="fu">&gt;</span>         <span class="kw">let</span> next <span class="fu">=</span> f x
+<span class="fu">&gt;</span>         <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="fu">&gt;</span>             <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (b, y)
+<span class="fu">&gt;</span>             <span class="kw">Left</span>  a <span class="ot">-&gt;</span> arec (\z <span class="ot">-&gt;</span> (z,y)) a
+<span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> arec g (o, <span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="kw">Left</span> <span class="fu">$</span> 
+<span class="fu">&gt;</span>          (o, <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
+<span class="fu">&gt;</span>               <span class="kw">let</span> next <span class="fu">=</span> f x
+<span class="fu">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="fu">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (g b)
+<span class="fu">&gt;</span>                   <span class="kw">Left</span> y  <span class="ot">-&gt;</span> arec g y)</code></pre>
+<p>Arrow instance just lift a pure function to Automata level, and first run recursive automata and store result in the first box. This is great we can just compose our computation in a straight forward way saving a results alongside a computation</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test1 <span class="fu">=</span> request <span class="dv">5</span> <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         arr (\x <span class="ot">-&gt;</span> (x,x)) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         first (request <span class="dv">6</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> x<span class="fu">+</span>y)</code></pre>
+<p>*Main&gt; run (runner (test1)) (idGenerator 0)</p>
+<p>input: 0 requesting: 5</p>
+<p>input: 5 requesting: 6</p>
+<p>input: 6 result: 11</p>
+<p>11</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test2 <span class="fu">=</span> arr (\x <span class="ot">-&gt;</span> ((),x)) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         first (request <span class="dv">4</span>)  <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> <span class="kw">if</span> y<span class="fu">&gt;</span><span class="dv">5</span> <span class="kw">then</span> x<span class="fu">+</span>y <span class="kw">else</span> x<span class="fu">-</span>y)</code></pre>
+<p>*Main&gt; run (runner (test2)) idGenerator 6</p>
+<p>input: 6 requesting: 4</p>
+<p>input: 4 result: 10</p>
+<p>10</p>
+<p>*Main&gt; run (runner (test2)) idGenerator 4</p>
+<p>input: 4 requesting: 4</p>
+<p>input: 4 result: 0</p>
+<p>0</p>
+<p>As I said ‘request’ is not a problem as we can feed it with our internal value. Maybe we need to use Void there..</p>
+<p>But that’s not all we want to be able to choise between computations</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">ArrowChoice</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="fu">&gt;</span>   <span class="co">-- left :: a b c -&gt; a (Either b d) (Either c d)</span>
+<span class="fu">&gt;</span>   left (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
+<span class="fu">&gt;</span>           <span class="kw">Left</span> b <span class="ot">-&gt;</span> <span class="kw">let</span> next <span class="fu">=</span> f b
+<span class="fu">&gt;</span>                     <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="fu">&gt;</span>                         <span class="kw">Right</span> c <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Left</span> c)
+<span class="fu">&gt;</span>                         <span class="kw">Left</span> l <span class="ot">-&gt;</span> arec <span class="kw">Left</span> l
+<span class="fu">&gt;</span>           <span class="kw">Right</span> d <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Right</span> d)
+<span class="fu">&gt;</span>   </code></pre>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> test3 ::</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
+<span class="fu">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="kw">Left</span> y <span class="kw">else</span> <span class="kw">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         left (request <span class="dv">3</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         right (request <span class="dv">7</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="fu">&gt;</span>         arr (\x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
+<span class="fu">&gt;</span>                 <span class="kw">Left</span> x  <span class="ot">-&gt;</span> x
+<span class="fu">&gt;</span>                 <span class="kw">Right</span> y <span class="ot">-&gt;</span> y)</code></pre>
+<p>*Main&gt; run (runner (test3)) idGenerator 1</p>
+<p>input: 1 requesting: 7</p>
+<p>input: 7 result: 7</p>
+<p>7</p>
+<p>*Main&gt; run (runner (test3)) idGenerator 6</p>
+<p>input: 6 requesting: 3</p>
+<p>input: 3 result: 3</p>
+<p>3</p>
+<p>The only problem that it’s not very easy to write in such a style, thats what an arrow notation is done for:</p>
+<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> 
+<span class="fu">&gt;</span> test4 <span class="fu">=</span> proc x <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="fu">&gt;</span>     <span class="kw">if</span> x <span class="fu">&gt;</span> <span class="dv">5</span> 
+<span class="fu">&gt;</span>         <span class="kw">then</span> request <span class="dv">0</span> <span class="fu">-&lt;</span> () 
+<span class="fu">&gt;</span>         <span class="kw">else</span> request <span class="dv">10</span> <span class="fu">-&lt;</span> ()</code></pre>
+<p>*Main&gt; run (runner (test4)) idGenerator 6</p>
+<p>input: 6 requesting: 0</p>
+<p>input: 0 result: 0</p>
+<p>0</p>
+<p>*Main&gt; run (runner (test4)) idGenerator 1</p>
+<p>input: 1 requesting: 10</p>
+<p>input: 10 result: 10</p>
+<p>10</p>
+<p>Thats all, and thats really awesome: no more explicit function carrying, explicit RW-bus communication that implicilty coupled with all control flow.</p>
+<p>At the end I should note, that this is not all functionallity that was in my module, so I’m brifly name what is not present here and how to add it:</p>
+<ol style="list-style-type: decimal">
+<li><p>There is only one event listener. To fix it one just need to add a state to the runner that state should save all listeners, feed them input and collect output. It can be done in parallel (explicitly via forkIO/channels or implicilty via par)</p></li>
+<li><p>Listener can’t produce new listeners, it’s just a problem of outter type, it can be changed to o’ = (o, [Auto2]), where fst is result and Auto2 is new listeners.</p></li>
+<li><p>Listener can send only once command at a time - can be fixed by changing o to [o’].</p></li>
+<li><p>Listeners handle any event, there are two options: one write a wrapper that will validate any input and either return an unchanged automata with null request or all automatas should be tagged by their receive type and stored in a map.</p></li>
+</ol>
+<p>One big note this is just a learning matherial, if you want to do real world, start reading Ertugrul Söylemez and others about FRP.</p>
+<p>Help required:</p>
+<ul>
+<li><p>if you see any mistake feel free to correct me</p></li>
+<li><p>I don’t know how to correctly show a executed code blocks it lhs, if you know</p></li>
+</ul>
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+      Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+      <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+    </footer>
+  </div>
+</body>
+</html>
