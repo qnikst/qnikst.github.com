@@ -11,7 +11,7 @@ import Data.Monoid (mempty, mconcat, mappend)
 import Hakyll
 
 main :: IO ()
-main = hakyll $ do
+main = hakyllWith config $ do
   match "images/*" $ do
      route idRoute
      compile copyFileCompiler
@@ -65,6 +65,12 @@ main = hakyll $ do
                defaultContext)
         >>= loadAndApplyTemplate "templates/default.html" defaultContext
         >>= relativizeUrls
+     -- Create RSS feed as well
+    version "rss" $ do
+        route $ setExtension "xml"
+        compile $ loadAllSnapshots pattern "content"
+          >>= return . take 10 . recentFirst
+          >>= renderAtom (feedConfiguration title) feedCtx
 
     -- Index
   match "index.html" $ do
@@ -87,6 +93,14 @@ main = hakyll $ do
         >>= loadAndApplyTemplate "templates/default.html" defaultContext
         >>= relativizeUrls
 
+  -- Render RSS feed
+  create ["rss.xml"] $ do
+    route idRoute
+    compile $ do
+      loadAllSnapshots "posts/*" "content"
+        >>= return . take 10 . recentFirst
+        >>= renderAtom (feedConfiguration "All posts") feedCtx
+
   match "templates/*" $ compile $ templateCompiler
 
 
@@ -98,22 +112,32 @@ postCtx tags = mconcat
     , defaultContext
     ]
 
+feedCtx :: Context String
+feedCtx = mconcat
+    [ bodyField "description"
+    , defaultContext
+    ]
+
 postList :: Tags -> Pattern -> ([Item String] -> [Item String]) -> Compiler String
 postList tags pattern preprocess' = do
     postItemTpl <- loadBody "templates/postitem.html"
     posts <- preprocess' <$> loadAll pattern
     applyTemplateList postItemTpl (postCtx tags) posts
 
+config :: Configuration
+config = defaultConfiguration
+    { deployCommand = "rsync --checksum -ave _site/* ../qnikst.github.com"
+        }
 
 
 
-{-
-feedConfiguration :: FeedConfiguration
-feedConfiguration = FeedConfiguration
-    { feedTitle       = "SimpleBlog RSS feed."
-    , feedDescription = "A simple demo of an RSS feed created with Hakyll."
-    , feedAuthorName  = "Jasper Van der Jeugt"
-    , feedAuthorEmail = "test@example.com"
-    , feedRoot        = "http://example.com"
+
+
+feedConfiguration :: String -> FeedConfiguration
+feedConfiguration title = FeedConfiguration
+    { feedTitle       = "Qnikst blog RSS feed - " ++ title
+    , feedDescription = "here should be description.."
+    , feedAuthorName  = "Alexander Vershilov"
+    , feedAuthorEmail = "alexander.vershilov@gmail.com"
+    , feedRoot        = "http://qnikst.github.com"
     }
--}
