@@ -27,24 +27,24 @@
   </div>
   <div class="container">
     <div class="page-header">
-            <h1>2013-01-20-automata <small>by <em>Alexander Vershilov</em> on <strong>January 20, 2013</strong></small></h1>
+    <h1>2013-01-20-automata <br /><small><strong>January 20, 2013</strong></small></h1>
 </div>
 
 <p>About a half year ago I had a next task: I should run a list of event listeners on a wire and on each handled event that event listener can change (i.e. start listening another event, produce new event listeners, and send requests to the wire). Yes, sound like a FRP task, and once you are familar to FRP this article is not interested for you, except you may try to help me to generalize all logic.</p>
-<p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all theese computation had to carry additional information, so I end up with function approach: each function returns a command and next function and special runner change it’s state based on this information but I ended with some problems: functions were bloated, function should be written from the end to begining, all additional variables should be passed explicitelly through the functions, function can’t be composed as they had types constraints. It was a hell.. A day ago I have read the great arrows totorial http://ertes.de/new/tutorials/arrows.html by Ertugrul Söylemez, and realized that it was an arrow, after some thinking I’ve found a nice solution.</p>
-<p>This is a literate haskell port so you can just copy it and compile.</p>
+<p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all theese computation had to carry additional information, so I end up with function approach: each function returns a command and next function and special runner change it’s state based on this information but I ended with some problems: functions were bloated, function should be written from the end to begining, all additional variables should be passed explicitly through the functions, function can’t be composed as they had types constraints. It was a hell.. A day ago I have read the great arrows totorial http://ertes.de/new/tutorials/arrows.html by Ertugrul Söylemez, and realized that it was an arrow, after some thinking I’ve found a nice solution.</p>
+<p>This is a literate haskell post so you can just copy it and compile.</p>
 <p>We will need it at the very end to show arrow notation</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span></code></pre>
 <p>We need this for defining new arrow instance.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> ((<span class="fu">.</span>), <span class="fu">id</span>)
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Arrow</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Category</span></code></pre>
-<p>We need this for describing outter world</p>
+<p>We need this for describing outer world</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Monad</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent.STM</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Exception</span></code></pre>
-<p>Let’s prepare to solve our problem. At first we need to define an outter world bus i.e. an computation that can recieve requests, and sends responce. We define 2 channels for this purpose: input - requests, output - responce. This will not break generalization as you always can insert a channel based proxy between your computation and real-world bus.</p>
+<p>Let’s prepare to solve our problem. At first we need to define an outer world bus i.e. an computation that can recieve requests, and sends responce. We define 2 channels for this purpose: input - requests, output - responce. This will not break generalization as you always can insert a channel based proxy between your computation and real-world bus.</p>
 <p>So our realworld wrapper will look like:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> run ::</span> <span class="dt">FIO</span> a b c <span class="ot">-&gt;</span> <span class="dt">Generator</span> b c <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> a
 <span class="fu">&gt;</span> run f g i <span class="fu">=</span> 
@@ -122,7 +122,7 @@
 <span class="fu">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
 <span class="fu">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
 <span class="fu">&gt;</span>                   <span class="kw">Left</span> (o,auto1') <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1'))</code></pre>
-<p>id will just return a result and have no effects. Composition will run internal computation and if it’s succeed start outter, otherwise continue to run new inner automata untill it succeeds.</p>
+<p>id will just return a result and have no effects. Composition will run internal computation and if it’s succeed start outer, otherwise continue to run new inner automata untill it succeeds.</p>
 <p>At this point we doesn’t gain many advantages as we have only composition of automata, and will have a problems once we will leave the types pipeline.</p>
 <p>Now we’ll define an arrow instance so we will be able to lift opaque functions to the Automata level and create a side channels to carry values alongside with computation:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
@@ -204,7 +204,7 @@
 <p>At the end I should note, that this is not all functionallity that was in my module, so I’m brifly name what is not present here and how to add it:</p>
 <ol style="list-style-type: decimal">
 <li><p>There is only one event listener. To fix it one just need to add a state to the runner that state should save all listeners, feed them input and collect output. It can be done in parallel (explicitly via forkIO/channels or implicilty via par)</p></li>
-<li><p>Listener can’t produce new listeners, it’s just a problem of outter type, it can be changed to o’ = (o, [Auto2]), where fst is result and Auto2 is new listeners.</p></li>
+<li><p>Listener can’t produce new listeners, it’s just a problem of outer type, it can be changed to o’ = (o, [Auto2]), where fst is result and Auto2 is new listeners.</p></li>
 <li><p>Listener can send only once command at a time - can be fixed by changing o to [o’].</p></li>
 <li><p>Listeners handle any event, there are two options: one write a wrapper that will validate any input and either return an unchanged automata with null request or all automatas should be tagged by their receive type and stored in a map.</p></li>
 </ol>
@@ -214,6 +214,12 @@
 <li><p>if you see any mistake feel free to correct me</p></li>
 <li><p>I don’t know how to correctly show a executed code blocks it lhs, if you know</p></li>
 </ul>
+<hr></hr>
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
 
 
 <div id="disqus_thread"></div>
@@ -233,7 +239,6 @@
 
     <footer>
       Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
-      <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
     </footer>
   </div>
 </body>
