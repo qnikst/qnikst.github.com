@@ -56,7 +56,7 @@
 </ol>
 <p>newtype Auto2 &lt;..&gt; = Auto2 { stepAuto :: &lt;..&gt; }</p>
 <ol start="2" style="list-style-type: decimal">
-<li>as it’s an automata it should get input value of type a and return either a new value b or new computation:</li>
+<li>as it’s an automation it should get input value of type a and return either a new value b or new computation:</li>
 </ol>
 <p>newtype Auto2 &lt;..&gt; a b = Auto2 { stepAuto :: a -&gt; Either &lt;..&gt; b }</p>
 <ol start="3" style="list-style-type: decimal">
