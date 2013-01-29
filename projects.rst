@@ -28,10 +28,21 @@ My projects:
      | state      | unstable   |
      +------------+------------+
 
-Projects I involded:
-====================
+- `imagemagick-hs <http://github.com/qnikst/imagemagick/>`_
+  sage image magick bindings
+
+    +------------+---------------------+
+    | License    | BSD                 |
+    +------------+---------------------+
+    | Language   | haskell             |
+    +------------+---------------------+
+    | state      | stable (incomplete) |
+    +------------+---------------------+
+
+Projects I involded in:
+=======================
     
-    -   `Gentoo <http://gentoo.org/>`_ linux maintainer
+    -  `Gentoo <http://gentoo.org/>`_ linux maintainer
 
     -  `hackport <http://github.com/gentoo-haskell/hackport>`_ tool for
        creating ebuilds from hackage

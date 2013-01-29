@@ -38,6 +38,13 @@ main = hakyllWith config $ do
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
 
+  match "drafts/*" $ do
+    route $ setExtension ".html"
+    compile $ pandocCompiler
+      >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
+      >>= loadAndApplyTemplate "templates/default.html" defaultContext
+      >>= relativizeUrls
+
   -- Render posts list
   create ["posts.html"] $ do 
        route idRoute
