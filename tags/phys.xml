@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Qnikst blog RSS feed - Post tagged phys</title>
+    <link href="http://qnikst.github.com/tags/phys.xml" rel="self" />
+    <link href="http://qnikst.github.com" />
+    <id>http://qnikst.github.com/tags/phys.xml</id>
+    <author>
+        <name>Alexander Vershilov</name>
+        <email>alexander.vershilov@gmail.com</email>
+    </author>
+    <updated>2013-02-01T00:00:00Z</updated>
+    <entry>
+    <title>Формулы которые нужно знать</title>
+    <link href="http://qnikst.github.com/posts/2013-02-01-phys-formulae.html" />
+    <id>http://qnikst.github.com/posts/2013-02-01-phys-formulae.html</id>
+    <published>2013-02-01T00:00:00Z</published>
+    <updated>2013-02-01T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>
+<p>Уравнение теплопроводности:</p>
+<p><span class="math">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
+<p>Уравнение Лапласа:</p>
+<p><span class="math">\[\Delta f = 0\]</span></p>
+<p>Уравнение Пуассона:</p>
+<p><span class="math">\[\Delta f = g\]</span></p>
+<p>Уравнение Геймольца (эллептическое):</p>
+<p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
+<p>Волновое уравнение (гиперболическое):</p>
+<p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
+<p>Уравнение Шрёдингера</p>
+<p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
+<p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
+<p>Задача Штурма Лиуввиля:</p>
+<p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
+<p>Преобразование Лапласса:</p>
+<p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>]]></summary>
+</entry>
+
+</feed>

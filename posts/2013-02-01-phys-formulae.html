@@ -12,7 +12,7 @@
     </style>
     <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
-    yes
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 </head>
 <body>
   <div class="navbar navbar-fixed-top navbar-inverse">
@@ -31,23 +31,24 @@
     <h1>Формулы которые нужно знать <br /><small><strong>February  1, 2013</strong></small></h1>
 </div>
 
+<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>
 <p>Уравнение теплопроводности:</p>
-<p><br /><span class="math"><em>D</em><sub><em>t</em></sub><em>F</em> = <em>D</em><sub><em>x</em><em>x</em></sub><em>F</em> = <em>f</em>(<em>x</em>, <em>t</em>)</span><br /></p>
+<p><span class="math">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
 <p>Уравнение Лапласа:</p>
-<p><br /><span class="math">Δ <em>f</em> = 0</span><br /></p>
+<p><span class="math">\[\Delta f = 0\]</span></p>
 <p>Уравнение Пуассона:</p>
-<p><br /><span class="math">Δ <em>f</em> = <em>g</em></span><br /></p>
+<p><span class="math">\[\Delta f = g\]</span></p>
 <p>Уравнение Геймольца (эллептическое):</p>
-<p><br /><span class="math">(Δ  + <em>k</em><sup>2</sup>)<em>u</em> = <em>f</em></span><br /></p>
+<p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
 <p>Волновое уравнение (гиперболическое):</p>
-<p><br /><span class="math">$\Delta u = \frac{1}{v^2} D_{tt} u$</span><br /></p>
+<p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
 <p>Уравнение Шрёдингера</p>
-<p><br /><span class="math">$-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi$</span><br /></p>
-<p><br /><span class="math">$\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi$</span><br /></p>
+<p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
+<p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
 <p>Задача Штурма Лиуввиля:</p>
-<p><br /><span class="math">$\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0$</span><br /></p>
+<p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
 <p>Преобразование Лапласса:</p>
-<p><br /><span class="math"><em>F</em>(<em>x</em>) ≡ <em>L</em>{<em>f</em>(<em>t</em>)} = ∫ <sub>0</sub><sup> + ∞</sup><em>e</em><sup> − <em>t</em><em>s</em></sup><em>f</em>(<em>t</em>)<em>d</em><em>t</em></span><br /></p>
+<p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>
 <hr />
 <div class="pull-right">
     <em>Alexander Vershilov</em>
@@ -72,7 +73,7 @@
                                                                                                            
 
     <footer>
-      Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
     </footer>
   </div>
 </body>
