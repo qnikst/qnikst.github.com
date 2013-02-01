@@ -8,8 +8,32 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-01-20T00:00:00Z</updated>
+    <updated>2013-02-01T00:00:00Z</updated>
     <entry>
+    <title>Формулы которые нужно знать</title>
+    <link href="http://qnikst.github.com/posts/2013-02-01-phys-formulae.html" />
+    <id>http://qnikst.github.com/posts/2013-02-01-phys-formulae.html</id>
+    <published>2013-02-01T00:00:00Z</published>
+    <updated>2013-02-01T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Уравнение теплопроводности:</p>
+<p><br /><span class="math"><em>D</em><sub><em>t</em></sub><em>F</em> = <em>D</em><sub><em>x</em><em>x</em></sub><em>F</em> = <em>f</em>(<em>x</em>, <em>t</em>)</span><br /></p>
+<p>Уравнение Лапласа:</p>
+<p><br /><span class="math">Δ <em>f</em> = 0</span><br /></p>
+<p>Уравнение Пуассона:</p>
+<p><br /><span class="math">Δ <em>f</em> = <em>g</em></span><br /></p>
+<p>Уравнение Геймольца (эллептическое):</p>
+<p><br /><span class="math">(Δ  + <em>k</em><sup>2</sup>)<em>u</em> = <em>f</em></span><br /></p>
+<p>Волновое уравнение (гиперболическое):</p>
+<p><br /><span class="math">$\Delta u = \frac{1}{v^2} D_{tt} u$</span><br /></p>
+<p>Уравнение Шрёдингера</p>
+<p><br /><span class="math">$-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi$</span><br /></p>
+<p><br /><span class="math">$\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi$</span><br /></p>
+<p>Задача Штурма Лиуввиля:</p>
+<p><br /><span class="math">$\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0$</span><br /></p>
+<p>Преобразование Лапласса:</p>
+<p><br /><span class="math"><em>F</em>(<em>x</em>) ≡ <em>L</em>{<em>f</em>(<em>t</em>)} = ∫ <sub>0</sub><sup> + ∞</sup><em>e</em><sup> − <em>t</em><em>s</em></sup><em>f</em>(<em>t</em>)<em>d</em><em>t</em></span><br /></p>]]></summary>
+</entry>
+<entry>
     <title>2013-01-20-automata</title>
     <link href="http://qnikst.github.com/posts/2013-01-20-automata.html" />
     <id>http://qnikst.github.com/posts/2013-01-20-automata.html</id>

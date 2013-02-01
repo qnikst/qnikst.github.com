@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - announcing imagemagick-hs</title>
+    <title>Qnikst blog - Формулы которые нужно знать</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <style>
@@ -12,7 +12,7 @@
     </style>
     <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
-    
+    yes
 </head>
 <body>
   <div class="navbar navbar-fixed-top navbar-inverse">
@@ -28,28 +28,26 @@
   </div>
   <div class="container">
     <div class="page-header">
-    <h1>announcing imagemagick-hs <br /><small><strong>January 19, 2013</strong></small></h1>
+    <h1>Формулы которые нужно знать <br /><small><strong>February  1, 2013</strong></small></h1>
 </div>
 
-<p>I’m happy to announce new <a href="http://hackage.haskell.org/package/imagemagick">haskell binding library to imagemagick</a>.</p>
-<p>This library is similar to some other bindings. It has some good points:</p>
-<ol style="list-style-type: decimal">
-<li><p>it has friendly and helpfull maintainers, that willing to help it’s users</p></li>
-<li><p>it’s as safe as possible [1]</p></li>
-<li><p>it has basics for functional interfaces</p></li>
-<li><p>it has MagickWand interface</p></li>
-<li><p>it has built-in examples</p></li>
-</ol>
-<p>But not everything is good:</p>
-<ol style="list-style-type: decimal">
-<li><p>we have not ported all API. Really it’s not a problem once you can reqyest adding new functionallity or fix pull-request it =).</p></li>
-<li><p>it has known bugs and most of them related to imagemagick itself. I’m ready to investigate further if you will have problems with it.</p></li>
-<li><p>it has no haddock documentation. Sorry.. I always had troubles with documentation</p></li>
-<li><p>it uses modern version of imagemagick so it may lack some enum definitions. I’d like to find a safe way to use only defined enum values.</p></li>
-</ol>
-<p>About status and future of library:</p>
-<p>I had some cool plans for this bindings such as make full imagemagick API support and provide a functional/declarative inteface but unfortunatelly I have no time for this library. So all functionality will be added on demand, i.e. if you lack some features feel free to request it or pull-request.</p>
-<p>[1] library using resourcet for controlling external resources lifetime and scope, it’s not as safe as it could be possible with regions but unlucky regions regions are not working with recent GHC.</p>
+<p>Уравнение теплопроводности:</p>
+<p><br /><span class="math"><em>D</em><sub><em>t</em></sub><em>F</em> = <em>D</em><sub><em>x</em><em>x</em></sub><em>F</em> = <em>f</em>(<em>x</em>, <em>t</em>)</span><br /></p>
+<p>Уравнение Лапласа:</p>
+<p><br /><span class="math">Δ <em>f</em> = 0</span><br /></p>
+<p>Уравнение Пуассона:</p>
+<p><br /><span class="math">Δ <em>f</em> = <em>g</em></span><br /></p>
+<p>Уравнение Геймольца (эллептическое):</p>
+<p><br /><span class="math">(Δ  + <em>k</em><sup>2</sup>)<em>u</em> = <em>f</em></span><br /></p>
+<p>Волновое уравнение (гиперболическое):</p>
+<p><br /><span class="math">$\Delta u = \frac{1}{v^2} D_{tt} u$</span><br /></p>
+<p>Уравнение Шрёдингера</p>
+<p><br /><span class="math">$-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi$</span><br /></p>
+<p><br /><span class="math">$\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi$</span><br /></p>
+<p>Задача Штурма Лиуввиля:</p>
+<p><br /><span class="math">$\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0$</span><br /></p>
+<p>Преобразование Лапласса:</p>
+<p><br /><span class="math"><em>F</em>(<em>x</em>) ≡ <em>L</em>{<em>f</em>(<em>t</em>)} = ∫ <sub>0</sub><sup> + ∞</sup><em>e</em><sup> − <em>t</em><em>s</em></sup><em>f</em>(<em>t</em>)<em>d</em><em>t</em></span><br /></p>
 <hr />
 <div class="pull-right">
     <em>Alexander Vershilov</em>
