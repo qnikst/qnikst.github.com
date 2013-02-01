@@ -722,3 +722,26 @@ runner2 ext autos = do
                                 in (ls, mempty)
 run2 f g = runner g f
 \end{code}
+
+
+Now we use multiple handlers, the only problem is that we can't start next 
+step untils previous is done, and all handlers are run in sequence.
+
+However we can use parallel execution of handlers Either explicitly by
+\texttt{forkIO} / \texttt{async}, or by working if we will send requests
+previously created workers via STM channel, or implicit parallelistion
+by \texttt{parMap rseq}.
+
+If one handler can run very long time then you can hide in behind wrapper.
+Here is an idea (however it's not work yet):
+
+
+\begin{enumerate}
+  \item create a wrapper that should return \texttt{TChan} and \texttt{TMVar}
+    for responce and fork automation runner
+  \item on each query try to get result from \texttt{TMVar} if it's there -
+    return take it and proceed as usual, otherwise put request into channel
+  \item in automation runner - run automation as usual but when new value is
+    requested try to take next value from channel, if it's there - process
+    it otherwise but automation into result box.
+\end{enumerate}    

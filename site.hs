@@ -7,7 +7,7 @@ import Prelude hiding (id)
 import Control.Category (id)
 import Control.Applicative
 import Text.Pandoc
-import Data.Monoid (mempty, mconcat, mappend)
+import Data.Monoid (mempty, mconcat, mappend, (<>))
 import qualified Data.Map as M
 
 import Hakyll
@@ -33,11 +33,11 @@ main = hakyllWith config $ do
   -- Render posts
   match "posts/*" $ do
     route $ setExtension ".html"
-    compile $ pandocCompiler
+    compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
       >>= saveSnapshot "content"
       >>= return . fmap demoteHeaders
       >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
-      >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
+      >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
       >>= relativizeUrls
 
   match "drafts/*" $ do
@@ -57,7 +57,7 @@ main = hakyllWith config $ do
                   (constField "title" "Posts" `mappend`
                    constField "posts" list    `mappend`
                    defaultContext)
-            >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
+            >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
             >>= relativizeUrls
 
   -- Post tags
@@ -73,7 +73,7 @@ main = hakyllWith config $ do
                constField "posts" list    `mappend`
                mathCtx                    `mappend`
                defaultContext)
-        >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
+        >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
         >>= relativizeUrls
      -- Create RSS feed as well
     version "rss" $ do
