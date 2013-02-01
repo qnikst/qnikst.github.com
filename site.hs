@@ -6,7 +6,9 @@ module Main
 import Prelude hiding (id)
 import Control.Category (id)
 import Control.Applicative
+import Text.Pandoc
 import Data.Monoid (mempty, mconcat, mappend)
+import qualified Data.Map as M
 
 import Hakyll
 
@@ -35,14 +37,14 @@ main = hakyllWith config $ do
       >>= saveSnapshot "content"
       >>= return . fmap demoteHeaders
       >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
-      >>= loadAndApplyTemplate "templates/default.html" defaultContext
+      >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
       >>= relativizeUrls
 
   match "drafts/*" $ do
     route $ setExtension ".html"
-    compile $ pandocCompiler
+    compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
       >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
-      >>= loadAndApplyTemplate "templates/default.html" defaultContext
+      >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
       >>= relativizeUrls
 
   -- Render posts list
@@ -55,7 +57,7 @@ main = hakyllWith config $ do
                   (constField "title" "Posts" `mappend`
                    constField "posts" list    `mappend`
                    defaultContext)
-            >>= loadAndApplyTemplate "templates/default.html" defaultContext
+            >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
             >>= relativizeUrls
 
   -- Post tags
@@ -69,8 +71,9 @@ main = hakyllWith config $ do
         >>= loadAndApplyTemplate "templates/posts.html"
                (constField "title" "Posts" `mappend`
                constField "posts" list    `mappend`
+               mathCtx                    `mappend`
                defaultContext)
-        >>= loadAndApplyTemplate "templates/default.html" defaultContext
+        >>= loadAndApplyTemplate "templates/default.html" (defaultContext `mappend` mathCtx)
         >>= relativizeUrls
      -- Create RSS feed as well
     version "rss" $ do
@@ -86,6 +89,7 @@ main = hakyllWith config $ do
         list <- postList tags "posts/*" $ take 3 . recentFirst
         let indexContext = constField "posts" list `mappend`
                            field "tags" (\_ -> renderTagList tags) `mappend`
+                           mathCtx `mappend`
                            defaultContext
         getResourceBody
             >>= applyAsTemplate indexContext
@@ -97,7 +101,8 @@ main = hakyllWith config $ do
   match (fromList ["projects.rst","contact.markdown"]) $ do
     route $ setExtension ".html"
     compile $ pandocCompiler
-        >>= loadAndApplyTemplate "templates/default.html" defaultContext
+        >>= loadAndApplyTemplate "templates/default.html" 
+                (mathCtx `mappend` defaultContext)
         >>= relativizeUrls
 
   -- Render RSS feed
@@ -136,8 +141,15 @@ config = defaultConfiguration
     { deployCommand = "rsync --checksum -ave _site/* ../qnikst.github.com"
         }
 
+pandocOptions :: WriterOptions
+pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax "" }
 
-
+mathCtx :: Context a
+mathCtx = field "mathjax" $ \item -> do
+    metadata <- getMetadata $ itemIdentifier item
+    return $ if "mathjax" `M.member` metadata
+                then "<script type=\"text/javascript\" src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+                else ""
 
 
 feedConfiguration :: String -> FeedConfiguration
