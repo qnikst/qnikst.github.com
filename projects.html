@@ -10,7 +10,7 @@
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
       }
     </style>
-    <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
     <script src="./js/bootstrap.min.js"></script>
     
 </head>
@@ -27,83 +27,62 @@
       </div>
   </div>
   <div class="container">
-    <h1>My projects:</h1>
-<ul>
-<li><dl>
-<dt><a href="http://github.com/qnikst/kbdd/">kbdd</a></dt>
-<dd><p>small layout switching utility that stores each window layout</p>
-<blockquote>
-<table>
-<col width="16%" />
-<col width="16%" />
-<tbody>
-<tr class="odd">
-<td align="left">License</td>
-<td align="left">GPLv3</td>
-</tr>
-<tr class="even">
-<td align="left">Language</td>
-<td align="left">C + glib</td>
-</tr>
-<tr class="odd">
-<td align="left">state</td>
-<td align="left">unstable</td>
-</tr>
-</tbody>
-</table>
-</blockquote>
-</dd>
-</dl></li>
-<li><p><a href="http://github.com/qnikst/numeric-ode/">numeric ODE solvers</a> learning library to solve different ODE preserving integrals this project aim to be a testing field for solving</p>
-<blockquote>
-<table>
-<col width="16%" />
-<col width="16%" />
-<tbody>
-<tr class="odd">
-<td align="left">License</td>
-<td align="left">BSD</td>
-</tr>
-<tr class="even">
-<td align="left">Language</td>
-<td align="left">haskell</td>
-</tr>
-<tr class="odd">
-<td align="left">state</td>
-<td align="left">unstable</td>
-</tr>
-</tbody>
-</table>
-</blockquote></li>
-<li><p><a href="http://github.com/qnikst/imagemagick/">imagemagick-hs</a> sage image magick bindings</p>
-<blockquote>
-<table>
-<col width="16%" />
-<col width="27%" />
-<tbody>
-<tr class="odd">
-<td align="left">License</td>
-<td align="left">BSD</td>
-</tr>
-<tr class="even">
-<td align="left">Language</td>
-<td align="left">haskell</td>
-</tr>
-<tr class="odd">
-<td align="left">state</td>
-<td align="left">stable (incomplete)</td>
-</tr>
-</tbody>
-</table>
-</blockquote></li>
+    Пишу очевидную вещь: 
+
+Пишу очевидную вещь: 
+iПишу очевидную вещь: 
+
+<script type="text/javascript">
+function equalHeight(group) {    
+   tallest = 0;    
+   group.each(function() {       
+     thisHeight = $(this).height();       
+     if(thisHeight > tallest) {          
+        tallest = thisHeight;       
+     }    
+   });    
+   group.each(function() { $(this).height(tallest); });
+} 
+
+$(document).ready(function() {   
+  equalHeight($(".thumbnail")); 
+});
+</script>
+
+<h2>My projects:</h2>
+
+<ul class="thumbnails">
+    <li class="span4">
+      <div class="thumbnail">
+          <a href="http://github.com/qnikst/kbdd/">kbdd</a><br />
+          small layout switching utility that stores each window layout
+          <table>
+            <tr><td>License</td><td>GPL3</td></tr>
+            <tr><td>Language</td><td>C + glib</td></tr>
+            <tr><td>State</td><td>unstable</td></tr>
+        </table>
+      <div>
+    </li>
+    <li class="span4">
+      <div class="thumbnail">
+          <a href="http://github.com/qnikst/imagemagick/">imagemagick-hs</a><br />
+          safe image magick bindings
+          <table>
+            <tr><td>License</td><td>GPL3</td></tr>
+            <tr><td>Language</td><td>haskell</td></tr>
+            <tr><td>State</td><td>stable</td></tr>
+        </table>
+      <div>
+    </li>
 </ul>
-<h1>Projects I involded in:</h1>
-<blockquote>
+
+<h2> Projects I involved in</h2>
+    
 <ul>
-<li><p><a href="http://gentoo.org/">Gentoo</a> linux maintainer</p></li>
-<li><p><a href="http://github.com/gentoo-haskell/hackport">hackport</a> tool for creating ebuilds from hackage</p></li>
+    <li> <a href="http://gentoo.org">Gentoo linux</a> maintainer</li>
+    <li> <a href="http://github.com/gentoo-haskell/hackport">hackport</a> tool for  creating ebuilds from hackage</li>
 </ul>
-</blockquote>
+
     <footer>
     Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
     </footer>

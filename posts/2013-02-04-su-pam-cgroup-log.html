@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Сохранение всех задач su- в свою cgroup.</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+    <h1>Сохранение всех задач su- в свою cgroup. <br /><small><strong>February  4, 2013</strong></small></h1>
+</div>
+
+<p>Стоит задача: необходимо все программы запущенные через ‘su’ определить в собственные cgroups. Это можно сделать за три простые шага.</p>
+<ol style="list-style-type: decimal">
+<li>инициализируем нужную цгруппу, для этого нам нужна именованная группа, чтобы исключить пересечение с системными группами: (данный шаг желательно делегировать системе инициализации дистрибутива)</li>
+</ol>
+<pre class="shell"><code>  localhost qnikst # mkdir /sys/fs/cgroup/su-log
+  localhost qnikst # mount -n -t cgroup -o none,nodev,noexec,nosuid,name=test test /sys/fs/cgroup/su-log</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
+</ol>
+<pre class="sourceCode bash"><code class="sourceCode bash">localhost qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
+<span class="co">#!/bin/sh</span>
+<span class="ot">p=</span>/sys/fs/cgroup/su-log/<span class="ot">${PAM_RUSER}</span>
+<span class="kw">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
+   <span class="kw">mkdir</span> <span class="ot">${p}</span>
+<span class="kw">echo</span> <span class="ot">${PPID}</span> <span class="kw">&gt;</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span>/tasks</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>пишем правило для pam.d (логи опциональны)</li>
+</ol>
+<pre><code>session    optional             pam_exec.so   log=/var/log/pam_test_su.log seteuid /usr/local/bin/pam_exec_test.sh</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li>наслаждаемся результатом.</li>
+</ol>
+<p>В данном решении есть проблема: будучи суперпользователем пользователь может перемещать свои задачи по cgroup-ам, для решения этой проблемы нужно писать политику selinux запрещающую переносить задачи выше, чем cgroup породившего их процесса.</p>
+<hr />
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+</body>
+</html>
