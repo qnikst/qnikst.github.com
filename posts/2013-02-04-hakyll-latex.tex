@@ -1,0 +1,91 @@
+----
+author: Alexander Vershilov
+date: 2013/02/04
+title: Using mathjax latex formula with Pandoc-4
+tags: hakyll, latex, web
+mathjax: 1
+----
+
+Recently I've checked a list of manuals for pandoc and latex, but they
+were quite outdated.
+
+The problems that by default pandoc tries to use utf only to render
+formulas but it's doesn't work in many cases. Best solution would be
+\href{http://www.mathjax.org/}{mathjax} as it will work in majority of
+brousers unlike mathml.
+
+To set up hakyll to use latex one need to set pandoc compiler options:
+
+\begin{verbatim}
+    -- ...
+    compile \$ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
+    -- ...
+
+pandocOptions :: WriterOptions
+pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax "" }
+\end{verbatim}
+
+But you will have to add mathjax url to pages where you have math, and do
+nothing at pages without. So do so you can add a special marker to page 
+header
+
+\begin{verbatim}
+----
+....
+mathjax: on
+---
+\end{verbatim}
+
+and then add a special context that will check marker it sill populate field
+mathjax with either script url or nothing
+
+\begin{verbatim}
+mathCtx :: Context a
+mathCtx = field "mathjax" $ \item -> do
+    metadata <- getMetadata $ itemIdentifier item
+    return $ if "mathjax" `M.member` metadata
+                  then "<script type=\"text/javascript\" src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+                  else ""
+\end{verbatim}
+
+now you need to add \$mathjax\$ value to your tempate and add math context to
+your context (I've used default.html)
+
+\begin{verbatim}
+<head>
+    ...
+    <script src="/js/bootstrap.min.js"></script>
+    $mathjax$
+</head>
+\end{verbatim}
+
+\begin{verbatim}
+  match "posts/*" $ do
+      route $ setExtension ".html"
+      compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
+         >>= saveSnapshot "content"
+         >>= return . fmap demoteHeaders
+         >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
+         >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
+         >>= relativizeUrls
+\end{verbatim}
+
+thats all
+
+Example:
+
+\newcommand\g{{\gamma}}
+
+\[
+    M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
+M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]
+and
+\[
+    \g_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.
+\]
+Such as  $C_1=0$ and
+\[
+    \dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{\g_3}-\dfrac{4\beta_2\g_1M_2(1-q_k)}{\g_3}\,,
+\]
+
+

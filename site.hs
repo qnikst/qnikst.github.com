@@ -91,7 +91,7 @@ main = hakyllWith config $ do
   match "index.html" $ do
       route idRoute
       compile $ do
-        list <- postList tags "posts/*" $ take 3 . recentFirst
+        list <- postList tags "posts/*" $ take 10 . recentFirst
         let indexContext =  constField "posts" list 
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
