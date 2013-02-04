@@ -11,6 +11,7 @@ import Data.Monoid (mempty, mconcat, mappend, (<>))
 import qualified Data.Map as M
 
 import Hakyll
+import Hakyll.Web.Pandoc
 
 main :: IO ()
 main = hakyllWith config $ do
@@ -22,6 +23,10 @@ main = hakyllWith config $ do
   match "css/*" $ do
     route idRoute
     compile compressCssCompiler
+
+  match "js/*" $ do
+    route idRoute
+    compile copyFileCompiler
 
   match "tmp/index.html" $ do
     route idRoute
@@ -87,10 +92,10 @@ main = hakyllWith config $ do
       route idRoute
       compile $ do
         list <- postList tags "posts/*" $ take 3 . recentFirst
-        let indexContext = constField "posts" list `mappend`
-                           field "tags" (\_ -> renderTagList tags) `mappend`
-                           mathCtx `mappend`
-                           defaultContext
+        let indexContext =  constField "posts" list 
+                         <> field "tags" (\_ -> renderTagList tags)
+                         <> mathCtx
+                         <> defaultContext
         getResourceBody
             >>= applyAsTemplate indexContext
             >>= loadAndApplyTemplate "templates/default.html" indexContext
@@ -98,7 +103,14 @@ main = hakyllWith config $ do
 
 
   -- Render some static pages
-  match (fromList ["projects.rst","contact.markdown"]) $ do
+  match "projects.html" $ do
+    route idRoute
+    compile $ getResourceBody
+        >>= loadAndApplyTemplate "templates/default.html" 
+                (mathCtx `mappend` defaultContext)
+        >>= relativizeUrls
+
+  match (fromList ["contact.markdown"]) $ do
     route $ setExtension ".html"
     compile $ pandocCompiler
         >>= loadAndApplyTemplate "templates/default.html" 

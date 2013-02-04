@@ -1,0 +1,58 @@
+---
+title: My projects
+---
+Пишу очевидную вещь: 
+
+Пишу очевидную вещь: 
+iПишу очевидную вещь: 
+
+<script type="text/javascript">
+function equalHeight(group) {    
+   tallest = 0;    
+   group.each(function() {       
+     thisHeight = $(this).height();       
+     if(thisHeight > tallest) {          
+        tallest = thisHeight;       
+     }    
+   });    
+   group.each(function() { $(this).height(tallest); });
+} 
+
+$(document).ready(function() {   
+  equalHeight($(".thumbnail")); 
+});
+</script>
+
+<h2>My projects:</h2>
+
+<ul class="thumbnails">
+    <li class="span4">
+      <div class="thumbnail">
+          <a href="http://github.com/qnikst/kbdd/">kbdd</a><br />
+          small layout switching utility that stores each window layout
+          <table>
+            <tr><td>License</td><td>GPL3</td></tr>
+            <tr><td>Language</td><td>C + glib</td></tr>
+            <tr><td>State</td><td>unstable</td></tr>
+        </table>
+      <div>
+    </li>
+    <li class="span4">
+      <div class="thumbnail">
+          <a href="http://github.com/qnikst/imagemagick/">imagemagick-hs</a><br />
+          safe image magick bindings
+          <table>
+            <tr><td>License</td><td>GPL3</td></tr>
+            <tr><td>Language</td><td>haskell</td></tr>
+            <tr><td>State</td><td>stable</td></tr>
+        </table>
+      <div>
+    </li>
+</ul>
+
+<h2> Projects I involved in</h2>
+    
+<ul>
+    <li> <a href="http://gentoo.org">Gentoo linux</a> maintainer</li>
+    <li> <a href="http://github.com/gentoo-haskell/hackport">hackport</a> tool for  creating ebuilds from hackage</li>
+</ul>
