@@ -46,15 +46,15 @@
     <published>2013-02-04T00:00:00Z</published>
     <updated>2013-02-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Recently I’ve checked a list of manuals for pandoc and latex, but they were quite outdated.</p>
-<p>The problems that by default pandoc tries to use utf only to render formulas but it’s doesn’t work in many cases. Best solution would be <a href="http://www.mathjax.org/">mathjax</a> as it will work in majority of brousers unlike mathml.</p>
-<p>To set up hakyll to use latex one need to set pandoc compiler options:</p>
+<p>The problems that by default pandoc tries to use utf only to render formulas but it doesn’t work in many cases. Best solution would be <a href="http://www.mathjax.org/">mathjax</a> as it will work in majority of brousers unlike mathml.</p>
+<p>To set up hakyll to use latex one needs to set pandoc compiler options:</p>
 <pre><code>    -- ...
     compile \$ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
     -- ...
 
 pandocOptions :: WriterOptions
 pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax &quot;&quot; }</code></pre>
-<p>But you will have to add mathjax url to pages where you have math, and do nothing at pages without. So do so you can add a special marker to page header</p>
+<p>But you will have to add mathjax url to pages where you have math, and do nothing at pages without. So you can add a special marker to page header</p>
 <pre><code>----
 ....
 mathjax: on
@@ -80,7 +80,7 @@ mathCtx = field &quot;mathjax&quot; $ \item -&gt; do
          &gt;&gt;= loadAndApplyTemplate &quot;templates/post.html&quot; (postCtx tags)
          &gt;&gt;= loadAndApplyTemplate &quot;templates/default.html&quot; (mathCtx `mappend` defaultContext)
          &gt;&gt;= relativizeUrls</code></pre>
-<p>thats all</p>
+<p>that’s all</p>
 <p>Example:</p>
 <p><span class="math">\[M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
 M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and <span class="math">\[{\gamma}_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.\]</span> Such as <span class="math">\(C_1=0\)</span> and <span class="math">\[\dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{{\gamma}_3}-\dfrac{4\beta_2{\gamma}_1M_2(1-q_k)}{{\gamma}_3}\,,\]</span></p>]]></summary>
@@ -98,16 +98,16 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p><span class="math">\[\Delta f = 0\]</span></p>
 <p>Уравнение Пуассона:</p>
 <p><span class="math">\[\Delta f = g\]</span></p>
-<p>Уравнение Геймольца (эллептическое):</p>
+<p>Уравнение Геймгольца (эллептическое):</p>
 <p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
 <p>Волновое уравнение (гиперболическое):</p>
 <p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
 <p>Уравнение Шрёдингера</p>
 <p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
 <p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
-<p>Задача Штурма Лиуввиля:</p>
+<p>Задача Штурма-Лиувилля:</p>
 <p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
-<p>Преобразование Лапласса:</p>
+<p>Преобразование Лапласа:</p>
 <p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>]]></summary>
 </entry>
 <entry>

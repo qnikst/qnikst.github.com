@@ -31,43 +31,43 @@
     <h1>Dynamic event handling model using Arrows <br /><small><strong>January 27, 2013</strong></small></h1>
 </div>
 
-<p>This post describes a simple approach to dynamic event handling that gives a way to write complex event handlers with feedback in a natural way. This approach is interesting as a first step to create a complex FRP system, and for simple tasks where such solution is a sufficient.</p>
+<p>This post describes simple approach to dynamic event handling that gives a way to write complex event handlers with feedback in a natural way. This approach is interesting as a first step to create a complex FRP system, but it is sufficient for simple tasks.</p>
 <h1>Preface</h1>
-<p>About a half year ago I had a next task: I should run a list of event listeners on a wire and on each handled event event listeners can change (i.e. start listening another event, produce new event listeners, and send requests to the wire). It sounds like a FRP task, and once you are familar to FRP this post may be not interesting for you, except you may try to help me to generalize all logic.</p>
-<p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all these computation had to carry additional information, so I end up with function approach: each function returns a command and next function and special runner change it’s state based on this information but I ended with some problems: functions were bloated, function should be written from the end to begining, all additional variables should be passed explicitly through the functions, function can’t be composed as they had types constraints. It was a hell.. Few days ago I have read the great a <a href="http://ertes.de/new/tutorials/arrows.html">arrows tutorial</a> by Ertugrul Söylemez, and realized that it was an arrow, after some thinking I’ve found a nice solution.</p>
-<h1>Problem</h1>
-<p>This post is a literate haskell post so you can copy in and run in ghci. So at first we will add some imports:</p>
+<p>About a half year ago I had the following task: I should run a list of event listeners on a wire and on each handled event listeners may change their behaviour (i.e. start listening for another event, produce new event listeners or send requests on the wire). It sounds like a FRP task and once you are familar with FRP this post may be not so interesting to you, except you may try to help me to generalize all the logic.</p>
+<p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all these computation had to carry additional information. So I ended up with the functional approach: each function returns a command and the next function with help of some special runner changes it’s state based on this information but as a result I faced some problems: functions were bloated, they should be written in reversed order, all additional variables should be passed explicitly from function to function and those function can’t be composed as they had types constraints. It was a hell.. Few days ago I have read the great <a href="http://ertes.de/new/tutorials/arrows.html">arrows tutorial</a> by Ertugrul Söylemez and realized that the construction I had was an arrow and after some thinking I’ve found a nice solution.</p>
+<h1>The problem</h1>
+<p>This post is a literate haskell post so you can copy and run it in ghci. So at first we will add some imports:</p>
 <p>We need this for defining new arrow instance.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> ((<span class="fu">.</span>), <span class="fu">id</span>)
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Arrow</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Category</span></code></pre>
-<p>We need theese imports to define External world.</p>
+<p>The following imports are used to define External world.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Applicative</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Monad</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent.STM</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Exception</span>
 <span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Data.Monoid</span></code></pre>
-<p>Assume have an External interface, this means some asynchonous interface to external system that have a simple API:</p>
+<p>Let’s assume that we have an External interface, this means some asynchonous interface to external system that have a simple API:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">data</span> <span class="dt">External</span> a b <span class="fu">=</span> <span class="dt">External</span> 
 <span class="fu">&gt;</span>         {<span class="ot"> input ::</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> () <span class="co">-- ^ write to a wire</span>
-<span class="fu">&gt;</span>         ,<span class="ot"> output ::</span> <span class="dt">IO</span> b      <span class="co">-- ^ read a wire</span>
+<span class="fu">&gt;</span>         ,<span class="ot"> output ::</span> <span class="dt">IO</span> b      <span class="co">-- ^ read from a wire</span>
 <span class="fu">&gt;</span>         }</code></pre>
-<p>This interface has next properties:</p>
+<p>This interface has the following properties:</p>
 <ul>
-<li><p>we can write requests and interface will asynchonously answer</p></li>
-<li><p>interface can generate events on it’s own.</p></li>
+<li><p>we may write requests and interface will asynchonously answer</p></li>
+<li><p>interface may generate events on it’s own.</p></li>
 </ul>
-<p>We want to be able to write an event handlers that can catch events that are needed, request a wire and get responces. So we want to be able to</p>
+<p>We want to be able to write event handlers that will catch events that are needed, request a wire and get responses. So we want to be able to</p>
 <ol>
 <li><p>catch events that we need</p></li>
-<li><p>request wire</p></li>
+<li><p>request a wire</p></li>
 <li><p>carry a local variables</p></li>
 <li><p>have if-branches</p></li>
 <li><p>have a possibility to write all above in a natural way</p></li>
 </ol>
-<p>What it meast that we want to be able to write a handlers in the next way:</p>
+<p>It means that we want to be able to write a handlers like:</p>
 <pre><code>desiredHandler = do
   e &lt;- catchEvent -- 1
   let val = ...   -- 3
@@ -75,11 +75,11 @@
   if f resp 
     then monadic1ThatUsesVal
     else monadic2ThatUsesVal</code></pre>
-<p>In the main part of this article we will ignore 1 and it will be shown that we don’t loose generality. So now we think that we match any event. Also we will use only one event handler, instead on a multiple ones, like above we doesn’t loose any generality and will show a way to improve this.</p>
-<p>Without 4 and 5, we can just use have a function (F:: (c -&gt; Either (b,F) d), that returns either a next step or a result. There are a several problems in this aproach, all сводятся к that this functions doesn’t form a monad. This is because monad is a sequencial computation that can lift opaque function into it, while we should have a computation that ca. The solution is to write a category and an arrow notation.</p>
-<p>In second section we will set up our world will write our datatype, in section 3 we will write a request reply functionality over the wire and set up instances we need. In section 4 we will take a look at events and write helpers. Section 5 describes how to run multiple handlers in parrallel and some words about parallelization.</p>
+<p>In the main part of this article we will ignore 1 and it will be shown later that we don’t loose generality. So now we assume that we match any event. Also we will use just one event handler instead of multiple handlers and as it was said above we doesn’t loose any generality.</p>
+<p>Without items 4 and 5, we may just use a function (F:: (c -&gt; Either (b,F) d) that returns either a next step or a result. There are a several problems with this aproach all of which lead to the point that these functions do not form a monad. That’s because monad is a sequential computation that can lift opaque function into it while we should have a computation that can access it’s state. The solution is to write a category and arrow instances for our datatype.</p>
+<p>In the second section of this post we will set up our world and write our datatype, in In the section 3 we will write a request-reply functionality for the wire and set up instances we need. In the section 4 we will take a look at events and write helpers. Section 5 describes how to run multiple handlers in parrallel and some words about parallelization.</p>
 <h1>External world</h1>
-<p>At first we need to write an External instance that we will use in our program. We will use 2 STM channels one for requests another for responces and events:</p>
+<p>At first we need to write an External instance that we will use in our program. We will use 2 STM channels one for requests another for responses and events:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> initialize ::</span> <span class="dt">IO</span> (<span class="dt">External</span> a b, (<span class="dt">TChan</span> a, <span class="dt">TChan</span> b))
 <span class="fu">&gt;</span> initialize <span class="fu">=</span> <span class="kw">do</span>
 <span class="fu">&gt;</span>       i <span class="ot">&lt;-</span> newTChanIO
@@ -87,14 +87,14 @@
 <span class="fu">&gt;</span>       <span class="fu">return</span> (<span class="dt">External</span> { input <span class="fu">=</span> atomically <span class="fu">.</span> (writeTChan i)
 <span class="fu">&gt;</span>                        , output <span class="fu">=</span> atomically <span class="fu">.</span> readTChan <span class="fu">$</span> o}, (i, o))</code></pre>
 <p>At this moment we again doesn’t loose any generality as we always can write such a wrapper for any type of IO communication. (TODO examples?).</p>
-<p>To emulate an exernal system responces we will use a generator, this a function that generates a request for the given responce:</p>
+<p>To emulate external system responses we will use a generator: a function that generates request for response given to it:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">Generator</span> a b <span class="fu">=</span> <span class="dt">TChan</span> a <span class="ot">-&gt;</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
 <span class="fu">&gt;</span> 
 <span class="fu">&gt;</span><span class="ot"> idGenerator ::</span> <span class="dt">Generator</span> a a
 <span class="fu">&gt;</span> idGenerator <span class="fu">=</span> fGenerator <span class="fu">id</span>
 <span class="fu">&gt;</span><span class="ot"> fGenerator ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> <span class="dt">Generator</span> a b
 <span class="fu">&gt;</span> fGenerator f ic oc <span class="fu">=</span> forever <span class="fu">.</span> atomically <span class="fu">$</span> readTChan ic <span class="fu">&gt;&gt;=</span> writeTChan oc <span class="fu">.</span> f</code></pre>
-<p>Now we can provide an environment function for our experiments, note that because of our logic is bus driven we need to pass first value to initialize logic.</p>
+<p>Now we can provide an environment function for our experiments, note that because our logic is bus driven we need to pass first value for initialization.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> experiment' f g i (e, c<span class="fu">@</span>(in_,out_)) <span class="fu">=</span> 
 <span class="fu">&gt;</span>   bracket (forkIO <span class="fu">$</span> atomically (writeTChan in_ i) <span class="fu">&gt;&gt;</span> <span class="fu">uncurry</span> g c)
 <span class="fu">&gt;</span>           killThread
@@ -102,18 +102,19 @@
 <span class="fu">&gt;</span> experiment f g i <span class="fu">=</span> initialize <span class="fu">&gt;&gt;=</span> experiment' f g i</code></pre>
 <h2>Request-Reply</h2>
 <p>Now we can construct our datatypes.</p>
-<p>We need to define an finite automata, that can either finish it’s computation or return next state. Will write a type for it:</p>
+<p>We need to define finite automata that can either finish it’s computation or return its next state. Let’s write type for it:</p>
 <ol>
-<li><p>it will be a newtype (let’s name Auto 2) that has step function</p>
+<li><p>it will be a newtype (let’s name Auto 2) that has some step function</p>
 <p>newtype Auto2 &lt;..&gt; = Auto2 stepAuto :: &lt;..&gt;</p></li>
-<li><p>as it’s an automation it should get input value of type ’a’ and return either a new value ’b’ or new computation:</p>
+<li><p>as it’s an automaton it should get an input value of type ’a’ and return either a new value ’b’ or a new computation:</p>
 <p>newtype Auto2 &lt;..&gt; a b = Auto2 stepAuto :: a -&gt; Either &lt;..&gt; b</p></li>
-<li><p>we need to carry information about external bus through all computations, so we can request it on any level and theese types can’t change:</p>
+<li><p>we need to pass information about external bus through all computations, so we can request it on any level. Note that we types of request and response do not change during computation:</p>
 <p>newtype Auto2 i o a b = Auto2 stepAuto :: a -&gt; Either (o, &lt;..&gt;) b</p></li>
-<li><p>final note is that if we return a new value request than our type is bound by external-bus: Auto i o i b. So finally we get:</p></li>
+<li><p>final note is that if we return a request and an automaton that we need to run than it’s type is bound by request/responce types: Auto i o i b.</p></li>
 </ol>
+<p>So finally we get:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">newtype</span> <span class="dt">Auto2</span> i o a b <span class="fu">=</span> <span class="dt">Auto2</span> {<span class="ot"> stepAuto ::</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> (o, <span class="dt">Auto2</span> i o i b) b}</code></pre>
-<p>As our datatype is a computation, and not a function we need to write explicit runner: function that will call our computation.</p>
+<p>As our datatype is a computation and not a function we need to write explicit runner for it.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> runner ::</span> (<span class="kw">Show</span> i, <span class="kw">Show</span> o, <span class="kw">Show</span> b) <span class="ot">=&gt;</span> <span class="dt">External</span> o i <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i b <span class="ot">-&gt;</span> <span class="dt">IO</span> b
 <span class="fu">&gt;</span> runner ext auto <span class="fu">=</span> <span class="kw">do</span>
 <span class="fu">&gt;</span>     x <span class="ot">&lt;-</span> output ext
@@ -126,27 +127,27 @@
 <span class="fu">&gt;</span>           runner ext next 
 <span class="fu">&gt;</span>       <span class="kw">Right</span> ok <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> (<span class="st">&quot; result: &quot;</span> <span class="fu">++</span> <span class="fu">show</span> ok) <span class="fu">&gt;&gt;</span> <span class="fu">return</span> ok
 <span class="fu">&gt;</span> run f g <span class="fu">=</span> runner g f</code></pre>
-<p>This is a very basic function that receives new signal from wire, and feeds in into our computation and then either continues or finishes.</p>
-<p>Lest demonstate how it will work:</p>
+<p>This is a very basic function that receives new signals from wire, and feeds them in into our computation and then either continues or finishes.</p>
+<p>Let’s demonstate how it work:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> upTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
 <span class="fu">&gt;</span> upTo n f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">&gt;=</span> n
 <span class="fu">&gt;</span>                      <span class="kw">then</span> <span class="kw">Right</span> <span class="fu">$</span> f x
 <span class="fu">&gt;</span>                      <span class="kw">else</span> <span class="kw">Left</span> ((x<span class="dv">+1</span>),  upTo n f)</code></pre>
-<p>This function will request a new value while it’s less than first param. Here is an output:</p>
+<p>This function will request recursively a new value while it is less than first param. Here is an output:</p>
 <pre><code>*Main&gt; experiment (run (upTo 2 (*2))) (idGenerator) 0
 received: 0 requesting: 1
 received: 1 requesting: 2
 received: 2 result: 4
 4</code></pre>
-<p>So far so good but, but I’d like not to write requests explicitly, rather to use some ’request’ function that will break flow:</p>
+<p>So far so good but I’d like not to write requests explicitly rather to use some ’request’ function:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> request ::</span> o <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a i
 <span class="fu">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="kw">Right</span> y)</code></pre>
 <pre><code>*Main&gt; run (run (request 5)) idGenerator 0
 input: 0 requesting: 5
 input: 5 result: 5
 5</code></pre>
-<p>One thing is bad: we need an input to request a state, that input will be ignored, it seems that it’s not a problem and will never hit user, however I have no strong explanation.</p>
-<p>Now we need a way to compose such computations, thats not a problem, because theese computations form a Category, so we need just to write an instance:</p>
+<p>One thing is bad: we need an input to request a state and that input will be ignored. It seems that it’s not a problem and will never hit user however I have no strong explanation.</p>
+<p>Now we need a way to compose such computations. That’s not a problem because these computations form a Category so we just need to write an instance of this typeclass:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Category</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
 <span class="fu">&gt;</span>    <span class="fu">id</span> <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> x
 <span class="fu">&gt;</span>    auto2 <span class="fu">.</span> auto1 <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
@@ -154,17 +155,17 @@ input: 5 result: 5
 <span class="fu">&gt;</span>              <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
 <span class="fu">&gt;</span>                  <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
 <span class="fu">&gt;</span>                  <span class="kw">Left</span> (o,auto1') <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1'))</code></pre>
-<p><code>id</code> will just return a result and have no side effects. Composition <code>(.)</code> will run internal computation and if it’s succeed start outer, otherwise continue to run new inner automation until it succeeds. Sidenote there was a different composition behavior Ertugrul‘s article, composition there nests one arrow inside another.</p>
-<p>At this point we doesn’t gain many advantages as we have only composition of automata, and will have a problems once we will leave the types pipeline.</p>
-<p>Now we’ll define an arrow instance so we will be able to lift opaque functions on the Automation level and create a side channels to carry values alongside with computation (instead of let bindings in monad form that are visible downside the binding):</p>
+<p><code>id</code> just returns a result and has no side effects. Composition <code>(.)</code> will run internal computation and if succeeded it will start the outer one, otherwise it will continue to run new inner automaton until it succeeds. Sidenote: there was a different composition behavior in Ertugrul‘s article, composition there nests one arrow inside another.</p>
+<p>At this point we do not gain many advantages as we have only composition of automata, and will have problems once we leave the types pipeline.</p>
+<p>Now we’ll define an arrow instance so we will be able to lift opaque functions on the Automaton level and create side channels to carry values alongside with computation (instead of let bindings in monad form that are visible downside the binding):</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
 <span class="fu">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> (\x <span class="ot">-&gt;</span> <span class="kw">Right</span> (f x))
 <span class="fu">&gt;</span>     first (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> (\(x, y) <span class="ot">-&gt;</span> zrec (\z <span class="ot">-&gt;</span> (z,y)) (f x))</code></pre>
-<p><code>arr</code> just lift a pure function on the Automation level, and <code>first</code> run recursive automation and store result in the first channel, leaving second unchanged. Now we have a straightforward way of saving a results alongside a computation.</p>
-<p>We define a helper function that will recurce over automation and apply a function to the final result:</p>
+<p><code>arr</code> just lifts pure function to Automaton level, and <code>first</code> runs recursive automaton and stores result in the first channel, leaving second unchanged. Now we have a straightforward way of saving results alongside computation.</p>
+<p>We define helper function that will recourse over automation and apply a function to the final result:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> zrec g (<span class="kw">Right</span> x) <span class="fu">=</span> <span class="kw">Right</span> <span class="fu">$</span> g x
 <span class="fu">&gt;</span> zrec g (<span class="kw">Left</span> (o, <span class="dt">Auto2</span> f)) <span class="fu">=</span> <span class="kw">Left</span> (o, <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> zrec g (f x))</code></pre>
-<p>A small demonstration:</p>
+<p>Small demonstration:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test1 <span class="fu">=</span> request <span class="dv">5</span> <span class="fu">&gt;&gt;&gt;</span>
 <span class="fu">&gt;</span>         arr (\x <span class="ot">-&gt;</span> (x,x)) <span class="fu">&gt;&gt;&gt;</span>
 <span class="fu">&gt;</span>         first (request <span class="dv">6</span>) <span class="fu">&gt;&gt;&gt;</span>
@@ -186,17 +187,17 @@ input: 4 result: 10
 input: 4 requesting: 4
 input: 4 result: 0
 0</code></pre>
-<p>As was said before <code>request</code> is not a problem as we can feed it with our internal value.</p>
-<p>At this moment we are able to carry intermideate values and now we need to define a way to use if-condution. Using an arrow we have only a channels abstraction, so we need to use a &quot;conditional&quot; value in channels and Either is a good candidate for it. Will not reinvent a wheel and use an olready created an instance:</p>
+<p>As was said earlier <code>request</code> is not a problem as we can feed it with our internal value.</p>
+<p>At this moment we are able to carry intermediate values and now we need to define a way to use &quot;if&quot; condition. Using an arrow gives us only a channels abstraction, so we need to use a &quot;conditional&quot; value in channels and Either is a good candidate for it. We will not reinvent a wheel and just use an instance that we have already created:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">ArrowChoice</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
 <span class="fu">&gt;</span>   <span class="co">-- left :: a b c -&gt; a (Either b d) (Either c d)</span>
 <span class="fu">&gt;</span>   left (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> 
 <span class="fu">&gt;</span>     <span class="kw">case</span> x <span class="kw">of</span>
 <span class="fu">&gt;</span>       <span class="kw">Left</span> b  <span class="ot">-&gt;</span> zrec <span class="kw">Left</span> (f b)
 <span class="fu">&gt;</span>       <span class="kw">Right</span> d <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Right</span> d)</code></pre>
-<p>Here <code>left</code> takes <code>Either a b</code> value, and if it‘s <code>Left</code> then running a recursive computation and store result in <code>Left</code>. Otherwise <code>Right d</code> is returned.</p>
+<p>Here <code>left</code> takes <code>Either a b</code> value, and if it‘s <code>Left</code> then it runs a recursive computation and stores result in <code>Left</code>. Otherwise <code>Right d</code> is returned.</p>
 <p>Now we have a way to split channel into left and right parts.</p>
-<p>An small demonstration:</p>
+<p>Small demonstration:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> test3 ::</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
 <span class="fu">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="kw">Left</span> y <span class="kw">else</span> <span class="kw">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
 <span class="fu">&gt;</span>         left (request <span class="dv">3</span>) <span class="fu">&gt;&gt;&gt;</span>
@@ -213,7 +214,7 @@ input: 7 result: 7
 input: 6 requesting: 3
 input: 3 result: 3
 3</code></pre>
-<p>The only problem that it’s not very easy to write in such a style, thats what an arrow notation is done for:</p>
+<p>The only problem that it’s not very easy to write in such style, that’s where arrow notation can help:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test4 <span class="fu">=</span> proc x <span class="ot">-&gt;</span> <span class="kw">do</span>
 <span class="fu">&gt;</span>     <span class="kw">if</span> x <span class="fu">&gt;</span> <span class="dv">5</span> 
 <span class="fu">&gt;</span>         <span class="kw">then</span> request <span class="dv">0</span> <span class="fu">-&lt;</span> () 
@@ -227,34 +228,34 @@ input: 0 result: 0
 input: 1 requesting: 10
 input: 10 result: 10
 10</code></pre>
-<p>Thats all, and thats really awesome: no more explicit function carrying, explicit RW-bus communication that implicilty coupled with all control flow.</p>
+<p>Thats all and that’s really awesome: no more explicit function carrying, explicit RW-bus communication that is implicilty coupled with all control flow.</p>
 <h1>Event handling</h1>
-<p>Now lets generalize our approach. First we need to be able to catch only events we are interested in. We can have a list approaches:</p>
+<p>Now let’s generalize our approach. First we need to be able to catch only events we are interested in. We may take a couple of approaches:</p>
 <ol>
 <li><p>additional data method</p></li>
 <li><p>api extension</p></li>
 </ol>
 <h2>Additional method</h2>
-<p>We can rewrite our automation type to</p>
+<p>We can rewrite our automaton type to</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">data</span> <span class="dt">Auto3</span> i o a b <span class="fu">=</span> <span class="dt">Auto3</span> {
 <span class="fu">&gt;</span><span class="ot">     checkAuto ::</span> i <span class="ot">-&gt;</span> <span class="dt">Bool</span>
 <span class="fu">&gt;</span>     ,<span class="ot"> runAuto ::</span> i <span class="ot">-&gt;</span> <span class="dt">Either</span> (o, <span class="dt">Auto3</span> i o i b) b
 <span class="fu">&gt;</span>     }</code></pre>
-<p>In this approach we doesn’t need to run computation to check if it input matches predicate. But it will lead to a level of rewriting, so we will not do it unless it’s really needed</p>
+<p>In this approach we do not need to run computation to check if its input matches a predicate. But it will lead us to some amount of rewriting, so we will not do it unless it’s really needed.</p>
 <h3>Event API</h3>
 <p>To describe a list of event we will write a list generator:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> listGenerator ::</span> [b] <span class="ot">-&gt;</span> <span class="dt">Generator</span> a b
 <span class="fu">&gt;</span> listGenerator ls ic oc <span class="fu">=</span> <span class="fu">mapM_</span> (atomically <span class="fu">.</span> (writeTChan oc)) ls</code></pre>
-<p>The idea for this approach is to add a predicate that will try to convert an input to an input we need, possibly validating it. (Really we can just use a predicate and then convert a value to another one)</p>
+<p>The idea for this approach is to add a predicate that will try to convert an input into the input we need, possibly validating it. (Really we can just use a predicate and then convert a value into another one)</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">ConvPred</span> i j <span class="fu">=</span> (i <span class="ot">-&gt;</span> <span class="dt">Maybe</span> j)
 <span class="fu">&gt;</span><span class="ot"> idConv ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">ConvPred</span> a a
 <span class="fu">&gt;</span> idConv p <span class="fu">=</span> \i <span class="ot">-&gt;</span> <span class="kw">if</span> (p i) <span class="kw">then</span> <span class="kw">Just</span> i <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
-<p>In order to use an API exension we should restrict our output datatype to the type that supports 0 (<code>zero</code>) a value that means nothing in this type. We need it because if value doesn’t math predicate we should perform a noop and wait for next value, keeping automation unchanged, so we will introduce type-class:</p>
+<p>In order to use an API exension we should restrict our output datatype to the type that supports 0 (<code>zero</code>) a value that means nothing in this type. We need it because if value doesn’t math predicate we should perform a &quot;noop&quot; and wait for next value, keeping automation unchanged, so we will introduce a type class:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">class</span> <span class="dt">Zero</span> a <span class="kw">where</span><span class="ot"> zero ::</span> a
 <span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Zero</span> (<span class="dt">Maybe</span> a) <span class="kw">where</span> zero <span class="fu">=</span> <span class="kw">Nothing</span>
 <span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Zero</span> [a] <span class="kw">where</span> zero <span class="fu">=</span> []</code></pre>
-<p>We are not using <code>Monoid</code> because we does not require <code>mappend</code> operation to exist.</p>
-<p>Now we can define an event listening arrow, the only problem that we should feed our arrow with a value to make it run:</p>
+<p>We are not using <code>Monoid</code> because we do not require <code>mappend</code> operation.</p>
+<p>Now we can define an event listening arrow, the only problem is that we should feed our arrow with a value to make it run:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> event ::</span> (<span class="dt">Zero</span> o) <span class="ot">=&gt;</span> <span class="dt">Auto2</span> i o i i <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i i
 <span class="fu">&gt;</span> event a <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (zero, a)</code></pre>
 <p>First version of matcher:</p>
@@ -276,7 +277,7 @@ received: 4 requesting: Nothing
 received: 5 requesting: Nothing
 received: 6 result: 6
 6</code></pre>
-<p>Now we will write helpers. The easiest one is matchAny:</p>
+<p>Now we will write some helpers. The easiest one is matchAny:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> matchAny ::</span> (<span class="dt">Zero</span> o) <span class="ot">=&gt;</span> [<span class="dt">ConvPred</span> i a] <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a b <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i b 
 <span class="fu">&gt;</span> matchAny ps a <span class="fu">=</span> matchE (\i <span class="ot">-&gt;</span> <span class="fu">foldl</span> (\o p <span class="ot">-&gt;</span> o <span class="fu">&lt;|&gt;</span> p i) <span class="kw">Nothing</span> ps) a</code></pre>
 <p>Review the algebra of Predicates:</p>
@@ -286,10 +287,10 @@ received: 6 result: 6
 <p>pOr is composable:</p>
 <pre><code>*Main&gt; :t (idConv (&lt;3)) `pOr` (idConv (&gt;5)) `pOr` (idConv (==42))
   &lt;..&gt; :: ConvPred Int (Either (Either Int Int) Int)</code></pre>
-<p>But it’s impossible to write a pAnd function as we should somehow carry all catched variables, so thats what and arrow for.</p>
+<p>But it’s impossible to write a pAnd function as we should somehow carry all catched variables, so that’s what an arrow for.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> pAnd ::</span> <span class="dt">ConvPred</span> i a <span class="ot">-&gt;</span> <span class="dt">ConvPred</span> i b <span class="ot">-&gt;</span> <span class="dt">ConvPred</span> i (a,b)
 <span class="fu">&gt;</span> pAnd <span class="fu">=</span> <span class="fu">undefined</span> <span class="co">-- impossible</span></code></pre>
-<p>We can write an automation instance for matchOr:</p>
+<p>We can write an automaton instance for matchOr:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> matchOr ::</span> (<span class="dt">Zero</span> o) <span class="ot">=&gt;</span> <span class="dt">ConvPred</span> i a <span class="ot">-&gt;</span> <span class="dt">ConvPred</span> i b <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i (<span class="dt">Either</span> a b)
 <span class="fu">&gt;</span> matchOr p1 p2 <span class="fu">=</span> match (p1 <span class="ot">`pOr`</span> p2)</code></pre>
 <pre><code>test7 = experiment (run $ matchOr (idConv (&gt;5)) (idConv (&gt;3)) &gt;&gt;&gt; id)
@@ -317,12 +318,12 @@ received: 6 result: 6
 <span class="fu">&gt;</span>       (<span class="kw">Left</span> (v, a1'), <span class="kw">Right</span> b) <span class="ot">-&gt;</span> <span class="kw">Left</span> (v, arr (\x <span class="ot">-&gt;</span> (x,b)) <span class="fu">&gt;&gt;&gt;</span> first a1')</code></pre>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test8 <span class="fu">=</span> experiment (run <span class="fu">$</span> both (match (idConv <span class="fu">odd</span>)) (match <span class="fu">$</span> idConv (<span class="fu">&gt;</span><span class="dv">3</span>)))
 <span class="fu">&gt;</span>                    (listGenerator [<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span>]) ([<span class="dv">4</span>])</code></pre>
-<p>Now both is composable:</p>
+<p>Now both are composable:</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test9 <span class="fu">=</span> experiment (run <span class="fu">$</span> (match <span class="fu">$</span> idConv <span class="fu">odd</span>) <span class="ot">`both`</span>
 <span class="fu">&gt;</span>                           (match <span class="fu">$</span> idConv (<span class="fu">&gt;</span><span class="dv">3</span>)) <span class="ot">`both`</span>
 <span class="fu">&gt;</span>                           (match <span class="fu">$</span> idConv <span class="fu">even</span>))
 <span class="fu">&gt;</span>                    (listGenerator [<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span>]) ([<span class="dv">4</span>])</code></pre>
-<p>A few highlevel examples that will wrap all internal automation</p>
+<p>A few highlevel examples that will wrap all internal automaton</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> filterI ::</span>(<span class="dt">Zero</span> o) <span class="ot">=&gt;</span> (i <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i b <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o i b
 <span class="fu">&gt;</span> filterI p a<span class="fu">@</span>(<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \i <span class="ot">-&gt;</span> 
 <span class="fu">&gt;</span>     <span class="kw">if</span> p i 
@@ -338,9 +339,9 @@ received: 6 result: 6
 <span class="fu">&gt;</span>         <span class="kw">Left</span> (v, a') <span class="ot">-&gt;</span> <span class="kw">Left</span> (v, mapI g a')
 <span class="fu">&gt;</span>         <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> b</code></pre>
 <h1>Multiple event listeners</h1>
-<p>Now lets look at the last part of problem: we need to carry a list of handlers, and create new ones at runtime. We can address this problem in a number of ways.</p>
-<p>At first we can write use a number of runners, each one works with one event handler, every runner reads from a broadcast TChan, and writes to common channel. This variant will require no code change, however it requires to run each runner in a separate thread.</p>
-<p>Another variant that we will look at is upgrading our runner to support multiple runners. Now we need another output datatype, that will carry API for runner, and now runners returns (). One may want to add additional API functions like delete listener, or give listener a name.</p>
+<p>Now let’s look at the last part of the problem: we need to carry a list of handlers, and a way create new ones at runtime. We can address this problem in a number of ways.</p>
+<p>At first we can use a list of runners, each working with one event handler, every runner will read from broadcasting TChan and will write to common channel. This variant will require no code change, however it requires to run each runner in a separate thread.</p>
+<p>Another variant that we will take a look at is upgrading our runner to support multiple runners. Now we need another output datatype that will carry API for runner and now runners returns (). One may want to add additional API functions e.g. to delete listener or to give listener some name.</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">data</span> <span class="dt">ROutput</span> i o a <span class="fu">=</span> <span class="dt">Output</span> a 
 <span class="fu">&gt;</span>                    <span class="fu">|</span> <span class="dt">NewListener</span> (<span class="dt">Auto4</span> i o i ()) (<span class="dt">ROutput</span> i o a)
 <span class="fu">&gt;</span> <span class="kw">instance</span> (<span class="kw">Show</span> a) <span class="ot">=&gt;</span> <span class="kw">Show</span> (<span class="dt">ROutput</span> i o a) <span class="kw">where</span>
@@ -351,7 +352,7 @@ received: 6 result: 6
 <span class="fu">&gt;</span> 
 <span class="fu">&gt;</span> <span class="kw">instance</span> (<span class="kw">Show</span> b) <span class="ot">=&gt;</span> <span class="kw">Show</span> (<span class="dt">Auto4</span> i o a b) <span class="kw">where</span>
 <span class="fu">&gt;</span>   <span class="fu">show</span> x <span class="fu">=</span> <span class="st">&quot;&lt;auto&gt;&quot;</span></code></pre>
-<p>Category instance is not the same as previous as it should carry information about listeners that should be added from the internal computation</p>
+<p>Category instance is not the same as previous because it should carry information about listeners that should be added from the internal computation</p>
 <pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> buildUpdate ::</span> <span class="dt">ROutput</span> i o a <span class="ot">-&gt;</span> (a, <span class="dt">ROutput</span> i o b <span class="ot">-&gt;</span> <span class="dt">ROutput</span> i o b)
 <span class="fu">&gt;</span> buildUpdate (<span class="dt">Output</span> a) <span class="fu">=</span> (a, <span class="fu">id</span>)
 <span class="fu">&gt;</span> buildUpdate (<span class="dt">NewListener</span> a r) <span class="fu">=</span> <span class="kw">let</span> (x,f) <span class="fu">=</span> buildUpdate r <span class="kw">in</span> (x,<span class="dt">NewListener</span> a <span class="fu">.</span> f)
@@ -404,12 +405,12 @@ received: 6 result: 6
 <span class="fu">&gt;</span>                                 <span class="kw">in</span> (ls, mempty)
 <span class="fu">&gt;</span> run2 f g <span class="fu">=</span> runner g f</code></pre>
 <p>Now we use multiple handlers, the only problem is that we can’t start next step untils previous is done, and all handlers are run in sequence.</p>
-<p>However we can use parallel execution of handlers Either explicitly by <code>forkIO</code> / <code>async</code>, or by working if we will send requests previously created workers via STM channel, or implicit parallelistion by <code>parMap rseq</code>.</p>
-<p>If one handler can run very long time then you can hide in behind wrapper. Here is an idea (however it’s not work yet):</p>
+<p>However we can use parallel execution of handlers either explicitly by <code>forkIO</code> / <code>async</code> or by working if we will send requests previously created workers via STM channel or by implicit parallelization using <code>parMap rseq</code>.</p>
+<p>If one handler can run very long time then you can hide it behind a wrapper. Here is an idea (however it’s not work yet):</p>
 <ol>
-<li><p>create a wrapper that should return <code>TChan</code> and <code>TMVar</code> for responce and fork automation runner</p></li>
+<li><p>create a wrapper that should return <code>TChan</code> and <code>TMVar</code> for response and fork automaton runner</p></li>
 <li><p>on each query try to get result from <code>TMVar</code> if it’s there - return take it and proceed as usual, otherwise put request into channel</p></li>
-<li><p>in automation runner - run automation as usual but when new value is requested try to take next value from channel, if it’s there - process it otherwise but automation into result box.</p></li>
+<li><p>in automaton runner - run automaton as usual but when new value is requested try to take the next value from channel, if it’s there - process it otherwise put automaton into result box.</p></li>
 </ol>
 <hr />
 <div class="pull-right">
