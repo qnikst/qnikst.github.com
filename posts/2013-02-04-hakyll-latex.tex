@@ -10,11 +10,11 @@ Recently I've checked a list of manuals for pandoc and latex, but they
 were quite outdated.
 
 The problems that by default pandoc tries to use utf only to render
-formulas but it's doesn't work in many cases. Best solution would be
+formulas but it doesn't work in many cases. Best solution would be
 \href{http://www.mathjax.org/}{mathjax} as it will work in majority of
 brousers unlike mathml.
 
-To set up hakyll to use latex one need to set pandoc compiler options:
+To set up hakyll to use latex one needs to set pandoc compiler options:
 
 \begin{verbatim}
     -- ...
@@ -26,7 +26,7 @@ pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax "" }
 \end{verbatim}
 
 But you will have to add mathjax url to pages where you have math, and do
-nothing at pages without. So do so you can add a special marker to page 
+nothing at pages without. So you can add a special marker to page 
 header
 
 \begin{verbatim}
@@ -70,7 +70,7 @@ your context (I've used default.html)
          >>= relativizeUrls
 \end{verbatim}
 
-thats all
+that's all
 
 Example:
 
