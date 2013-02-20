@@ -5,41 +5,41 @@ data: 2012/01/21
 ----
 
 \begin{abstract}
-This post describes a simple approach to dynamic \small{(i.e. a new
+This post describes simple approach to dynamic \small{(i.e. a new
 event handlers can appear in runtime)} event handling 
 that gives a way to write complex event handlers with feedback 
 in a natural way. This approach is interesting as a first step 
-to create a complex FRP system, and for simple tasks where 
-such solution is a sufficient.
+to create a complex FRP system, but it is sufficient for simple
+tasks.
 \end{abstract}
 
 \section*{Preface}
 
-About a half year ago I had a next task: I should run a list of 
-event listeners on a wire and on each handled event event 
-listeners can change (i.e. start listening another event, produce new
-event listeners, and send requests to the wire). It sounds like
-a FRP task, and once you are familar to FRP this post may be not 
-interesting for you, except you may try to help me to generalize
-all logic.
+About a half year ago I had the following task: I should run a list of 
+event listeners on a wire and on each handled event listeners may change
+their behaviour (i.e. start listening for another event, produce new
+event listeners or send requests on the wire). It sounds like
+a FRP task and once you are familar with FRP this post may be not so
+interesting to you, except you may try to help me to generalize
+all the logic.
 
 I tried to use monadic approach, however I had too much
 problems because monads can bind and run opaque functions while
-all these computation had to carry additional information, so I
-end up with function approach: each function returns a command and
-next function and special runner change it's state based on this 
-information but I ended with some problems: functions were bloated,
-function should be written from the end to begining, all additional
-variables should be passed explicitly through the functions, 
-function can't be composed as they had types constraints. It
-was a hell.. Few days ago I have read the great a
+all these computation had to carry additional information. So I
+ended up with the functional approach: each function returns a command and
+the next function with help of some special runner changes it's state based on this 
+information but as a result I faced some problems: functions were bloated,
+they should be written in reversed order, all additional
+variables should be passed explicitly from function to function
+and those function can't be composed as they had types constraints. It
+was a hell.. Few days ago I have read the great
 \href{http://ertes.de/new/tutorials/arrows.html}{arrows tutorial} by 
-Ertugrul Söylemez, and realized that it was an arrow, after some 
+Ertugrul Söylemez and realized that the construction I had was an arrow and after some 
 thinking I've found a nice solution. 
 
-\section{Problem}
+\section{The problem}
 
-This post is a literate haskell post so you can copy in and run in 
+This post is a literate haskell post so you can copy and run it in 
 ghci. So at first we will add some imports:
 
 We need this for defining new arrow instance.
@@ -50,7 +50,7 @@ import Control.Arrow
 import Control.Category
 \end{code}
 
-We need theese imports to define External world.
+The following imports are used to define External world.
 
 \begin{code}
 import Control.Applicative
@@ -61,35 +61,35 @@ import Control.Exception
 import Data.Monoid
 \end{code}
 
-Assume have an External interface, this means some asynchonous interface to 
+Let's assume that we have an External interface, this means some asynchonous interface to 
 external system that have a simple API:
 
 \begin{code}
 data External a b = External 
         { input :: a -> IO () -- ^ write to a wire
-        , output :: IO b      -- ^ read a wire
+        , output :: IO b      -- ^ read from a wire
         }
 \end{code}
 
-This interface has next properties: 
+This interface has the following properties: 
 
 \begin{itemize}
-  \item we can write requests and interface will asynchonously answer
-  \item interface can generate events on it's own.
+  \item we may write requests and interface will asynchonously answer
+  \item interface may generate events on it's own.
 \end{itemize}
 
-We want to be able to write an event handlers that can catch events
-that are needed, request a wire and get responces. So we want to be able to
+We want to be able to write event handlers that will catch events
+that are needed, request a wire and get responses. So we want to be able to
 
 \begin{enumerate}
   \item catch events that we need
-  \item request wire
+  \item request a wire
   \item carry a local variables
   \item have if-branches
   \item have a possibility to write all above in a natural way
 \end{enumerate}
 
-What it meast that we want to be able to write a handlers in the next way:
+It means that we want to be able to write a handlers like:
 
 \begin{verbatim}
 desiredHandler = do
@@ -101,28 +101,29 @@ desiredHandler = do
     else monadic2ThatUsesVal
 \end{verbatim}
 
-In the main part of this article we will ignore 1 and it will be shown
-that we don't loose generality. So now we think that we match any event.
-Also we will use only one event handler, instead on a multiple ones, like
-above we doesn't loose any generality and will show a way to improve this.
+In the main part of this article we will ignore 1 and it will be shown later
+that we don't loose generality. So now we assume that we match any event.
+Also we will use just one event handler instead of multiple handlers and as it was said
+above we doesn't loose any generality.
 
-Without 4 and 5, we can just use have a function (F:: (c -> Either (b,F) d), that
-returns either a next step or a result. There are a several problems in this
-aproach, all сводятся к that this functions doesn't form a monad. This is 
-because monad is a sequencial computation that can lift opaque function into it,
-while we should have a computation that ca. The solution is to write a category 
-and an arrow notation.
+Without items 4 and 5, we may just use a function (F:: (c -> Either (b,F) d) that
+returns either a next step or a result. There are a several problems with this
+aproach all of which lead to the point that these functions do not form a monad. That's 
+because monad is a sequential computation that can lift opaque function into it
+while we should have a computation that can access it's state. The solution is to write a category 
+and arrow instances for our datatype.
 
-In second section we will set up our world will write our datatype, in 
-section 3 we will write a request reply functionality over the wire and
-set up instances we need. In section 4 we will take a look at events and
+In the second section of this post we will set up our world and write our datatype, in 
+In the section 3 we will write a request-reply functionality for the wire and
+set up instances we need. In the section 4 we will take a look at events and
 write helpers. Section 5 describes how to run multiple handlers in parrallel
 and some words about parallelization.
 
 \section{External world}
 
+
 At first we need to write an External instance that we will use in our 
-program. We will use 2 STM channels one for requests another for responces
+program. We will use 2 STM channels one for requests another for responses
 and events:
 
 \begin{code}
@@ -137,8 +138,8 @@ initialize = do
 At this moment we again doesn't loose any generality as we always can
 write such a wrapper for any type of IO communication. (TODO examples?).
 
-To emulate an exernal system responces we will use a generator, this a function
-that generates a request for the given responce:
+To emulate external system responses we will use a generator: a function
+that generates request for response given to it:
 
 \begin{code}
 type Generator a b = TChan a -> TChan b -> IO ()
@@ -150,8 +151,8 @@ fGenerator f ic oc = forever . atomically $ readTChan ic >>= writeTChan oc . f
 \end{code}
 
 Now we can provide an environment function for our experiments,
-note that because of our logic is bus driven we need to pass 
-first value to initialize logic.
+note that because our logic is bus driven we need to pass 
+first value for initialization.
 
 \begin{code}
 experiment' f g i (e, c@(in_,out_)) = 
@@ -165,35 +166,37 @@ experiment f g i = initialize >>= experiment' f g i
 
 Now we can construct our datatypes. 
 
-We need to define an finite automata, that can either finish it's computation 
-or return next state. Will write a type for it:
+We need to define finite automata that can either finish it's computation 
+or return its next state. Let's write type for it:
 
 \begin{enumerate}
-  \item it will be a newtype (let's name Auto 2) that has step function
+  \item it will be a newtype (let's name Auto 2) that has some step function
 
    newtype Auto2 <..> = Auto2 { stepAuto :: <..> }
 
-  \item as it's an automation it should get input value of type 'a' and return
-either a new value 'b' or new computation:
+  \item as it's an automaton it should get an input value of type 'a' and return
+either a new value 'b' or a new computation:
   
   newtype Auto2 <..> a b = Auto2 { stepAuto :: a -> Either <..> b }
 
-  \item we need to carry information about external bus through all 
-computations, so we can request it on any level and theese types 
-can't change:
+  \item we need to pass information about external bus through all 
+computations, so we can request it on any level. Note that we types
+of request and response do not change during computation:
   
   newtype Auto2 i o a b = Auto2 {stepAuto :: a -> Either (o, <..>) b}
 
-  \item final note is that if we return a new value request than our
-type is bound by external-bus: Auto i o i b. So finally we get:
+  \item final note is that if we return a request and an automaton that
+  we need to run than it's type is bound by request/responce types: Auto i o i b. 
 \end{enumerate}
+
+So finally we get:
 
 \begin{code}
 newtype Auto2 i o a b = Auto2 { stepAuto :: a -> Either (o, Auto2 i o i b) b}
 \end{code}
 
-As our datatype is a computation, and not a function we need to write 
-explicit runner: function that will call our computation.
+As our datatype is a computation and not a function we need to write 
+explicit runner for it.
 
 \begin{code}
 runner :: (Show i, Show o, Show b) => External o i -> Auto2 i o i b -> IO b
@@ -210,11 +213,11 @@ runner ext auto = do
 run f g = runner g f
 \end{code}
 
-This is a very basic function that receives new signal from wire, 
-and feeds in into our computation and then either continues or
+This is a very basic function that receives new signals from wire, 
+and feeds them in into our computation and then either continues or
 finishes.
 
-Lest demonstate how it will work:
+Let's demonstate how it work:
 
 \begin{code}
 upTo :: Int -> (Int -> Int) -> Auto2 Int Int Int Int
@@ -223,7 +226,7 @@ upTo n f = Auto2 $ \x -> if x >= n
                      else Left ((x+1),  upTo n f)
 \end{code}
 
-This function will request a new value while it's less than
+This function will request recursively a new value while it is less than
 first param. Here is an output:
 
 \begin{verbatim}
@@ -234,8 +237,8 @@ received: 2 result: 4
 4
 \end{verbatim}
 
-So far so good but, but I'd like not to write requests explicitly,
-rather to use some 'request' function that will break flow:
+So far so good but I'd like not to write requests explicitly
+rather to use some 'request' function:
 
 \begin{code}
 request :: o -> Auto2 i o a i
@@ -249,13 +252,13 @@ input: 5 result: 5
 5
 \end{verbatim}
 
-One thing is bad: we need an input to request a state, that input
-will be ignored, it seems that it's not a problem and will never
-hit user, however I have no strong explanation.
+One thing is bad: we need an input to request a state and that input
+will be ignored. It seems that it's not a problem and will never
+hit user however I have no strong explanation.
 
-Now we need a way to compose such computations, thats not a problem,
-because theese computations form a Category, so we need just to 
-write an instance:
+Now we need a way to compose such computations. That's not a problem
+because these computations form a Category so we just need to 
+write an instance of this typeclass:
 
 \begin{code}
 instance Category (Auto2 i o) where
@@ -268,18 +271,18 @@ instance Category (Auto2 i o) where
 \end{code}
 
 
-\texttt{id} will just return a result and have no side effects. Composition 
-\texttt{(.)} will run internal computation and if it's succeed start outer, 
-otherwise continue to run new inner automation until it succeeds. Sidenote
-there was a different composition behavior Ertugrul`s article, composition 
+\texttt{id} just returns a result and has no side effects. Composition 
+\texttt{(.)} will run internal computation and if succeeded it will start the outer one, 
+otherwise it will continue to run new inner automaton until it succeeds. Sidenote:
+there was a different composition behavior in Ertugrul`s article, composition 
 there nests one arrow inside another.
 
-At this point we doesn't gain many advantages as we have only 
-composition of automata, and will have a problems once we will leave
+At this point we do not gain many advantages as we have only 
+composition of automata, and will have problems once we leave
 the types pipeline.
 
 Now we'll define an arrow instance so we will be able to lift opaque
-functions on the Automation level and create a side channels to carry
+functions on the Automaton level and create side channels to carry
 values alongside with computation (instead of let bindings in monad 
 form that are visible downside the binding):
 
@@ -289,12 +292,12 @@ instance Arrow (Auto2 i o) where
     first (Auto2 f) = Auto2 (\(x, y) -> zrec (\z -> (z,y)) (f x))
 \end{code}
 
-\texttt{arr} just lift a pure function on the Automation level, and 
-\texttt{first} run recursive automation and store result in the first channel, 
+\texttt{arr} just lifts pure function to Automaton level, and 
+\texttt{first} runs recursive automaton and stores result in the first channel, 
 leaving second unchanged. Now we have a straightforward 
-way of saving a results alongside a computation.
+way of saving results alongside computation.
 
-We define a helper function that will recurce over automation and
+We define helper function that will recourse over automation and
 apply a function to the final result:
 
 \begin{code}
@@ -302,7 +305,7 @@ zrec g (Right x) = Right $ g x
 zrec g (Left (o, Auto2 f)) = Left (o, Auto2 $ \x -> zrec g (f x))
 \end{code}
 
-A small demonstration:
+Small demonstration:
 
 \begin{code}
 test1 = request 5 >>>
@@ -338,14 +341,14 @@ input: 4 result: 0
 \end{verbatim}
 
 
-As was said before \texttt{request} is not a problem as we can feed it with 
+As was said earlier \texttt{request} is not a problem as we can feed it with 
 our internal value.
 
-At this moment we are able to carry intermideate values and now
-we need to define a way to use if-condution. Using an arrow we have
+At this moment we are able to carry intermediate values and now
+we need to define a way to use "if" condition. Using an arrow gives us
 only a channels abstraction, so we need to use a "conditional"
-value in channels and Either is a good candidate for it. Will not
-reinvent a wheel and use an olready created an instance:
+value in channels and Either is a good candidate for it. We will not
+reinvent a wheel and just use an instance that we have already created:
 
 \begin{code}
 instance ArrowChoice (Auto2 i o) where
@@ -357,12 +360,12 @@ instance ArrowChoice (Auto2 i o) where
 \end{code}
 
 Here \texttt{left} takes \texttt{Either a b} value, and if it`s \texttt{Left}
-then running a recursive computation and store result in \texttt{Left}.
+then it runs a recursive computation and stores result in \texttt{Left}.
 Otherwise \texttt{Right d} is returned.
 
 Now we have a way to split channel into left and right parts.
 
-An small demonstration:
+Small demonstration:
 
 \begin{code}
 test3 :: Auto2 Int Int Int Int
@@ -386,8 +389,8 @@ input: 3 result: 3
 3
 \end{verbatim}
 
-The only problem that it's not very easy to write in such a style,
-thats what an arrow notation is done for:
+The only problem that it's not very easy to write in such style,
+that's where arrow notation can help:
 
 \begin{code}
 test4 = proc x -> do
@@ -409,15 +412,15 @@ input: 10 result: 10
 \end{verbatim}
 
 
-Thats all, and thats really awesome: no more explicit function carrying,
-explicit RW-bus communication that implicilty coupled with all control
+Thats all and that's really awesome: no more explicit function carrying,
+explicit RW-bus communication that is implicilty coupled with all control
 flow.
 
 
 \section{Event handling}
 
-Now lets generalize our approach. First we need to be able to catch only
-events we are interested in. We can have a list approaches:
+Now let's generalize our approach. First we need to be able to catch only
+events we are interested in. We may take a couple of approaches:
 
 \begin{enumerate}
   \item additional data method
@@ -426,7 +429,7 @@ events we are interested in. We can have a list approaches:
 
 \subsection{Additional method}
 
-We can rewrite our automation type to
+We can rewrite our automaton type to
 
 \begin{code}
 data Auto3 i o a b = Auto3 {
@@ -435,9 +438,9 @@ data Auto3 i o a b = Auto3 {
     }
 \end{code}
 
-In this approach we doesn't need to run computation to check if it input 
-matches predicate. But it will lead to a level of rewriting, so we will
-not do it unless it's really needed
+In this approach we do not need to run computation to check if its input 
+matches a predicate. But it will lead us to some amount of rewriting, so we will
+not do it unless it's really needed.
 
 \subsubsection{Event API}
 
@@ -449,8 +452,8 @@ listGenerator ls ic oc = mapM_ (atomically . (writeTChan oc)) ls
 \end{code}
 
 The idea for this approach is to add a predicate that will try to convert
-an input to an input we need, possibly validating it. (Really we can just
-use a predicate and then convert a value to another one)
+an input into the input we need, possibly validating it. (Really we can just
+use a predicate and then convert a value into another one)
 
 \begin{code}
 type ConvPred i j = (i -> Maybe j)
@@ -461,8 +464,8 @@ idConv p = \i -> if (p i) then Just i else Nothing
 In order to use an API exension we should restrict our output datatype to
 the type that supports 0 (\texttt{zero}) a value that means nothing in this
 type. We need it because if value doesn't math predicate we should perform
-a noop and wait for next value, keeping automation unchanged, so we will
-introduce type-class:
+a "noop" and wait for next value, keeping automation unchanged, so we will
+introduce a type class:
 
 \begin{code}
 class Zero a where zero :: a
@@ -470,10 +473,10 @@ instance Zero (Maybe a) where zero = Nothing
 instance Zero [a] where zero = []
 \end{code}
 
-We are not using \texttt{Monoid} because we does not require \texttt{mappend}
-operation to exist.
+We are not using \texttt{Monoid} because we do not require \texttt{mappend}
+operation.
 
-Now we can define an event listening arrow, the only problem that we should
+Now we can define an event listening arrow, the only problem is that we should
 feed our arrow with a value to make it run:
 
 \begin{code}
@@ -514,7 +517,7 @@ received: 6 result: 6
 6
 \end{verbatim}
 
-Now we will write helpers. The easiest one is matchAny:
+Now we will write some helpers. The easiest one is matchAny:
 
 \begin{code}
 matchAny :: (Zero o) => [ConvPred i a] -> Auto2 i o a b -> Auto2 i o i b 
@@ -538,14 +541,14 @@ pOr is composable:
 \end{verbatim}
 
 But it's impossible to write a pAnd function as we should somehow carry all
-catched variables, so thats what and arrow for.
+catched variables, so that's what an arrow for.
 
 \begin{code}
 pAnd :: ConvPred i a -> ConvPred i b -> ConvPred i (a,b)
 pAnd = undefined -- impossible
 \end{code}
 
-We can write an automation instance for matchOr:
+We can write an automaton instance for matchOr:
 
 \begin{code}
 matchOr :: (Zero o) => ConvPred i a -> ConvPred i b -> Auto2 i o i (Either a b)
@@ -587,7 +590,7 @@ test8 = experiment (run $ both (match (idConv odd)) (match $ idConv (>3)))
                    (listGenerator [1..10]) ([4])
 \end{code}
 
-Now both is composable:
+Now both are composable:
 
 \begin{code}
 test9 = experiment (run $ (match $ idConv odd) `both`
@@ -596,7 +599,7 @@ test9 = experiment (run $ (match $ idConv odd) `both`
                    (listGenerator [1..10]) ([4])
 \end{code}
 
-A few highlevel examples that will wrap all internal automation
+A few highlevel examples that will wrap all internal automaton
 
 \begin{code}
 filterI ::(Zero o) => (i -> Bool) -> Auto2 i o i b -> Auto2 i o i b
@@ -624,18 +627,18 @@ mapI g (Auto2 f) = Auto2 $ \i ->
 
 \section{Multiple event listeners}
 
-Now lets look at the last part of problem: we need to carry a list of handlers,
-and create new ones at runtime. We can address this problem in a number of ways.
+Now let's look at the last part of the problem: we need to carry a list of handlers,
+and a way create new ones at runtime. We can address this problem in a number of ways.
 
-At first we can write  use a number of runners, each one works with one event handler,
-every runner reads from a broadcast TChan, and writes to common channel. This
+At first we can use a list of runners, each working with one event handler,
+every runner will read from broadcasting TChan and will write to common channel. This
 variant will require no code change, however it requires to run each runner in
 a separate thread.
 
-Another variant that we will look at is upgrading our runner to support multiple
-runners. Now we need another output datatype, that will carry API for runner, and
-now runners returns (). One may want to add additional API functions like delete
-listener, or give listener a name.
+Another variant that we will take a look at is upgrading our runner to support multiple
+runners. Now we need another output datatype that will carry API for runner and
+now runners returns (). One may want to add additional API functions e.g. to delete
+listener or to give listener some name.
 
 \begin{code}
 data ROutput i o a = Output a 
@@ -654,7 +657,7 @@ instance (Show b) => Show (Auto4 i o a b) where
   show x = "<auto>"
 \end{code}
 
-Category instance is not the same as previous as it should carry information about
+Category instance is not the same as previous because it should carry information about
 listeners that should be added from the internal computation
 
 \begin{code}
@@ -727,21 +730,21 @@ run2 f g = runner g f
 Now we use multiple handlers, the only problem is that we can't start next 
 step untils previous is done, and all handlers are run in sequence.
 
-However we can use parallel execution of handlers Either explicitly by
-\texttt{forkIO} / \texttt{async}, or by working if we will send requests
-previously created workers via STM channel, or implicit parallelistion
-by \texttt{parMap rseq}.
+However we can use parallel execution of handlers either explicitly by 
+\texttt{forkIO} / \texttt{async} or by working if we will send requests
+previously created workers via STM channel or by implicit parallelization
+using \texttt{parMap rseq}.
 
-If one handler can run very long time then you can hide in behind wrapper.
+If one handler can run very long time then you can hide it behind a wrapper.
 Here is an idea (however it's not work yet):
 
 
 \begin{enumerate}
   \item create a wrapper that should return \texttt{TChan} and \texttt{TMVar}
-    for responce and fork automation runner
+    for response and fork automaton runner
   \item on each query try to get result from \texttt{TMVar} if it's there -
     return take it and proceed as usual, otherwise put request into channel
-  \item in automation runner - run automation as usual but when new value is
-    requested try to take next value from channel, if it's there - process
-    it otherwise but automation into result box.
+  \item in automaton runner - run automaton as usual but when new value is
+    requested try to take the next value from channel, if it's there - process
+    it otherwise put automaton into result box.
 \end{enumerate}    
