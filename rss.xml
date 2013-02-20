@@ -8,8 +8,55 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-02-04T00:00:00Z</updated>
+    <updated>2013-02-20T00:00:00Z</updated>
     <entry>
+    <title>OpenRC Extended cgroups support</title>
+    <link href="http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html" />
+    <id>http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html</id>
+    <published>2013-02-20T00:00:00Z</published>
+    <updated>2013-02-20T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h1 id="openrc-has-extended-cgroups-support">Openrc has extended cgroups support</h1>
+<p>Staring with openrc-0.12 (not released ATM) openrc supports cgroup limit configuration. The simpliest and most reasonable way to configure it is use a multiline per-process values:</p>
+<p>At first I should note that openrc has optional cgroup support to add it you need to set:</p>
+<pre><code>rc_controller_cgroups=&quot;YES&quot;</code></pre>
+<p>Otherwise one of the option will be applied and openrc “plugin” will not be loaded. As always settings can be set in rc.conf file and can be overloaded in ‘/etc/conf.d/foo’ file for service foo.</p>
+<p>Each option is specified by name of the limit and value followed by ‘,’. i.e.</p>
+<pre><code># rc_cgroup_cpu=&quot;
+# cpu.shares, 512
+# &quot;</code></pre>
+<p>For more information about the adjustments that can be made with cgroups, see <code>Documentation/cgroups/*</code> in the linux kernel source tree.</p>
+<p>Currently next controllers are supported:</p>
+<ul>
+<li>blkio – block io controller</li>
+<li>cpu – cpu controller</li>
+<li>cpuacct – cpu accounting information</li>
+<li>cpuset – extended cpu configuration</li>
+<li>devices – devices access control</li>
+<li>memory – memory management</li>
+<li>net_prio – network priority options</li>
+</ul>
+<h3 id="why-do-i-ever-need-cgroups">Why do I ever need cgroups?</h3>
+<p>You can check kernel documentation. But roughly speaking you can monitor service processes, and manage resources much more better.</p>
+<h3 id="differences-with-other-system-managers">Differences with other system managers</h3>
+<p>There are some differences between how systemd works, systemd creates hierarchies for system daemons and users in each controller. Openrc uses it’s own cgroup to monitor daemons, and create a group called ‘openrc_<servicename>’ in controller that is configures.</p>
+<p>So you can easily use other cgroup daemons like libcgroup with openrc without any problem</p>
+<h2 id="future-work">Future work</h2>
+<p>There are some work that can be done to make cgroup support better:</p>
+<ul>
+<li>configure controller merging</li>
+<li>cgroup-cleanup, i.e. destroy all childs when stopping service (there are some pathes but they were not applied upstream). We will wait for the real use cases here</li>
+<li>cgroup-watchdog, we can monitor if service is dead either by notify_agent (will not require any resources but will not restart service with childs alive) or by inotify (will require a watchdog service running but will have no such problems)</li>
+<li>notify-agent callbacks, currently we use notify agent only on openrc cgroup and there is no callback, but it can be fixed</li>
+<li>there is an abitify to make an api for freezer, but we’d wait for the real use case before implementing it.</li>
+</ul>
+<p>Usefull links:</p>
+<ul>
+<li><a href="https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.htmlhttps://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html">Red Hat manual</a></li>
+<li><a href="http://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">kernel documentation</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Cgroups">wiki</a></li>
+</ul>]]></summary>
+</entry>
+<entry>
     <title>Сохранение всех задач su- в свою cgroup.</title>
     <link href="http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html" />
     <id>http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html</id>
