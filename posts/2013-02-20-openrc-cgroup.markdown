@@ -22,12 +22,12 @@ Otherwise one of the option will be applied and openrc "plugin" will not
 be loaded. As always settings can be set in rc.conf file and can be 
 overloaded in '/etc/conf.d/foo' file for service foo.
 
-Each option is specified by name of the limit and value followed by ','.
-i.e.
+Each option is specified by name of the limit and value. Each option may
+be a multivalue, e.g.
 
 ```
 # rc_cgroup_cpu="
-# cpu.shares, 512
+# cpu.shares 512
 # "
 ```
 
@@ -48,7 +48,7 @@ Currently next controllers are supported:
 ### Why do I ever need cgroups?
 
 You can check kernel documentation. But roughly speaking you can monitor
-service processes, and manage resources much more better.
+service processes, and manage resources much better.
 
 ### Differences with other system managers
 
@@ -79,6 +79,6 @@ There are some work that can be done to make cgroup support better:
 
 Usefull links:
 
-  * [Red Hat manual](https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.htmlhttps://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html)
+  * [Red Hat manual](https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html)
   * [kernel documentation](http://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
   * [wiki](http://en.wikipedia.org/wiki/Cgroups)
