@@ -20,9 +20,9 @@
 <p>At first I should note that openrc has optional cgroup support to add it you need to set:</p>
 <pre><code>rc_controller_cgroups=&quot;YES&quot;</code></pre>
 <p>Otherwise one of the option will be applied and openrc “plugin” will not be loaded. As always settings can be set in rc.conf file and can be overloaded in ‘/etc/conf.d/foo’ file for service foo.</p>
-<p>Each option is specified by name of the limit and value followed by ‘,’. i.e.</p>
+<p>Each option is specified by name of the limit and value. Each option may be a multivalue, e.g.</p>
 <pre><code># rc_cgroup_cpu=&quot;
-# cpu.shares, 512
+# cpu.shares 512
 # &quot;</code></pre>
 <p>For more information about the adjustments that can be made with cgroups, see <code>Documentation/cgroups/*</code> in the linux kernel source tree.</p>
 <p>Currently next controllers are supported:</p>
@@ -36,7 +36,7 @@
 <li>net_prio – network priority options</li>
 </ul>
 <h3 id="why-do-i-ever-need-cgroups">Why do I ever need cgroups?</h3>
-<p>You can check kernel documentation. But roughly speaking you can monitor service processes, and manage resources much more better.</p>
+<p>You can check kernel documentation. But roughly speaking you can monitor service processes, and manage resources much better.</p>
 <h3 id="differences-with-other-system-managers">Differences with other system managers</h3>
 <p>There are some differences between how systemd works, systemd creates hierarchies for system daemons and users in each controller. Openrc uses it’s own cgroup to monitor daemons, and create a group called ‘openrc_<servicename>’ in controller that is configures.</p>
 <p>So you can easily use other cgroup daemons like libcgroup with openrc without any problem</p>
@@ -51,7 +51,7 @@
 </ul>
 <p>Usefull links:</p>
 <ul>
-<li><a href="https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.htmlhttps://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html">Red Hat manual</a></li>
+<li><a href="https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html">Red Hat manual</a></li>
 <li><a href="http://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">kernel documentation</a></li>
 <li><a href="http://en.wikipedia.org/wiki/Cgroups">wiki</a></li>
 </ul>]]></summary>
