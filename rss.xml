@@ -8,8 +8,93 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-02-20T00:00:00Z</updated>
+    <updated>2013-02-28T00:00:00Z</updated>
     <entry>
+    <title>Resourcet usage</title>
+    <link href="http://qnikst.github.com/posts/2013-02-28-resourcet-usage.html" />
+    <id>http://qnikst.github.com/posts/2013-02-28-resourcet-usage.html</id>
+    <published>2013-02-28T00:00:00Z</published>
+    <updated>2013-02-28T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>This post describes an interesting resourcet usecase that may be usefull due lack of liner-types support in haskell and in some other cases.</p>
+<p>Lets look at the next problem. Assuming we have got a some sort of transaction mechanism that receives data and then perform transaction, but sometimes it may call callback to users code (originally it’s about <a href="http://github.com/qnikst/2pc">2pc</a> library).</p>
+<p>So we have method:</p>
+<pre><code>withWH0 :: (Binary b) -&gt; ByteString -&gt; (b -&gt; IO Bool) -&gt; IO ()
+withWH0 = undefined</code></pre>
+<p>Where Bool is result of transaction i.e. either we accept or decline transaction.</p>
+<p>This variant is not good as callback is synchronous, we will not be able to run next transaction untill callback is finished. And it will be a bottleneck for the code.</p>
+<p>There can be an interesting solution:</p>
+<blockquote>
+<p>one can provide an trasaction handler, i.e. a resource that for communication of the user code and library, this resource should be either accepted or declined. If that resource is ‘alive’ it means that user is working on transaction. If resource is not touched by user code a default action should be run, before resource will be cleared.</p>
+</blockquote>
+<p>The problem that we should somehow guarantee that user will free resource. One solution use linear types, but we don’t have them (or at least it’s too difficult for me and I don’t know how to do it). Another option is to use some kind of region library: one option is <a href="http://hackage.haskell.org/package/regions">regions</a> originaly proposed by <a href="http://okmij.org/ftp/Haskell/regions.html#light-weight">Oleg</a> but this package doesn’t work in recent ghc`s due some unsolved bugs, another option is <a href="http://hackage.haskell.org/package/resourcet">resourcet</a> package written by Michael Snoyman, this package doesn’t give so much guarantees as regions but at least it works. Resourcet package introduce ResourceT monad that forms a block where all resources that was registered in that blog will be closed as soon as compulation will left a block (there is an api for an early close but will not look at it currently).</p>
+<p>So we can guarantee that:</p>
+<ol style="list-style-type: decimal">
+<li>every resource registered in the block will be freed</li>
+<li>resources freeing will be determinated in time/</li>
+<li>resource will be freed only once (second call to release is noop)</li>
+</ol>
+<p>This is minimal requirement for what we need:</p>
+<pre><code>data TH = TH -- ^ transaction handler
+
+-- | accept transaction (send message via network)
+accept = undefined  
+-- | decline transaction (send message via network)
+decline = undefined
+-- | real release (synonym for decline)
+thRelease = undefined
+
+withWH1 d cb = runResourceT $ do
+  let d&#39; = decode d
+  th &lt;- accure create thRelease
+  cb th d&#39;</code></pre>
+<p>Now we create a ResourceT region, register resource there and then call user code, our code is not as safe as resourcet release as user can call accept more that once, so we need to check if it was called.</p>
+<p>The best thing that now client can use <code>resourceForkIO</code> to make withWH1 asynchronous.</p>
+<p>But there is another issue: how user can queue some part of the messages?</p>
+<p>TBD make nice picture</p>
+<p>There is a solution: <code>unprotect</code> function. This function allowes you to degerister resource in the current resourcet block and then register it in another block, or register new release action.</p>
+<p>Currentle resourcet package lacks helpers that allowes to move resource to some other place, so one need to create that functions himself. Here are some advices how one can do it safely.</p>
+<p>You need a function that has following interace:</p>
+<ul>
+<li>put :: s -&gt; (a, IO ()) -&gt; m () – put resource into storage</li>
+<li>get :: s -&gt; m (ReleaseKey a) – get resource and register it in current process</li>
+</ul>
+<p>Put and get should be atomic and mask exceptions, moreover if you can guarantee that message will be immidiatelly read by another process you should register datastructure in some higher level ResourceT block, this way you’ll guarantee that no resources will be left in store unfreed.</p>
+<p>Here are some basic examples of such datastructures</p>
+<p>At first let’s write an <code>InstantMVar</code>, this structure allow you to send message into other process, where it will be immideatelly read, so we don’t need to store that structure in ‘global’ resource block</p>
+<pre><code>data InstanceMVar a = InstanceMVar (MVar (a,IO ())) (MVar ())
+
+newMVar = InstanceMVar &lt;$&gt; newEmptyMVar &lt;*&gt; newEmptyMVar
+
+put (InstanceMVar a b) (key, x) = mask_ $ unprotect key &gt;&gt;= putMVar a . ((,) x) &gt;&gt; takeMVar b
+
+get (InstanceMVar a b) = mask_ $ takeMVar a &gt;&gt;= \(x, r) -&gt; register r &gt;&gt; putMVar b () &gt;&gt; return x</code></pre>
+<p>This code will guarantee that resource will be read, however it may lock.</p>
+<p>Let’s write a <code>DelayedMVar</code> this structure will not block on write but have should be registered in global resourcet block</p>
+<pre><code>newtype DelayedMVar a = DelayedMVar (MVar (a,IO ()))
+
+newDelayedMVar = allocate (DelayedMVar &lt;$&gt; newEmptyMVar) (releaseDelayedMVar)
+
+releaseDelayedMVar (DelayedMVar v) = maybe (return ()) (snd) =&lt;&lt; tryReadMVar v
+
+put (DelayedMVar v) (key, x) = mask_ $ unprotect key &gt;&gt;= putMVar a . ((,) x)
+
+get (DelayedMVar v) = mask_ $ takeMVar a &gt;&gt;= \(x, r) -&gt; register r &gt;&gt; return x</code></pre>
+<p>Same way one can write Channel or STM Channel, however channel is not fully safe unless chan is closable.</p>
+<pre><code>newtype SChan a = SChan (SChan (a,IO ()))
+
+newSChan = allocate (SChan &lt;$&gt; newChan) releaseChan
+
+releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
+  where go Nothing = return ()
+        go (Just (x,a)) = a &gt;&gt; tryReadChan v &gt;&gt;= go</code></pre>
+<p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs he’s task. But the next things should hold:</p>
+<ol style="list-style-type: decimal">
+<li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
+<li>Read and writes should be exception safe</li>
+</ol>
+<p>Note. currently unprotect is not merged upstream but if any changes will take place I’ll update this blog post</p>]]></summary>
+</entry>
+<entry>
     <title>OpenRC Extended cgroups support</title>
     <link href="http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html" />
     <id>http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html</id>

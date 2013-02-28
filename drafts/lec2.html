@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Лекция 2</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+    <h1>Лекция 2 <br /><small><strong>unknown</strong></small></h1>
+</div>
+
+<p>Поговорим о тех же определениях на конкретном примере</p>
+<p>Рассмотрим квантовую модель</p>
+<p><span class="math">\[\begin{align}
+      H &amp;= \hbar  \omega_s a^+a^- + \hbar \omega_s S_2 
+    + A \cos \alpha (S_+a +S_-a^+)
+    + A \sin \alpha (S_+a^+ + S_-a) \\
+    S_+ &amp;= S_x+iS_y \\
+    S_- &amp;= S_x-iS_y \\
+    |S|^2 &amp;= \sigma(\sigma+1)
+  \end{align}\]</span></p>
+<p>Модель используется много где и есть куча интерпретаций.</p>
+<h2>переход к классическому пределу</h2>
+<p>перейти к классическому пределу <span class="math">\(\hbar \rightarrow 0\)</span></p>
+<p><span class="math">\[\hbar \rightarrow 0, \sigma \rightarrow \infty, A = \left(\frac{\hbar}{2}\right)^{3/2} \bar{\Lambda}\]</span></p>
+<p><span class="math">\[\hbar^2 \sigma(\sigma+1)= S^2\]</span> постоянная величина при квазиклассическом приближении</p>
+<p><span class="math">\[a=\sqrt{\frac{m\omega_b}{2\hbar}}\cdot x + \sqrt{{1}{2\hbar m\omega_b}}\cdot p\]</span></p>
+<p>тогда мы получаем след. классический Гамильтониан</p>
+<p><span class="math">\[H_{classic} = \frac{p^2}{2\mu} + \frac{1}{2} \mu \omega_B^2x^2+\omega_SS_z
+  +\frac{1}{2}\bar\Lambda\cos\alpha(\sqrt{\mu\omega_B}xS_x - \frac{1}{\sqrt{\mu\omega_B}}pS_y)
+  +\frac{1}{2}\bar\Lambda\sin\alpha(\ldots)\]</span></p>
+<p>У нас спин в эллиптических координатах: <span class="math">\((S_x,S_y,S_z) = s(\sin\delta\cos\phi,\sin\delta\sin\phi,\cos\delta)\)</span></p>
+<p>Затем мы можем написать уравнение движения:</p>
+<p><span class="math">\[\left[ \frac{dx}{dt} = \frac{\partial H}{\partial p}
+   , \frac{dp}{dt} = - \frac{\partial H}{\partial x}
+   , \frac{d\vec S}{dt} = \vec{S} \times \frac{\partial\vec H}{\partial\vec S}
+   \right]\]</span></p>
+<p>В общем случае этот поток хаотический:</p>
+<p><span class="math">\[\begin{align}
+        I = \frac{p^2}{2\mu\omega_B} + \frac{1}{2} \mu \omega_Bx^2 + S_z \\
+        K = \ldots - S_z
+    \end{align}\]</span></p>
+<p>И подставляя в гамильтониан получаем:</p>
+<p><span class="math">\[\left.
+    \begin{align}
+        \dot I = \{H,I\} = \lambda\sin\alpha(*) \\
+        \dot K = \{H,K\} = \lambda\cos\alpha(**)
+    \end{align}
+    \right| \Rightarrow \alpha = \{0,\pi/2\}\]</span></p>
+<p>Правые части коммутируют и находятся в инволюции тогда и только тогда система является интегрируемой.</p>
+<p>При <span class="math">\(\alpha = \{ 0,\pi/2\}\)</span> в (??) существует второй интеграл движения.</p>
+<p>В квантовой механике:</p>
+<p><span class="math">\[\begin{align}
+        \hat I = \hbar (a^+a + S_z) \\
+        \hat K = \hbar (a^+a - S_z)
+    \end{align}\]</span></p>
+<p>Посчитав стандартные коммутаторы</p>
+<p><span class="math">\[\begin{align}
+        [H,I] = 2 A \sin\alpha(S_- a - S_+ a^+) \\
+        [H,K] = 2 A \cos\alpha(S_+ a - S_- a^+)
+    \end{align}\]</span></p>
+<p>у нас опять существуют интегралы коммутирующие с исходными:</p>
+<p><span class="math">\[P =(-1)^{a^+a+\sigma-S_z} = e^{i\pi(-\frac{I}{\hbar}-\sigma)}
+= e^{i\pi(\frac{I}{\hbar}+\sigma)},\]</span></p>
+<p>где <span class="math">\(sigma\)</span> – полный спин модели</p>
+<p><span class="math">\([P,H] = 0\)</span> коммутирует при любом <span class="math">\(\alpha\)</span>, но классического аналога нет. и нам потребовалось использовать на один оператор больше, чем в классическом случае.</p>
+<p>Разберемся, что делает <span class="math">\(P\)</span>.</p>
+<p>Введем Фоковский базис: <span class="math">\(|m,n\rangle, m=0\ldots2\pi, n= 0..\infty,\)</span> где <span class="math">\(n\)</span> – количество частиц в системе, <span class="math">\(m\)</span> – соотвествующий поворот спина у полной системы частиц.</p>
+<p><span class="math">\((\sigma - S_z) | m,n \rangle = m | m,n\rangle\)</span> – оператор диагонализируется</p>
+<p>Соответствующие операторы рождения/уничтожения:</p>
+<p><span class="math">\[\begin{align}
+        a^+|m,n\rangle &amp; = \sqrt{n+1} | m, n+1\rangle\\
+        a^-|m,n\rangle &amp; = \sqrt{n}   | m, n-1\rangle \\
+        S_+|m,n\rangle &amp; = \sqrt{m (2\sigma -1 -m)} | m+1, n\rangle
+    \end{align}\]</span></p>
+<p>TODO картинка</p>
+<p>Решетка разбивающаяся на 2 под-решетки.</p>
+<p><span class="math">\[\left.\begin{align}
+        P | m,n\rangle^* &amp; = 1 |m,n\rangle^* \\
+        P | m,n\rangle &amp; = -1 | m,n\rangle
+  \end{align}\right\}\]</span></p>
+<p>Тип решетки и к интегр. динамика он не относится. (???)</p>
+<p>Таких операторов очень много, поэтому по количеству интегралов нельзя говорить об интегрируемости системы.</p>
+<p>Иногда под интегрируемостью имеют ввиду аналитическую разрешимость (solvable).</p>
+<p>Рассмотрим модели с обменными взаимодействиями</p>
+<p><span class="math">\[H = \sum_{k=1}^n p_k^2 + \sum_k V_i (q_k - q_{k-1})\]</span></p>
+<p>три частицы одновременно не взаимодействуют.</p>
+<p>Задача: найти потенциал для которого решение в виде алгебраических уравнений, которые решаются.</p>
+<p>Идея как строить эту модель:</p>
+<p><span class="math">\[H = \sum_{k=1}^n \left(\frac{\hat p_k^2}{2m} + \frac{m\omega^2}{2}\hat q^2_k\right)
+     + \sum \frac{cm}{2} (q_k-q_{q-1})^2,\]</span></p>
+<p><span class="math">\(q_0=q_{m-1}=0\)</span> – граничные условия.</p>
+<p>Оператор самосопряжения: <span class="math">\(\hat p^+=p, \hat q^+=q\)</span>/</p>
+<p>Выпишем коммутаторы:</p>
+<p><span class="math">\[\begin{align}
+    [\hat q_i,\hat q_k = 0] \\
+    [\hat p_i,\hat p_k = 0] \\
+    [\hat q_k,\hat p_k = i\hbar]
+    \end{align}\]</span></p>
+<p>Взаимодействие света с веществом <span class="math">\(c\geq 1\)</span>. Мы не рассматриваем задачу рассеяния, а рассматриваем, как решать такие задачи в более простом случае:</p>
+<p>Введем вектора:</p>
+<p><span class="math">\[\begin{align}
+    p &amp; = \left( \begin{matrix} \hat p_1 \\ \vdots \\ \hat p_n\end{matrix}\right) p^*=(\hat p_1,\ldots,\hat p_n)
+    q &amp; = \left( \begin{matrix} \hat q_1 \\ \vdots \\ \hat q_n\end{matrix}\right) q^*=(\hat q_1,\ldots,\hat q_n)
+    \end{align}\]</span></p>
+<p><span class="math">\[\hat H = \frac{1}{2m} p^*p + \frac{m}{2}q^* A_n q =\]</span></p>
+<p><span class="math">\(A\)</span> – матрица взаимодействие. В нашем случае: <span class="math">\(A_n = \omega^w I_n + cM\)</span>, <span class="math">\(M=TODO\)</span> матрица Якоби.</p>
+<p>Пусть <span class="math">\(M\)</span> в общем случае вещественная симметричная марица, это хорошо тем, что существует спектральная теорема если есть вн симметричная матрица. то её можно диагонализировать.</p>
+<p><span class="math">\(M = U V U^T, UU^T=U^T^=I, D=diag\{\lambda_1,\ldots,\lambda_n\}, \lambda_i\in\mathrm R\)</span></p>
+<p>Введем нормированные координаты:</p>
+<p><span class="math">\[\left( \begin{matrix} Q_1 \\ \ldots \\ Q_n\end{matrix}\right) 
+    = U^T \left( \begin{matrix} q_1 \\ \ldots \\ q_n\end{matrix}\right), \vec{P} = U^T \vec{p}\]</span></p>
+<p>– вектор элементы которого квантовые операторы для нашего <span class="math">\(H\)</span> мы получим:</p>
+<p><span class="math">\[= \frac{1}{2m} P^*P + \frac{m}{2}Q^*(\omega^2I_n+cd)Q\]</span></p>
+<p>легко доказать, что это преобразование является каноническим (сохраняющим коммутаторы), т.е. у нас (???):</p>
+<p><span class="math">\[\begin{align}
+        [Q_k,P_k] &amp; = i \hbar \\
+        \omega_j = \sqrt{\omega^2 + A_j}
+    \end{align}\]</span></p>
+<p>мы получили Гамильтониан для неизотропного осцилятора</p>
+<p><span class="math">\[\hat H = \sum_{m=1}^n \hat H_m; \hat H_m = \frac{1}{2m} \hat P_m^2 + \omega_m^2\hat Q_m^2\]</span></p>
+<p>т.е. мы разделили переменные</p>
+<p>Вводим аппарат рождения/уничтожения.</p>
+<p><span class="math">\[a^{\pm}=\sqrt{\fraq{m\omega_i}{2\hbar}}\hat Q_j \pm \fraq{1}{\sqrt{2\hbar m \omega_j}} \hat P_j\]</span></p>
+<p>теперь единственн. (??) способ:</p>
+<p><span class="math">\[[a_j^-,a_j^+] = 1\]</span></p>
+<p><span class="math">\[= \sum \frac{h\omega_j}{2}(2a_j^+a_j^- +1)\]</span></p>
+<p>отсюда следует, что</p>
+<p><span class="math">\[[H,a_j^\pm] = \pm \hbar \omega_j a_j^\pm\]</span></p>
+<p>Вводим Фоковский вакуум:</p>
+<p><span class="math">\[a_{j,m} | a_1\ldots a_n \rangle = 0, j=1\ldots N\]</span></p>
+<p><span class="math">\[|k_1\ldots k_n\rangle = \left.\frac{(a_1^+)^{k_1}\ldots(a_n^+)^{k_n}}{\sqrt{k_1\ldots k_n}\right|\left.0 \right\rangle\]</span></p>
+<p><span class="math">\(k_i\)</span> - собственные состояния <span class="math">\(H\)</span>. тут все просто и решается руками, как делал Шрёдингер. Соответсвенно:</p>
+<p><span class="math">\[\hat H | k_1\ldots k_n\rangle = \sum \hbar \omega_j (k_j+1/2) | k_1\ldots k_n\rangle\]</span></p>
+<p>т.е. мы можем алгебраически найти собственные числа или мы можем найти собственные числа матрицы <span class="math">\(M\)</span>:</p>
+<p><span class="math">\[\omega_j = \sqrt{\omega^2 + \lambda_j}\]</span></p>
+<p>таким обрахом наша задача разрешима (solvable) если мы можем алгебраически диагонализировать матрицу <span class="math">\(M\)</span>.</p>
+<p>Вернемся к нашему случаю:</p>
+<p><span class="math">\(M = \begin{matrix}\)</span> (TODO)</p>
+<p>для этого случая: <span class="math">\(u_{ij} = \frac{\sqrt{2}}{\sqrt{\lambda+1}} \sin\frac{i_j\pi}{n+1}, 1\leq i_j\leq n\)</span></p>
+<p>соответсвенно <span class="math">\(\lambda_j = 2(1-\cos\frac{j\pi}{n+1}\)</span></p>
+<p><span class="math">\[\omega_j^2 = \omega_j^2 + 4c\sin^2\left(\frac{j\pi}{2(n+1)}\right)\]</span></p>
+<p>таким образом получили интегрируемые системы в квантовой механике.</p>
+<p>Существует теорема (Бохнера) [Bochner]</p>
+<p>Все матрицы с собственными значениями класс. ортогональные полином</p>
+<p>Задача Штурма-Ливилля: <span class="math">\(p(x)y''(x) + q(x)y'(x) + r(x) = 0,\)</span> найти <span class="math">\(p,q,r\)</span> для которых <span class="math">\(y\)</span> - полиномы.</p>
+<p>Мы ищем <span class="math">\(y(x)\)</span> – полином, на фиксированном интервале <span class="math">\([a;b]\)</span> теорема Бохнера допускает предположение что существует <span class="math">\(m\)</span> нулей. <span class="math">\(y_0=1 \rightarrow y_1 \rightarrow \ldots\)</span> все семейство полиномов.</p>
+<p>(???)</p>
+<p>построив полином мы можем построить матрицу взаимодействия (Кравчук)</p>
+<p><span class="math">\[y(x) = {}_2F_1 \left( \begin{matrix} -x_1-1 \\ N \end{matrix} \right|\left.\frac{1}{p}\right)\]</span></p>
+<hr />
+<div class="pull-right">
+    <em>text by Vershilo A.B. <br /> lecture by Tsiganov A. V.</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+</body>
+</html>
