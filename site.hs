@@ -103,16 +103,9 @@ main = hakyllWith config $ do
 
 
   -- Render some static pages
-  match "projects.html" $ do
+  match (fromList ["projects.html","contact.html"]) $ do
     route idRoute
     compile $ getResourceBody
-        >>= loadAndApplyTemplate "templates/default.html" 
-                (mathCtx `mappend` defaultContext)
-        >>= relativizeUrls
-
-  match (fromList ["contact.markdown"]) $ do
-    route $ setExtension ".html"
-    compile $ pandocCompiler
         >>= loadAndApplyTemplate "templates/default.html" 
                 (mathCtx `mappend` defaultContext)
         >>= relativizeUrls

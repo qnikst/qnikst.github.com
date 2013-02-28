@@ -1,0 +1,281 @@
+-----
+title: Лекция 2
+date: unknown
+author: text by Vershilo A.B. <br /> lecture by Tsiganov A. V.
+mathjax: yes
+-----
+
+Поговорим о тех же определениях на конкретном примере
+
+Рассмотрим квантовую модель 
+
+\begin{equation}
+  \begin{align}
+      H &= \hbar  \omega_s a^+a^- + \hbar \omega_s S_2 
+    + A \cos \alpha (S_+a +S_-a^+)
+    + A \sin \alpha (S_+a^+ + S_-a) \\
+    S_+ &= S_x+iS_y \\
+    S_- &= S_x-iS_y \\
+    |S|^2 &= \sigma(\sigma+1)
+  \end{align}
+\end{equation}
+
+Модель используется много где и есть куча интерпретаций.
+
+\subsection{переход к классическому пределу}
+перейти к классическому пределу $\hbar \rightarrow 0$
+
+\begin{equation}
+  \hbar \rightarrow 0, \sigma \rightarrow \infty, A = \left(\frac{\hbar}{2}\right)^{3/2} \bar{\Lambda}
+\end{equation}
+
+$$ \hbar^2 \sigma(\sigma+1)= S^2$$
+постоянная величина при квазиклассическом приближении
+
+$$a=\sqrt{\frac{m\omega_b}{2\hbar}}\cdot x + \sqrt{{1}{2\hbar m\omega_b}}\cdot p$$
+
+тогда мы получаем след. классический Гамильтониан
+
+$$H_{classic} = \frac{p^2}{2\mu} + \frac{1}{2} \mu \omega_B^2x^2+\omega_SS_z
+  +\frac{1}{2}\bar\Lambda\cos\alpha(\sqrt{\mu\omega_B}xS_x - \frac{1}{\sqrt{\mu\omega_B}}pS_y)
+  +\frac{1}{2}\bar\Lambda\sin\alpha(\ldots)$$
+
+У нас спин в эллиптических координатах: $(S_x,S_y,S_z) = s(\sin\delta\cos\phi,\sin\delta\sin\phi,\cos\delta)$
+
+Затем мы можем написать уравнение движения:
+
+$$ \left[ \frac{dx}{dt} = \frac{\partial H}{\partial p}
+   , \frac{dp}{dt} = - \frac{\partial H}{\partial x}
+   , \frac{d\vec S}{dt} = \vec{S} \times \frac{\partial\vec H}{\partial\vec S}
+   \right] $$
+
+В общем случае этот поток хаотический:
+
+\begin{equation}
+    \begin{align}
+        I = \frac{p^2}{2\mu\omega_B} + \frac{1}{2} \mu \omega_Bx^2 + S_z \\
+        K = \ldots - S_z
+    \end{align}
+\end{equation}
+
+И подставляя в гамильтониан получаем:
+
+\begin{equation}
+    \left.
+    \begin{align}
+        \dot I = \{H,I\} = \lambda\sin\alpha(*) \\
+        \dot K = \{H,K\} = \lambda\cos\alpha(**)
+    \end{align}
+    \right| \Rightarrow \alpha = \{0,\pi/2\}
+\end{equation}
+
+Правые части коммутируют и находятся в инволюции тогда и только тогда система является
+интегрируемой.
+
+При $\alpha = \{ 0,\pi/2\}$ в (??) существует второй интеграл движения.
+
+В квантовой механике:
+
+\begin{equation}
+    \begin{align}
+        \hat I = \hbar (a^+a + S_z) \\
+        \hat K = \hbar (a^+a - S_z)
+    \end{align}
+\end{equation}
+
+Посчитав стандартные коммутаторы
+
+\begin{equation}
+    \begin{align}
+        [H,I] = 2 A \sin\alpha(S_- a - S_+ a^+) \\
+        [H,K] = 2 A \cos\alpha(S_+ a - S_- a^+)
+    \end{align}
+\end{equation}
+
+у нас опять существуют интегралы коммутирующие с исходными:
+
+$$ P =(-1)^{a^+a+\sigma-S_z} = e^{i\pi(-\frac{I}{\hbar}-\sigma)}
+= e^{i\pi(\frac{I}{\hbar}+\sigma)},$$
+
+где $sigma$ -- полный спин модели
+
+$[P,H] = 0$ коммутирует при любом $\alpha$, но классического аналога нет.
+и нам потребовалось использовать на один оператор больше, чем в классическом случае.
+
+Разберемся, что делает $P$.
+
+Введем Фоковский базис: $|m,n\rangle, m=0\ldots2\pi, n= 0..\infty,$ где
+$n$ -- количество частиц в системе, $m$ -- соотвествующий поворот спина у полной системы
+частиц.
+
+$(\sigma - S_z) | m,n \rangle = m | m,n\rangle$ -- оператор диагонализируется
+
+Соответствующие операторы рождения/уничтожения:
+
+\begin{equation}
+    \begin{align}
+        a^+|m,n\rangle & = \sqrt{n+1} | m, n+1\rangle\\
+        a^-|m,n\rangle & = \sqrt{n}   | m, n-1\rangle \\
+        S_+|m,n\rangle & = \sqrt{m (2\sigma -1 -m)} | m+1, n\rangle
+    \end{align}
+\end{equation}
+
+TODO картинка
+
+Решетка разбивающаяся на 2 под-решетки.
+
+\begin{equation}
+    \left.\begin{align}
+        P | m,n\rangle^* & = 1 |m,n\rangle^* \\
+        P | m,n\rangle & = -1 | m,n\rangle
+  \end{align}\right\}
+\end{equation}
+
+Тип решетки и к интегр. динамика он не относится. (???)
+
+Таких операторов очень много, поэтому по количеству интегралов нельзя говорить об интегрируемости
+системы.
+
+Иногда под интегрируемостью имеют ввиду аналитическую разрешимость (solvable).
+
+Рассмотрим модели с обменными взаимодействиями
+
+$$H = \sum_{k=1}^n p_k^2 + \sum_k V_i (q_k - q_{k-1})$$
+
+три частицы одновременно не взаимодействуют.
+
+Задача: найти потенциал для которого решение в виде алгебраических уравнений, которые решаются.
+
+
+Идея как строить эту модель:
+
+$$ H = \sum_{k=1}^n \left(\frac{\hat p_k^2}{2m} + \frac{m\omega^2}{2}\hat q^2_k\right)
+     + \sum \frac{cm}{2} (q_k-q_{q-1})^2,$$
+
+     $q_0=q_{m-1}=0$ -- граничные условия.
+
+Оператор самосопряжения: $\hat p^+=p, \hat q^+=q$/
+
+Выпишем коммутаторы:
+
+\begin{equation}
+    \begin{align}
+    [\hat q_i,\hat q_k = 0] \\
+    [\hat p_i,\hat p_k = 0] \\
+    [\hat q_k,\hat p_k = i\hbar]
+    \end{align}
+\end{equation}
+
+Взаимодействие света с веществом $c\geq 1$. Мы не рассматриваем задачу рассеяния,
+а рассматриваем, как решать такие задачи в более простом случае:
+
+Введем вектора:
+\begin{equation}
+    \begin{align}
+    p & = \left( \begin{matrix} \hat p_1 \\ \vdots \\ \hat p_n\end{matrix}\right) p^*=(\hat p_1,\ldots,\hat p_n)
+    q & = \left( \begin{matrix} \hat q_1 \\ \vdots \\ \hat q_n\end{matrix}\right) q^*=(\hat q_1,\ldots,\hat q_n)
+    \end{align}
+\end{equation}
+
+\begin{equation}
+    \hat H = \frac{1}{2m} p^*p + \frac{m}{2}q^* A_n q =
+\end{equation}
+
+$A$ -- матрица взаимодействие. В нашем случае:
+$A_n = \omega^w I_n + cM$,  $M=TODO$ матрица Якоби.
+
+Пусть $M$ в общем случае вещественная симметричная марица, это хорошо тем, что существует спектральная
+теорема если есть вн симметричная матрица. то её можно диагонализировать.
+
+$M = U V U^T, UU^T=U^T^=I, D=diag\{\lambda_1,\ldots,\lambda_n\}, \lambda_i\in\mathrm R$
+
+Введем нормированные координаты: 
+
+\begin{equation}
+    \left( \begin{matrix} Q_1 \\ \ldots \\ Q_n\end{matrix}\right) 
+    = U^T \left( \begin{matrix} q_1 \\ \ldots \\ q_n\end{matrix}\right), \vec{P} = U^T \vec{p}
+\end{equation}
+
+-- вектор элементы которого квантовые операторы
+для нашего $H$ мы получим:
+
+\begin{equation}
+    = \frac{1}{2m} P^*P + \frac{m}{2}Q^*(\omega^2I_n+cd)Q
+\end{equation}
+
+легко доказать, что это преобразование является каноническим (сохраняющим коммутаторы), т.е. у нас (???):
+
+\begin{equation}
+    \begin{align}
+        [Q_k,P_k] & = i \hbar \\
+        \omega_j = \sqrt{\omega^2 + A_j}
+    \end{align}
+\end{equation}
+
+мы получили Гамильтониан для неизотропного осцилятора
+
+$$\hat H = \sum_{m=1}^n \hat H_m; \hat H_m = \frac{1}{2m} \hat P_m^2 + \omega_m^2\hat Q_m^2$$
+
+т.е. мы разделили переменные
+
+Вводим аппарат рождения/уничтожения.
+
+$$a^{\pm}=\sqrt{\fraq{m\omega_i}{2\hbar}}\hat Q_j \pm \fraq{1}{\sqrt{2\hbar m \omega_j}} \hat P_j$$
+
+теперь единственн. (??) способ:
+
+$$[a_j^-,a_j^+] = 1$$
+
+$$ = \sum \frac{h\omega_j}{2}(2a_j^+a_j^- +1)$$
+
+отсюда следует, что
+
+$$[H,a_j^\pm] = \pm \hbar \omega_j a_j^\pm $$
+
+Вводим Фоковский вакуум:
+
+$$a_{j,m} | a_1\ldots a_n \rangle = 0, j=1\ldots N$$
+
+$$|k_1\ldots k_n\rangle = \left.\frac{(a_1^+)^{k_1}\ldots(a_n^+)^{k_n}}{\sqrt{k_1\ldots k_n}\right|\left.0 \right\rangle$$
+
+$k_i$ - собственные состояния $H$. тут все просто и решается руками, как делал Шрёдингер. Соответсвенно:
+
+$$ \hat H | k_1\ldots k_n\rangle = \sum \hbar \omega_j (k_j+1/2) | k_1\ldots k_n\rangle$$
+
+т.е. мы можем алгебраически найти собственные числа или мы можем найти собственные числа матрицы $M$:
+
+$$\omega_j = \sqrt{\omega^2 + \lambda_j}$$
+
+таким обрахом наша задача разрешима (solvable) если мы можем алгебраически диагонализировать матрицу $M$.
+
+Вернемся к нашему случаю:
+
+$M = \begin{matrix}$ (TODO)
+
+для этого случая: $u_{ij} = \frac{\sqrt{2}}{\sqrt{\lambda+1}} \sin\frac{i_j\pi}{n+1}, 1\leq i_j\leq n$
+
+соответсвенно $\lambda_j = 2(1-\cos\frac{j\pi}{n+1}$
+
+$$ \omega_j^2 = \omega_j^2 + 4c\sin^2\left(\frac{j\pi}{2(n+1)}\right)$$
+
+таким образом получили интегрируемые системы в квантовой механике.
+
+Существует теорема (Бохнера) [Bochner] 
+
+  Все матрицы с собственными значениями класс. ортогональные полином
+
+Задача Штурма-Ливилля: $p(x)y''(x) + q(x)y'(x) + r(x) = 0,$ найти $p,q,r$ для
+которых $y$ - полиномы.
+
+Мы ищем $y(x)$ -- полином, на фиксированном интервале $[a;b]$ теорема Бохнера допускает предположение
+что существует $m$ нулей. $y_0=1 \rightarrow y_1 \rightarrow \ldots$ все семейство полиномов.
+
+(???)
+
+построив полином мы можем построить матрицу взаимодействия (Кравчук)
+
+$$y(x) = {}_2F_1 \left( \begin{matrix} -x_1-1 \\ N \end{matrix} \right|\left.\frac{1}{p}\right)$$
+  
+%$${}_2F_1 \left(\matrix{a & b \\ c\end{matrix}$$
+
+
