@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></meta>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - contact</title>
     <!-- Bootstrap -->
     <link href="./css/bootstrap.min.css" rel="stylesheet" media="screen">
@@ -10,8 +10,9 @@
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
       }
     </style>
-    <!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
     <script src="./js/bootstrap.min.js"></script>
+    
 </head>
 <body>
   <div class="navbar navbar-fixed-top navbar-inverse">
@@ -26,24 +27,37 @@
       </div>
   </div>
   <div class="container">
-    <h1 id="contacts">Contacts</h1>
-<p>JID:</p>
-<p>qnikst at gmail dot com</p>
-<p>IRC:</p>
-<p>qnikst at irc dot freenode dot net</p>
-<h2 id="about-myself">About myself</h2>
-<p>Haskell developer, physysist</p>
-<p>Here can be some info that nobody will need</p>
-<h2 id="me-on">Me on</h2>
-<ul>
-<li><a href="http://github.com/qnikst">github</a></li>
-<li><a href="http://www.linux.org.ru/people/qnikst/profile">lor</a></li>
-<li><a href="http://juick.com/qnikst/">juick</a></li>
-<li><a href="http://myanimelist.net/animelist/qnikst">myanimelist</a></li>
-</ul>
+    <div class="row">
+    <div class="span3">
+        <img src="./images/me.png" class="img-polaroid" />
+        <hr />
+        Me on:
+        <ul>
+            <li><a href="http://github.com/qnikst">github.com</a></li>
+            <li><a href="https://bitbucket.org/qnikst/">bitbucket.com</a></li>
+            <li><a href="https://www.ohloh.net/accounts/218621?ref=Tiny" target="_top">
+<img alt="Ohloh profile for qnikst" border="0" height="15" src="https://www.ohloh.net/accounts/218621/widgets/account_tiny.gif" width="80" />
+</a></li>
+            <li><a href="http://juick.com/qnikst/">juick.com</a></li>
+            <li><a href="https://plus.google.com/107451457000936294439/posts/p/pub">g+</a></li>
+            <li><a href="http://myanimelist.net/animelist/qnikst">my anime list</a></li>
+            <li><a href="http://mywishlist.ru/wishlist/qnikst">mywishlist.ru</a></li>
+            <li><a href="http://www.linux.org.ru/people/qnikst/profile">Linux.org.ru</a></li>
+        </ul>
+    </div>
+    <div class="span9 text-left">
+        <dl class="dl-horizontal">
+            <dt>name</dt><dd>Alexander Vershilov </dd>
+            <dt>birthday</dt><dd>06/08/1987</dd>
+            <dt>address</td><dd>Russia, Leningrandkaya obl, Gatchina</dd>
+            <dt>Key-ID</dt><dd>68D0F4762554B910</dd>
+            <dt>work</td><dd>Saint-Petersburg State Univ, ARCCN</dd>
+        </dl>
+    </div>
+</div>
+
     <footer>
-      Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
-      <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
     </footer>
   </div>
 </body>
