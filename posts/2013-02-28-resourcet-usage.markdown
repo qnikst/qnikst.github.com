@@ -5,8 +5,8 @@ title: Resourcet usage
 tags: haskell, resourcet
 ----
 
-This post describes an interesting resourcet usecase that may be usefull due
-lack of liner-types support in haskell and in some other cases.
+This post describes an interesting resourcet usecase that may be usefull due to the
+lack of liner-types support in haskell.
 
 
 Lets look at the next problem. Assuming we have got a some sort of transaction
@@ -42,8 +42,8 @@ but this package doesn't work in recent ghc`s due some unsolved bugs, another op
 is [resourcet](http://hackage.haskell.org/package/resourcet) package written by Michael 
 Snoyman, this package doesn't give so much guarantees as regions but at least it works.
 Resourcet package introduce ResourceT monad that forms a block where all resources that
-was registered in that blog will be closed as soon as compulation will left a block 
-(there is an api for an early close but will not look at it currently).
+were registered in that blog will be closed as soon as compulation would left a block 
+(there is an api for an early close but will not look at it now).
 
 So we can guarantee that:
 
@@ -51,7 +51,7 @@ So we can guarantee that:
   2. resources freeing will be determinated in time/
   3. resource will be freed only once  (second call to release is noop)
 
-This is minimal requirement for what we need:
+Here are minimal definition for what we need:
 
 
 ```
@@ -83,10 +83,10 @@ There is a solution: `unprotect` function. This function allowes you to degerist
 resource in the current resourcet block and then register it in another block, or register new
 release action.
 
-Currentle resourcet package lacks helpers that allowes to move resource to some other place, so
+Currently resourcet package lacks helpers that allowes to move resource to some other place, so
 one need to create that functions himself. Here are some advices how one can do it safely.
 
-You need a function that has following interace:
+You need a structure that has the following interface:
 
   * put :: s -> (a, IO ()) -> m ()  -- put resource into storage
   * get :: s -> m (ReleaseKey a)    -- get resource and register it in current process
@@ -141,7 +141,7 @@ releaseChan (ChanMVar v) = go =<< tryReadChan v
 ```
 
 There are many variants each with it's own tradeoffs so one a free to build a 
-way that matchs he's task. But the next things should hold:
+way that matchs his task. But the next things should hold:
 
   1. Datastructure should either guarantee that other side will read resource
   atomically or be registered in ResourceT monad
