@@ -91,11 +91,14 @@ You need a structure that has the following interface:
   * put :: s -> (a, IO ()) -> m ()  -- put resource into storage
   * get :: s -> m (ReleaseKey a)    -- get resource and register it in current process
 
-Put and get should be atomic and mask exceptions, moreover if you can guarantee that message
+Put and get should be atomic and mask exceptions, moreover if you can't guarantee that message
 will be immidiatelly read by another process you should register datastructure in some higher
 level ResourceT block, this way you'll guarantee that no resources will be left in store unfreed.
 
-Here are some basic examples of such datastructures
+Here are some basic examples of such datastructures:
+
+(this code is not well tested as I've used more complicated datastructure for such purpose, that
+have an additional API, but its not usefull for common case)
 
 At first let's write an `InstantMVar`, this structure allow you to send message into other process,
 where it will be immideatelly read, so we don't need to store that structure in 'global' resource 
@@ -112,7 +115,7 @@ get (InstanceMVar a b) = mask_ $ takeMVar a >>= \(x, r) -> register r >> putMVar
 ```
 This code will guarantee that resource will be read, however it may lock.
 
-Let's write a `DelayedMVar` this structure will not block on write but have should be registered
+Let's write a `DelayedMVar` this structure will not block on write, but should be registered
 in global resourcet block
 
 ```
@@ -137,7 +140,7 @@ newSChan = allocate (SChan <$> newChan) releaseChan
 
 releaseChan (ChanMVar v) = go =<< tryReadChan v
   where go Nothing = return ()
-        go (Just (x,a)) = a >> tryReadChan v >>= go
+        go (Just (x,a)) = a >> tryReadChan v {- we have a possible race condition here -} >>= go
 ```
 
 There are many variants each with it's own tradeoffs so one a free to build a 
@@ -146,6 +149,3 @@ way that matchs his task. But the next things should hold:
   1. Datastructure should either guarantee that other side will read resource
   atomically or be registered in ResourceT monad
   2. Read and writes should be exception safe
-
-Note. currently unprotect is not merged upstream but if any changes will take place I'll update this 
-blog post
