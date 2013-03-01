@@ -15,7 +15,7 @@
     <id>http://qnikst.github.com/posts/2013-02-28-resourcet-usage.html</id>
     <published>2013-02-28T00:00:00Z</published>
     <updated>2013-02-28T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>This post describes an interesting resourcet usecase that may be usefull due lack of liner-types support in haskell and in some other cases.</p>
+    <summary type="html"><![CDATA[<p>This post describes an interesting resourcet usecase that may be usefull due to the lack of liner-types support in haskell.</p>
 <p>Lets look at the next problem. Assuming we have got a some sort of transaction mechanism that receives data and then perform transaction, but sometimes it may call callback to users code (originally it’s about <a href="http://github.com/qnikst/2pc">2pc</a> library).</p>
 <p>So we have method:</p>
 <pre><code>withWH0 :: (Binary b) -&gt; ByteString -&gt; (b -&gt; IO Bool) -&gt; IO ()
@@ -26,14 +26,14 @@ withWH0 = undefined</code></pre>
 <blockquote>
 <p>one can provide an trasaction handler, i.e. a resource that for communication of the user code and library, this resource should be either accepted or declined. If that resource is ‘alive’ it means that user is working on transaction. If resource is not touched by user code a default action should be run, before resource will be cleared.</p>
 </blockquote>
-<p>The problem that we should somehow guarantee that user will free resource. One solution use linear types, but we don’t have them (or at least it’s too difficult for me and I don’t know how to do it). Another option is to use some kind of region library: one option is <a href="http://hackage.haskell.org/package/regions">regions</a> originaly proposed by <a href="http://okmij.org/ftp/Haskell/regions.html#light-weight">Oleg</a> but this package doesn’t work in recent ghc`s due some unsolved bugs, another option is <a href="http://hackage.haskell.org/package/resourcet">resourcet</a> package written by Michael Snoyman, this package doesn’t give so much guarantees as regions but at least it works. Resourcet package introduce ResourceT monad that forms a block where all resources that was registered in that blog will be closed as soon as compulation will left a block (there is an api for an early close but will not look at it currently).</p>
+<p>The problem that we should somehow guarantee that user will free resource. One solution use linear types, but we don’t have them (or at least it’s too difficult for me and I don’t know how to do it). Another option is to use some kind of region library: one option is <a href="http://hackage.haskell.org/package/regions">regions</a> originaly proposed by <a href="http://okmij.org/ftp/Haskell/regions.html#light-weight">Oleg</a> but this package doesn’t work in recent ghc`s due some unsolved bugs, another option is <a href="http://hackage.haskell.org/package/resourcet">resourcet</a> package written by Michael Snoyman, this package doesn’t give so much guarantees as regions but at least it works. Resourcet package introduce ResourceT monad that forms a block where all resources that were registered in that blog will be closed as soon as compulation would left a block (there is an api for an early close but will not look at it now).</p>
 <p>So we can guarantee that:</p>
 <ol style="list-style-type: decimal">
 <li>every resource registered in the block will be freed</li>
 <li>resources freeing will be determinated in time/</li>
 <li>resource will be freed only once (second call to release is noop)</li>
 </ol>
-<p>This is minimal requirement for what we need:</p>
+<p>Here are minimal definition for what we need:</p>
 <pre><code>data TH = TH -- ^ transaction handler
 
 -- | accept transaction (send message via network)
@@ -52,8 +52,8 @@ withWH1 d cb = runResourceT $ do
 <p>But there is another issue: how user can queue some part of the messages?</p>
 <p>TBD make nice picture</p>
 <p>There is a solution: <code>unprotect</code> function. This function allowes you to degerister resource in the current resourcet block and then register it in another block, or register new release action.</p>
-<p>Currentle resourcet package lacks helpers that allowes to move resource to some other place, so one need to create that functions himself. Here are some advices how one can do it safely.</p>
-<p>You need a function that has following interace:</p>
+<p>Currently resourcet package lacks helpers that allowes to move resource to some other place, so one need to create that functions himself. Here are some advices how one can do it safely.</p>
+<p>You need a structure that has the following interface:</p>
 <ul>
 <li>put :: s -&gt; (a, IO ()) -&gt; m () – put resource into storage</li>
 <li>get :: s -&gt; m (ReleaseKey a) – get resource and register it in current process</li>
@@ -87,7 +87,7 @@ newSChan = allocate (SChan &lt;$&gt; newChan) releaseChan
 releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
   where go Nothing = return ()
         go (Just (x,a)) = a &gt;&gt; tryReadChan v &gt;&gt;= go</code></pre>
-<p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs he’s task. But the next things should hold:</p>
+<p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs his task. But the next things should hold:</p>
 <ol style="list-style-type: decimal">
 <li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
 <li>Read and writes should be exception safe</li>
