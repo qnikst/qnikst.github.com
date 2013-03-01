@@ -58,8 +58,9 @@ withWH1 d cb = runResourceT $ do
 <li>put :: s -&gt; (a, IO ()) -&gt; m () – put resource into storage</li>
 <li>get :: s -&gt; m (ReleaseKey a) – get resource and register it in current process</li>
 </ul>
-<p>Put and get should be atomic and mask exceptions, moreover if you can guarantee that message will be immidiatelly read by another process you should register datastructure in some higher level ResourceT block, this way you’ll guarantee that no resources will be left in store unfreed.</p>
-<p>Here are some basic examples of such datastructures</p>
+<p>Put and get should be atomic and mask exceptions, moreover if you can’t guarantee that message will be immidiatelly read by another process you should register datastructure in some higher level ResourceT block, this way you’ll guarantee that no resources will be left in store unfreed.</p>
+<p>Here are some basic examples of such datastructures:</p>
+<p>(this code is not well tested as I’ve used more complicated datastructure for such purpose, that have an additional API, but its not usefull for common case)</p>
 <p>At first let’s write an <code>InstantMVar</code>, this structure allow you to send message into other process, where it will be immideatelly read, so we don’t need to store that structure in ‘global’ resource block</p>
 <pre><code>data InstanceMVar a = InstanceMVar (MVar (a,IO ())) (MVar ())
 
@@ -69,7 +70,7 @@ put (InstanceMVar a b) (key, x) = mask_ $ unprotect key &gt;&gt;= putMVar a . ((
 
 get (InstanceMVar a b) = mask_ $ takeMVar a &gt;&gt;= \(x, r) -&gt; register r &gt;&gt; putMVar b () &gt;&gt; return x</code></pre>
 <p>This code will guarantee that resource will be read, however it may lock.</p>
-<p>Let’s write a <code>DelayedMVar</code> this structure will not block on write but have should be registered in global resourcet block</p>
+<p>Let’s write a <code>DelayedMVar</code> this structure will not block on write, but should be registered in global resourcet block</p>
 <pre><code>newtype DelayedMVar a = DelayedMVar (MVar (a,IO ()))
 
 newDelayedMVar = allocate (DelayedMVar &lt;$&gt; newEmptyMVar) (releaseDelayedMVar)
@@ -86,13 +87,12 @@ newSChan = allocate (SChan &lt;$&gt; newChan) releaseChan
 
 releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
   where go Nothing = return ()
-        go (Just (x,a)) = a &gt;&gt; tryReadChan v &gt;&gt;= go</code></pre>
+        go (Just (x,a)) = a &gt;&gt; tryReadChan v {- we have a possible race condition here -} &gt;&gt;= go</code></pre>
 <p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs his task. But the next things should hold:</p>
 <ol style="list-style-type: decimal">
 <li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
 <li>Read and writes should be exception safe</li>
-</ol>
-<p>Note. currently unprotect is not merged upstream but if any changes will take place I’ll update this blog post</p>]]></summary>
+</ol>]]></summary>
 </entry>
 <entry>
     <title>OpenRC Extended cgroups support</title>
