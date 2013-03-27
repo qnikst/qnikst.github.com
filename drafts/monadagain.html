@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - Формулы которые нужно знать</title>
+    <title>Qnikst blog - И Снова монады</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <style>
@@ -12,7 +12,7 @@
     </style>
     <script src="http://code.jquery.com/jquery-latest.js"></script>
     <script src="../js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
 </head>
 <body>
   <div class="navbar navbar-fixed-top navbar-inverse">
@@ -28,30 +28,32 @@
   </div>
   <div class="container">
     <div class="page-header">
-    <h1>Формулы которые нужно знать <br /><small><strong>February  1, 2013</strong></small></h1>
+    <h1>И Снова монады <br /><small><strong>undefined</strong></small></h1>
 </div>
 
-<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>
-<p>Уравнение теплопроводности:</p>
-<p><span class="math">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
-<p>Уравнение Лапласа:</p>
-<p><span class="math">\[\Delta f = 0\]</span></p>
-<p>Уравнение Пуассона:</p>
-<p><span class="math">\[\Delta f = g\]</span></p>
-<p>Уравнение Геймгольца (эллептическое):</p>
-<p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
-<p>Волновое уравнение (гиперболическое):</p>
-<p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
-<p>Уравнение Шрёдингера</p>
-<p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
-<p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
-<p>Задача Штурма-Лиувилля:</p>
-<p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
-<p>Преобразование Лапласа:</p>
-<p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>
+<h1 id="введение">Введение</h1>
+<h2 id="функции">Функции</h2>
+<h2 id="контекст">Контекст</h2>
+<p>В хацкеле важным понятием является понятие вычислительный контекст, которое встречается при описании различных <em>*</em></p>
+<p>Контекстом могут быть разные структуры такие как</p>
+<ul>
+<li><p>контейнер данных</p></li>
+<li><p>возможное наличие элемента (Maybe)</p></li>
+<li><p>propabilistic</p></li>
+<li><p>функции</p></li>
+</ul>
+<p>Для простоты можно рассматривать контекст как контейнер данных, но лучше с самого начала уметь абстрагироваться и выделать контектсы в задачах.</p>
+<p>На рисунках контекст мы будем обозначать как: [TBD]</p>
+<h2 id="функторы">Функторы</h2>
+<p><span class="math">\[F : \forall f: A \Rightarrow B : f^* : F(A) \rightarrow F(B), \]</span> <span class="math">\[ id^* = id \]</span> <span class="math">\[ f^* \cdot g^* = (f\cdot g)^*\]</span></p>
+<p>Что это значит и вообще зачем эта математика? Функтором называется контекст, в который можно поднять функцию, а свойства обозначают, что поднятие функции в контект не вносит эффектов в контекст.</p>
+<p>[TBD картинка]</p>
+<p>Сами свойства мы можем нарисовать как:</p>
+<p>[TBD картинка]</p>
+<h2 id="аппликативные-функторы">Аппликативные функторы</h2>
 <hr />
 <div class="pull-right">
-    <em>Alexander Vershilov</em>
+    <em>me</em>
     <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
 </div>
 <br class="clearfix" />
