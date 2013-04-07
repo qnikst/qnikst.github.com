@@ -8,8 +8,16 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-03-31T00:00:00Z</updated>
+    <updated>2013-04-07T00:00:00Z</updated>
     <entry>
+    <title>Anouncing binary conduit</title>
+    <link href="http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html" />
+    <id>http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html</id>
+    <published>2013-04-07T00:00:00Z</published>
+    <updated>2013-04-07T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I’m happy to announce <a href="http://hackage.haskell.org/package/binary-conduit">binary-conduit</a> an library for <a href="http://hackage.haskell.org/package/conduit">conduit</a> streaming data library using <a href="http://hackage.haskell.org/package/binary">binary</a> package.</p>]]></summary>
+</entry>
+<entry>
     <title>Немного о gentoo-haskell</title>
     <link href="http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html" />
     <id>http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html</id>
@@ -193,7 +201,7 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
 <ol start="2" style="list-style-type: decimal">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<pre class="sourceCode bash"><code class="sourceCode bash">localhost qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
+<pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
 <span class="co">#!/bin/sh</span>
 <span class="ot">p=</span>/sys/fs/cgroup/su-log/<span class="ot">${PAM_RUSER}</span>
 <span class="kw">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
@@ -289,36 +297,36 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p>I tried to use monadic approach, however I had too much problems because monads can bind and run opaque functions while all theese computation had to carry additional information, so I end up with function approach: each function returns a command and next function and special runner change it’s state based on this information but I ended with some problems: functions were bloated, function should be written from the end to begining, all additional variables should be passed explicitly through the functions, function can’t be composed as they had types constraints. It was a hell.. A day ago I have read the great arrows totorial http://ertes.de/new/tutorials/arrows.html by Ertugrul Söylemez, and realized that it was an arrow, after some thinking I’ve found a nice solution.</p>
 <p>This is a literate haskell post so you can just copy it and compile.</p>
 <p>We will need it at the very end to show arrow notation</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span></code></pre>
 <p>We need this for defining new arrow instance.</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> ((<span class="fu">.</span>), <span class="fu">id</span>)
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Arrow</span>
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Category</span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span> Prelude <span class="kw">hiding</span> ((.), id)
+<span class="ot">&gt;</span> <span class="kw">import</span> Control.Arrow
+<span class="ot">&gt;</span> <span class="kw">import</span> Control.Category</code></pre>
 <p>We need this for describing outer world</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Monad</span>
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent.STM</span>
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Concurrent</span>
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Control.Exception</span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span> Control.Monad
+<span class="ot">&gt;</span> <span class="kw">import</span> Control.Concurrent.STM
+<span class="ot">&gt;</span> <span class="kw">import</span> Control.Concurrent
+<span class="ot">&gt;</span> <span class="kw">import</span> Control.Exception</code></pre>
 <p>Let’s prepare to solve our problem. At first we need to define an outer world bus i.e. an computation that can recieve requests, and sends responce. We define 2 channels for this purpose: input - requests, output - responce. This will not break generalization as you always can insert a channel based proxy between your computation and real-world bus.</p>
 <p>So our realworld wrapper will look like:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> run ::</span> <span class="dt">FIO</span> a b c <span class="ot">-&gt;</span> <span class="dt">Generator</span> b c <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> a
-<span class="fu">&gt;</span> run f g i <span class="fu">=</span> 
-<span class="fu">&gt;</span>   bracket (<span class="kw">do</span> in_  <span class="ot">&lt;-</span> newTChanIO 
-<span class="fu">&gt;</span>               out_ <span class="ot">&lt;-</span> newTChanIO 
-<span class="fu">&gt;</span>               t <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> g in_ out_
-<span class="fu">&gt;</span>               atomically <span class="fu">$</span> writeTChan in_ i
-<span class="fu">&gt;</span>               <span class="fu">return</span> (t,in_,out_))
-<span class="fu">&gt;</span>           (\(t, _, _) <span class="ot">-&gt;</span> killThread t)
-<span class="fu">&gt;</span>           (\(_, i, o) <span class="ot">-&gt;</span> f i o)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; run ::</span> <span class="dt">FIO</span> a b c <span class="ot">-&gt;</span> <span class="dt">Generator</span> b c <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> a
+<span class="ot">&gt;</span> run f g i <span class="fu">=</span> 
+<span class="ot">&gt;</span>   bracket (<span class="kw">do</span> in_  <span class="ot">&lt;-</span> newTChanIO 
+<span class="ot">&gt;</span>               out_ <span class="ot">&lt;-</span> newTChanIO 
+<span class="ot">&gt;</span>               t <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> g in_ out_
+<span class="ot">&gt;</span>               atomically <span class="fu">$</span> writeTChan in_ i
+<span class="ot">&gt;</span>               <span class="fu">return</span> (t,in_,out_))
+<span class="ot">&gt;</span>           (\(t, _, _) <span class="ot">-&gt;</span> killThread t)
+<span class="ot">&gt;</span>           (\(_, i, o) <span class="ot">-&gt;</span> f i o)</code></pre>
 <p>, where FIO and Generator are helper types:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">FIO</span> a b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> a
-<span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">Generator</span> b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">FIO</span> a b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> a
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Generator</span> b c <span class="fu">=</span> <span class="dt">TChan</span> b <span class="ot">-&gt;</span> <span class="dt">TChan</span> c <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</code></pre>
 <p>A side node that we need to pass initial value as we use bus-driven logic: a message from the bus starts computaion.</p>
 <p>Let’s write some generators:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> idGenerator ::</span> <span class="dt">Generator</span> a a
-<span class="fu">&gt;</span> idGenerator <span class="fu">=</span> fGenerator <span class="fu">id</span>
-<span class="fu">&gt;</span><span class="ot"> fGenerator ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> <span class="dt">Generator</span> b a
-<span class="fu">&gt;</span> fGenerator f ic oc <span class="fu">=</span> forever <span class="fu">.</span> atomically <span class="fu">$</span> readTChan oc <span class="fu">&gt;&gt;=</span> writeTChan ic <span class="fu">.</span> f</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; idGenerator ::</span> <span class="dt">Generator</span> a a
+<span class="ot">&gt;</span> idGenerator <span class="fu">=</span> fGenerator <span class="fu">id</span>
+<span class="ot">&gt; fGenerator ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> <span class="dt">Generator</span> b a
+<span class="ot">&gt;</span> fGenerator f ic oc <span class="fu">=</span> forever <span class="fu">.</span> atomically <span class="fu">$</span> readTChan oc <span class="fu">&gt;&gt;=</span> writeTChan ic <span class="fu">.</span> f</code></pre>
 <p>Now we can review our problem.</p>
 <p>We need to define an finite automata, that can either finish it’s computation or return next state. Will write a type for it:</p>
 <ol style="list-style-type: decimal">
@@ -336,24 +344,24 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <ol start="4" style="list-style-type: decimal">
 <li>final note is that if we return a new value request than our type is bound by RW-bus: Auto i o i b. So finally we get:</li>
 </ol>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">newtype</span> <span class="dt">Auto2</span> i o a b <span class="fu">=</span> <span class="dt">Auto2</span> {<span class="ot"> stepAuto ::</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> (o, <span class="dt">Auto2</span> i o i b) b}</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Auto2</span> i o a b <span class="fu">=</span> <span class="dt">Auto2</span> {<span class="ot"> stepAuto ::</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> (o, <span class="dt">Auto2</span> i o i b) b}</code></pre>
 <p>[TBD: I need to add a nice pictures rendered in latex]</p>
 <p>This is not a function, this is a computation, so we need to write explicit runner to make it work:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> runner auto i o <span class="fu">=</span> <span class="kw">do</span>
-<span class="fu">&gt;</span>     x <span class="ot">&lt;-</span> atomically <span class="fu">$</span> readTChan i
-<span class="fu">&gt;</span>     <span class="fu">putStr</span> <span class="fu">$</span> <span class="st">&quot;input: &quot;</span><span class="fu">++</span>(<span class="fu">show</span> x) 
-<span class="fu">&gt;</span>     <span class="kw">let</span> ret <span class="fu">=</span> stepAuto auto x
-<span class="fu">&gt;</span>     <span class="kw">case</span> ret <span class="kw">of</span>
-<span class="fu">&gt;</span>       <span class="kw">Left</span> (req, next) <span class="ot">-&gt;</span> <span class="kw">do</span>
-<span class="fu">&gt;</span>           <span class="fu">putStrLn</span> <span class="fu">$</span> <span class="st">&quot; requesting: &quot;</span> <span class="fu">++</span> <span class="fu">show</span> req
-<span class="fu">&gt;</span>           atomically (writeTChan o req)
-<span class="fu">&gt;</span>           runner next i o
-<span class="fu">&gt;</span>       <span class="kw">Right</span> ok <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> (<span class="st">&quot; result: &quot;</span><span class="fu">++show</span> ok) <span class="fu">&gt;&gt;</span> <span class="fu">return</span> ok</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> runner auto i o <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>     x <span class="ot">&lt;-</span> atomically <span class="fu">$</span> readTChan i
+<span class="ot">&gt;</span>     <span class="fu">putStr</span> <span class="fu">$</span> <span class="st">&quot;input: &quot;</span><span class="fu">++</span>(<span class="fu">show</span> x) 
+<span class="ot">&gt;</span>     <span class="kw">let</span> ret <span class="fu">=</span> stepAuto auto x
+<span class="ot">&gt;</span>     <span class="kw">case</span> ret <span class="kw">of</span>
+<span class="ot">&gt;</span>       <span class="kw">Left</span> (req, next) <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>           <span class="fu">putStrLn</span> <span class="fu">$</span> <span class="st">&quot; requesting: &quot;</span> <span class="fu">++</span> <span class="fu">show</span> req
+<span class="ot">&gt;</span>           atomically (writeTChan o req)
+<span class="ot">&gt;</span>           runner next i o
+<span class="ot">&gt;</span>       <span class="kw">Right</span> ok <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> (<span class="st">&quot; result: &quot;</span><span class="fu">++show</span> ok) <span class="fu">&gt;&gt;</span> <span class="fu">return</span> ok</code></pre>
 <p>Will write a simple test function that require incremented value:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> upTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
-<span class="fu">&gt;</span> upTo n f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">&gt;=</span> n
-<span class="fu">&gt;</span>                      <span class="kw">then</span> <span class="kw">Right</span> <span class="fu">$</span> f x
-<span class="fu">&gt;</span>                      <span class="kw">else</span> <span class="kw">Left</span> ((x<span class="dv">+1</span>),  upTo n f)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; upTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> upTo n f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">&gt;=</span> n
+<span class="ot">&gt;</span>                      <span class="kw">then</span> <span class="kw">Right</span> <span class="fu">$</span> f x
+<span class="ot">&gt;</span>                      <span class="kw">else</span> <span class="kw">Left</span> ((x<span class="fu">+</span><span class="dv">1</span>),  upTo n f)</code></pre>
 <p><em>Main&gt; run (runner (upTo 2 (</em>2))) (idGenerator) 0</p>
 <p>Loading package array-0.4.0.1 … linking … done.</p>
 <p>Loading package stm-2.4.2 … linking … done.</p>
@@ -362,51 +370,51 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p>input: 2 result: 4</p>
 <p>4</p>
 <p>So far so good but, but I’d like not to write requests explicitly, rather to use some ‘request’ function that will break flow:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> request ::</span> o <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a i
-<span class="fu">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="kw">Right</span> y)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; request ::</span> o <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a i
+<span class="ot">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="kw">Right</span> y)</code></pre>
 <p>*Main&gt; run (runner (request 5)) idGenerator 0</p>
 <p>input: 0 requesting: 5</p>
 <p>input: 5 result: 5</p>
 <p>5</p>
 <p>One thing is bad: we need an input to request a state, that input will be ignored, it seems that it’s not a problem and will never hit user, however I have no strong explanation.</p>
 <p>Now we need a way to compose such computation, not a problem, because this is a Category, so we need just to write an instance:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Category</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
-<span class="fu">&gt;</span>     <span class="fu">id</span> <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> x
-<span class="fu">&gt;</span>     auto2 <span class="fu">.</span> auto1 <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
-<span class="fu">&gt;</span>               <span class="kw">let</span> out1 <span class="fu">=</span> stepAuto auto1 x
-<span class="fu">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
-<span class="fu">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
-<span class="fu">&gt;</span>                   <span class="kw">Left</span> (o,auto1&#39;) <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1&#39;))</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Category</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="ot">&gt;</span>     <span class="fu">id</span> <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> x
+<span class="ot">&gt;</span>     auto2 <span class="fu">.</span> auto1 <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
+<span class="ot">&gt;</span>               <span class="kw">let</span> out1 <span class="fu">=</span> stepAuto auto1 x
+<span class="ot">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
+<span class="ot">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
+<span class="ot">&gt;</span>                   <span class="kw">Left</span> (o,auto1&#39;) <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1&#39;))</code></pre>
 <p>id will just return a result and have no effects. Composition will run internal computation and if it’s succeed start outer, otherwise continue to run new inner automata untill it succeeds.</p>
 <p>At this point we doesn’t gain many advantages as we have only composition of automata, and will have a problems once we will leave the types pipeline.</p>
 <p>Now we’ll define an arrow instance so we will be able to lift opaque functions to the Automata level and create a side channels to carry values alongside with computation:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
-<span class="fu">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> (f x)
-<span class="fu">&gt;</span>     first (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \(x, y) <span class="ot">-&gt;</span> 
-<span class="fu">&gt;</span>         <span class="kw">let</span> next <span class="fu">=</span> f x
-<span class="fu">&gt;</span>         <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="fu">&gt;</span>             <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (b, y)
-<span class="fu">&gt;</span>             <span class="kw">Left</span>  a <span class="ot">-&gt;</span> arec (\z <span class="ot">-&gt;</span> (z,y)) a
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> arec g (o, <span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="kw">Left</span> <span class="fu">$</span> 
-<span class="fu">&gt;</span>          (o, <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
-<span class="fu">&gt;</span>               <span class="kw">let</span> next <span class="fu">=</span> f x
-<span class="fu">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="fu">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (g b)
-<span class="fu">&gt;</span>                   <span class="kw">Left</span> y  <span class="ot">-&gt;</span> arec g y)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="ot">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> (f x)
+<span class="ot">&gt;</span>     first (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \(x, y) <span class="ot">-&gt;</span> 
+<span class="ot">&gt;</span>         <span class="kw">let</span> next <span class="fu">=</span> f x
+<span class="ot">&gt;</span>         <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="ot">&gt;</span>             <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (b, y)
+<span class="ot">&gt;</span>             <span class="kw">Left</span>  a <span class="ot">-&gt;</span> arec (\z <span class="ot">-&gt;</span> (z,y)) a
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> arec g (o, <span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="kw">Left</span> <span class="fu">$</span> 
+<span class="ot">&gt;</span>          (o, <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
+<span class="ot">&gt;</span>               <span class="kw">let</span> next <span class="fu">=</span> f x
+<span class="ot">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="ot">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (g b)
+<span class="ot">&gt;</span>                   <span class="kw">Left</span> y  <span class="ot">-&gt;</span> arec g y)</code></pre>
 <p>Arrow instance just lift a pure function to Automata level, and first run recursive automata and store result in the first box. This is great we can just compose our computation in a straight forward way saving a results alongside a computation</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test1 <span class="fu">=</span> request <span class="dv">5</span> <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         arr (\x <span class="ot">-&gt;</span> (x,x)) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         first (request <span class="dv">6</span>) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> x<span class="fu">+</span>y)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test1 <span class="fu">=</span> request <span class="dv">5</span> <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         arr (\x <span class="ot">-&gt;</span> (x,x)) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         first (request <span class="dv">6</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> x<span class="fu">+</span>y)</code></pre>
 <p>*Main&gt; run (runner (test1)) (idGenerator 0)</p>
 <p>input: 0 requesting: 5</p>
 <p>input: 5 requesting: 6</p>
 <p>input: 6 result: 11</p>
 <p>11</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> test2 <span class="fu">=</span> arr (\x <span class="ot">-&gt;</span> ((),x)) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         first (request <span class="dv">4</span>)  <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> <span class="kw">if</span> y<span class="fu">&gt;</span><span class="dv">5</span> <span class="kw">then</span> x<span class="fu">+</span>y <span class="kw">else</span> x<span class="fu">-</span>y)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test2 <span class="fu">=</span> arr (\x <span class="ot">-&gt;</span> ((),x)) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         first (request <span class="dv">4</span>)  <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         arr (\(x,y) <span class="ot">-&gt;</span> <span class="kw">if</span> y<span class="fu">&gt;</span><span class="dv">5</span> <span class="kw">then</span> x<span class="fu">+</span>y <span class="kw">else</span> x<span class="fu">-</span>y)</code></pre>
 <p>*Main&gt; run (runner (test2)) idGenerator 6</p>
 <p>input: 6 requesting: 4</p>
 <p>input: 4 result: 10</p>
@@ -417,22 +425,22 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p>0</p>
 <p>As I said ‘request’ is not a problem as we can feed it with our internal value. Maybe we need to use Void there..</p>
 <p>But that’s not all we want to be able to choise between computations</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">instance</span> <span class="dt">ArrowChoice</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
-<span class="fu">&gt;</span>   <span class="co">-- left :: a b c -&gt; a (Either b d) (Either c d)</span>
-<span class="fu">&gt;</span>   left (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
-<span class="fu">&gt;</span>           <span class="kw">Left</span> b <span class="ot">-&gt;</span> <span class="kw">let</span> next <span class="fu">=</span> f b
-<span class="fu">&gt;</span>                     <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="fu">&gt;</span>                         <span class="kw">Right</span> c <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Left</span> c)
-<span class="fu">&gt;</span>                         <span class="kw">Left</span> l <span class="ot">-&gt;</span> arec <span class="kw">Left</span> l
-<span class="fu">&gt;</span>           <span class="kw">Right</span> d <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Right</span> d)
-<span class="fu">&gt;</span>   </code></pre>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> test3 ::</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
-<span class="fu">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="kw">Left</span> y <span class="kw">else</span> <span class="kw">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         left (request <span class="dv">3</span>) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         right (request <span class="dv">7</span>) <span class="fu">&gt;&gt;&gt;</span>
-<span class="fu">&gt;</span>         arr (\x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
-<span class="fu">&gt;</span>                 <span class="kw">Left</span> x  <span class="ot">-&gt;</span> x
-<span class="fu">&gt;</span>                 <span class="kw">Right</span> y <span class="ot">-&gt;</span> y)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">ArrowChoice</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="co">-- left :: a b c -&gt; a (Either b d) (Either c d)</span>
+<span class="ot">&gt;</span>   left (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
+<span class="ot">&gt;</span>           <span class="kw">Left</span> b <span class="ot">-&gt;</span> <span class="kw">let</span> next <span class="fu">=</span> f b
+<span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
+<span class="ot">&gt;</span>                         <span class="kw">Right</span> c <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Left</span> c)
+<span class="ot">&gt;</span>                         <span class="kw">Left</span> l <span class="ot">-&gt;</span> arec <span class="kw">Left</span> l
+<span class="ot">&gt;</span>           <span class="kw">Right</span> d <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Right</span> d)
+<span class="ot">&gt;</span>   </code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; test3 ::</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="kw">Left</span> y <span class="kw">else</span> <span class="kw">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         left (request <span class="dv">3</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         right (request <span class="dv">7</span>) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span>         arr (\x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
+<span class="ot">&gt;</span>                 <span class="kw">Left</span> x  <span class="ot">-&gt;</span> x
+<span class="ot">&gt;</span>                 <span class="kw">Right</span> y <span class="ot">-&gt;</span> y)</code></pre>
 <p>*Main&gt; run (runner (test3)) idGenerator 1</p>
 <p>input: 1 requesting: 7</p>
 <p>input: 7 result: 7</p>
@@ -442,11 +450,11 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p>input: 3 result: 3</p>
 <p>3</p>
 <p>The only problem that it’s not very easy to write in such a style, thats what an arrow notation is done for:</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> test4 <span class="fu">=</span> proc x <span class="ot">-&gt;</span> <span class="kw">do</span>
-<span class="fu">&gt;</span>     <span class="kw">if</span> x <span class="fu">&gt;</span> <span class="dv">5</span> 
-<span class="fu">&gt;</span>         <span class="kw">then</span> request <span class="dv">0</span> <span class="fu">-&lt;</span> () 
-<span class="fu">&gt;</span>         <span class="kw">else</span> request <span class="dv">10</span> <span class="fu">-&lt;</span> ()</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> test4 <span class="fu">=</span> proc x <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>     <span class="kw">if</span> x <span class="fu">&gt;</span> <span class="dv">5</span> 
+<span class="ot">&gt;</span>         <span class="kw">then</span> request <span class="dv">0</span> <span class="fu">-&lt;</span> () 
+<span class="ot">&gt;</span>         <span class="kw">else</span> request <span class="dv">10</span> <span class="fu">-&lt;</span> ()</code></pre>
 <p>*Main&gt; run (runner (test4)) idGenerator 6</p>
 <p>input: 6 requesting: 0</p>
 <p>input: 0 result: 0</p>
@@ -503,95 +511,95 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
     <published>2013-01-01T00:00:00Z</published>
     <updated>2013-01-01T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>We introduce a binary tree like data structure with next structure.</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span>
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (<span class="fu">head</span>, <span class="fu">length</span>, <span class="fu">drop</span>, <span class="fu">take</span>, <span class="fu">lookup</span>, <span class="fu">null</span>)
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Data.Function</span>
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">hiding</span> (empty)
-<span class="fu">&gt;</span> <span class="kw">import</span> <span class="dt">Test.QuickCheck</span>
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> <span class="co">--        [Node (current value) l v r eq]</span>
-<span class="fu">&gt;</span> <span class="co">--                              | | |  +------------------------------------+</span>
-<span class="fu">&gt;</span> <span class="co">--        +---------------------+ | +------------------+                    |</span>
-<span class="fu">&gt;</span> <span class="co">--        |                       |                    |                    |</span>
-<span class="fu">&gt;</span> <span class="co">--        +                       |                    +                    |</span>
-<span class="fu">&gt;</span> <span class="co">--  element less            value or nothing        elements that        elements that</span>
-<span class="fu">&gt;</span> <span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span>
-<span class="fu">&gt;</span> <span class="co">--                              node                current              as prefix</span>
-<span class="fu">&gt;</span> <span class="co">-- </span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span>
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="kw">import</span> Prelude <span class="kw">hiding</span> (head, length, drop, take, lookup, null)
+<span class="ot">&gt;</span> <span class="kw">import</span> Data.Function
+<span class="ot">&gt;</span> <span class="kw">import</span> Data.ByteString.Char8 <span class="kw">hiding</span> (empty)
+<span class="ot">&gt;</span> <span class="kw">import</span> Test.QuickCheck
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="co">--        [Node (current value) l v r eq]</span>
+<span class="ot">&gt;</span> <span class="co">--                              | | |  +------------------------------------+</span>
+<span class="ot">&gt;</span> <span class="co">--        +---------------------+ | +------------------+                    |</span>
+<span class="ot">&gt;</span> <span class="co">--        |                       |                    |                    |</span>
+<span class="ot">&gt;</span> <span class="co">--        +                       |                    +                    |</span>
+<span class="ot">&gt;</span> <span class="co">--  element less            value or nothing        elements that        elements that</span>
+<span class="ot">&gt;</span> <span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span>
+<span class="ot">&gt;</span> <span class="co">--                              node                current              as prefix</span>
+<span class="ot">&gt;</span> <span class="co">-- </span></code></pre>
 <p>Top level item represent empty value and can have a value.</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="fu">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="fu">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</code></pre>
 <p>Inner tree is either an empty value or node, that has left/right children and maybe can have a value and next element</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span>
-<span class="fu">&gt;</span>              <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)
-<span class="fu">&gt;</span>              <span class="co">{-   current    less      value        more    eq   -}</span>
-<span class="fu">&gt;</span>              <span class="kw">deriving</span> (<span class="kw">Show</span>)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span>
+<span class="ot">&gt;</span>              <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)
+<span class="ot">&gt;</span>              <span class="co">{-   current    less      value        more    eq   -}</span>
+<span class="ot">&gt;</span>              <span class="kw">deriving</span> (<span class="kw">Show</span>)</code></pre>
 <p>Having PrefixMap as a additional layer we can assume, that we have a non-null prefix on each level.</p>
 <p>Introduce simple builders</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> empty ::</span> <span class="dt">PrefixMap</span> a
-<span class="fu">&gt;</span> empty <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">E</span>)
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span><span class="ot"> node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="fu">&gt;</span> node b a <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, <span class="dt">E</span>) 
-<span class="fu">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="kw">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; empty ::</span> <span class="dt">PrefixMap</span> a
+<span class="ot">&gt;</span> empty <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">E</span>)
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
+<span class="ot">&gt;</span> node b a <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, <span class="dt">E</span>) 
+<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="kw">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
 <p>Now inserting elements it’s a bit tricky and may be simplified in the way of removing not needed insances</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="fu">&gt;</span> insert b a (v,n) <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, n)
-<span class="fu">&gt;</span>                  <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (v, inner b a n)</code></pre>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a
-<span class="fu">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="kw">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
-<span class="fu">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b&#39; l v r e) <span class="fu">|</span> <span class="fu">null</span> b     <span class="fu">=</span> n
-<span class="fu">&gt;</span>                            <span class="fu">|</span> <span class="fu">otherwise</span>  <span class="fu">=</span> 
-<span class="fu">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
-<span class="fu">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; (inner b a l) v r e   <span class="co">-- value less then current</span>
-<span class="fu">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; l v (inner b a r) e   <span class="co">-- value more then current</span>
-<span class="fu">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39; <span class="co">-- value has common part</span>
-<span class="fu">&gt;</span>               c <span class="fu">=</span> <span class="fu">take</span> x b
-<span class="fu">&gt;</span>               c&#39;<span class="fu">=</span> <span class="fu">take</span> x b&#39;
-<span class="fu">&gt;</span>               n&#39; <span class="fu">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b&#39;) <span class="dt">E</span> v <span class="dt">E</span> e
-<span class="fu">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b&#39;       <span class="co">-- b&#39; isPrefix of b</span>
-<span class="fu">&gt;</span>                  <span class="kw">then</span> 
-<span class="fu">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b    <span class="co">-- b&#39; == b </span>
-<span class="fu">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="kw">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
-<span class="fu">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b&#39;]</span>
-<span class="fu">&gt;</span>                  <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span>
-<span class="fu">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b
-<span class="fu">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c&#39; l (<span class="kw">Just</span> a) r n&#39;
-<span class="fu">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="kw">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n&#39;)
-<span class="fu">&gt;</span>   <span class="kw">where</span> 
-<span class="fu">&gt;</span>     fq a _ <span class="fu">=</span> a</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
+<span class="ot">&gt;</span> insert b a (v,n) <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, n)
+<span class="ot">&gt;</span>                  <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (v, inner b a n)</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a
+<span class="ot">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="kw">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
+<span class="ot">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b&#39; l v r e) <span class="fu">|</span> <span class="fu">null</span> b     <span class="fu">=</span> n
+<span class="ot">&gt;</span>                            <span class="fu">|</span> <span class="fu">otherwise</span>  <span class="fu">=</span> 
+<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
+<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; (inner b a l) v r e   <span class="co">-- value less then current</span>
+<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; l v (inner b a r) e   <span class="co">-- value more then current</span>
+<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39; <span class="co">-- value has common part</span>
+<span class="ot">&gt;</span>               c <span class="fu">=</span> <span class="fu">take</span> x b
+<span class="ot">&gt;</span>               c&#39;<span class="fu">=</span> <span class="fu">take</span> x b&#39;
+<span class="ot">&gt;</span>               n&#39; <span class="fu">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b&#39;) <span class="dt">E</span> v <span class="dt">E</span> e
+<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b&#39;       <span class="co">-- b&#39; isPrefix of b</span>
+<span class="ot">&gt;</span>                  <span class="kw">then</span> 
+<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b    <span class="co">-- b&#39; == b </span>
+<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="kw">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
+<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b&#39;]</span>
+<span class="ot">&gt;</span>                  <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span>
+<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b
+<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c&#39; l (<span class="kw">Just</span> a) r n&#39;
+<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="kw">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n&#39;)
+<span class="ot">&gt;</span>   <span class="kw">where</span> 
+<span class="ot">&gt;</span>     fq a _ <span class="fu">=</span> a</code></pre>
 <p>lookup function</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> lookup ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="fu">&gt;</span> <span class="fu">lookup</span> b (v, n) <span class="fu">|</span> <span class="fu">null</span> b <span class="fu">=</span> v 
-<span class="fu">&gt;</span>                 <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> lookinner b n</code></pre>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="fu">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="kw">Nothing</span>
-<span class="fu">&gt;</span> lookinner b (<span class="dt">N</span> b&#39; l v r e) <span class="fu">=</span>
-<span class="fu">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
-<span class="fu">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> lookinner b l
-<span class="fu">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> lookinner b r
-<span class="fu">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39;
-<span class="fu">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b&#39;
-<span class="fu">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e
-<span class="fu">&gt;</span>                 <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
-<span class="fu">&gt;</span> commonPart a b <span class="fu">=</span> go <span class="dv">0</span>
-<span class="fu">&gt;</span>   <span class="kw">where</span> 
-<span class="fu">&gt;</span><span class="ot">     go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
-<span class="fu">&gt;</span>     go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x
-<span class="fu">&gt;</span>          <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="dv">+1</span>)
-<span class="fu">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span>             <span class="fu">=</span> x
-<span class="fu">&gt;</span>     y <span class="fu">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b
-<span class="fu">&gt;</span>     findex <span class="fu">=</span> <span class="fu">flip</span> <span class="fu">index</span>
-<span class="fu">&gt;</span>     <span class="ot">{-# INLINE findex #-}</span>
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> comparing <span class="fu">=</span> on <span class="fu">compare</span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookup ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
+<span class="ot">&gt;</span> <span class="fu">lookup</span> b (v, n) <span class="fu">|</span> <span class="fu">null</span> b <span class="fu">=</span> v 
+<span class="ot">&gt;</span>                 <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> lookinner b n</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
+<span class="ot">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="kw">Nothing</span>
+<span class="ot">&gt;</span> lookinner b (<span class="dt">N</span> b&#39; l v r e) <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
+<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> lookinner b l
+<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> lookinner b r
+<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39;
+<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b&#39;
+<span class="ot">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e
+<span class="ot">&gt;</span>                 <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> commonPart a b <span class="fu">=</span> go <span class="dv">0</span>
+<span class="ot">&gt;</span>   <span class="kw">where</span> 
+<span class="ot">&gt;     go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span>     go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x
+<span class="ot">&gt;</span>          <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="fu">+</span><span class="dv">1</span>)
+<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span>             <span class="fu">=</span> x
+<span class="ot">&gt;</span>     y <span class="fu">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b
+<span class="ot">&gt;</span>     findex <span class="fu">=</span> <span class="fu">flip</span> <span class="fu">index</span>
+<span class="ot">&gt;</span>     <span class="ot">{-# INLINE findex #-}</span>
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> comparing <span class="fu">=</span> on <span class="fu">compare</span></code></pre>
 <p>Check if we are right</p>
-<pre class="sourceCode literate haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> 
-<span class="fu">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls
-<span class="fu">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="kw">Just</span> (<span class="fu">pack</span> l)) ls
-<span class="fu">&gt;</span> 
-<span class="fu">&gt;</span> main <span class="fu">=</span> quickCheck prop_InsertList</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> 
+<span class="ot">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls
+<span class="ot">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="kw">Just</span> (<span class="fu">pack</span> l)) ls
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> main <span class="fu">=</span> quickCheck prop_InsertList</code></pre>
 <p>What interesting is what properties to we have, ideally we can rewrite code thinking of a N c l v r e as a Tree (M v e)</p>
 <p>Caveats:</p>
 <ul>
@@ -599,33 +607,6 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <li><p>this tree doesn’t pack data as it possible: to pack data correctly one need to store a lenght of full bytestring in each node and replace element by the longer string, and copy bytestiring at the leaf node. It this variant we will smallest overhead.</p></li>
 <li><p>Node can be rewritten as N (PMap a) (PMap a) (PrefixTree a) this will add a level of indirection but will simplify an insert and lookup a bit.</p></li>
 </ul>]]></summary>
-</entry>
-<entry>
-    <title>cabal-dev</title>
-    <link href="http://qnikst.github.com/posts/2012-01-30-cabal-dev.html" />
-    <id>http://qnikst.github.com/posts/2012-01-30-cabal-dev.html</id>
-    <published>2010-01-30T00:00:00Z</published>
-    <updated>2010-01-30T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<blockquote>
-<p>Q: how to use cabal?</p>
-<p>A: just cabal install cabal-dev</p>
-</blockquote>
-<p>Cabal is a great system of building and packaging Haskell libraries but is has some downsides such as:</p>
-<ol style="list-style-type: decimal">
-<li><p>it has very poor handling of library versions and tracking dependecies.</p></li>
-<li><p>it can’t have multiply versions of same library (really it can but then it becomes a pain to use them)</p></li>
-</ol>
-<p>So sometimes it becomes a pain to fix haskell tree.</p>
-<p>Cabal-dev is a cabal-install wrapper that build project and dependencies in sandboxed enviromnent, this allowes to use multiple version of the same library and so chanses to break system are very low. Additionally it generates image of installed application so you can check how it will be installed on your system without real installation.</p>
-<p>Of cause as there are some problems:</p>
-<ol style="list-style-type: decimal">
-<li><p>cabal-dev is slow, because you should install all dependencies in sandbox environment (unless they are installed system wide).</p></li>
-<li><p>cabal-dev can’t handle some Setup.hs options at least it was true in Dec-2011.</p></li>
-</ol>
-<p>First problem easily fixed in gentoo, one can install basic dependencies with emerge, so portage will track tree consitency with <code>haskell-updater &lt;http://www.haskell.org/haskellwiki/Gentoo#haskell-updater&gt;</code> (replacement tool for ghc-updater) and has all other features out of the box. So cabal-dev will be using most of libs from system and some other will be sandboxed.</p>
-<p>For second one I had a workaround by creating makefile that run setup.hs and then cabal-dev intall.</p>
-<p>Also cabal-dev has additional feature of running built program in ghc (i.e. run ghci and load every module in project) it can be done with</p>
-<p><code>cabal-dev build &amp;&amp; cabal-dev ghci</code></p>]]></summary>
 </entry>
 
 </feed>

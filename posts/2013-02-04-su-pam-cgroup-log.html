@@ -40,7 +40,7 @@
 <ol start="2" style="list-style-type: decimal">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<pre class="sourceCode bash"><code class="sourceCode bash">localhost qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
+<pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
 <span class="co">#!/bin/sh</span>
 <span class="ot">p=</span>/sys/fs/cgroup/su-log/<span class="ot">${PAM_RUSER}</span>
 <span class="kw">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>

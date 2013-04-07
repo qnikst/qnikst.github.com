@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Qnikst blog RSS feed - Post tagged projects</title>
+    <link href="http://qnikst.github.com/tags/projects.xml" rel="self" />
+    <link href="http://qnikst.github.com" />
+    <id>http://qnikst.github.com/tags/projects.xml</id>
+    <author>
+        <name>Alexander Vershilov</name>
+        <email>alexander.vershilov@gmail.com</email>
+    </author>
+    <updated>2013-04-07T00:00:00Z</updated>
+    <entry>
+    <title>Anouncing binary conduit</title>
+    <link href="http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html" />
+    <id>http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html</id>
+    <published>2013-04-07T00:00:00Z</published>
+    <updated>2013-04-07T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I’m happy to announce <a href="http://hackage.haskell.org/package/binary-conduit">binary-conduit</a> an library for <a href="http://hackage.haskell.org/package/conduit">conduit</a> streaming data library using <a href="http://hackage.haskell.org/package/binary">binary</a> package.</p>]]></summary>
+</entry>
+
+</feed>
