@@ -45,6 +45,10 @@ main = hakyllWith config $ do
       >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
       >>= relativizeUrls
 
+  match "posts/*.lhs" $ version "raw" $ do
+    route idRoute
+    compile getResourceBody
+
   match "drafts/*" $ do
     route $ setExtension ".html"
     compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
@@ -83,15 +87,15 @@ main = hakyllWith config $ do
      -- Create RSS feed as well
     version "rss" $ do
         route $ setExtension "xml"
-        compile $ loadAllSnapshots pattern "content"
-          >>= return . take 10 . recentFirst
+        compile $ loadAllSnapshots (pattern .&&. hasNoVersion) "content"
+          >>= fmap (take 10) . recentFirst
           >>= renderAtom (feedConfiguration title) feedCtx
 
     -- Index
   match "index.html" $ do
       route idRoute
       compile $ do
-        list <- postList tags "posts/*" $ take 10 . recentFirst
+        list <- postList tags "posts/*" $ fmap (take 10) . recentFirst
         let indexContext =  constField "posts" list 
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
@@ -114,8 +118,8 @@ main = hakyllWith config $ do
   create ["rss.xml"] $ do
     route idRoute
     compile $ do
-      loadAllSnapshots "posts/*" "content"
-        >>= return . take 10 . recentFirst
+      loadAllSnapshots ("posts/*" .&&. hasNoVersion) "content"
+        >>= fmap (take 10) . recentFirst
         >>= renderAtom (feedConfiguration "All posts") feedCtx
 
   match "templates/*" $ compile $ templateCompiler
@@ -135,10 +139,10 @@ feedCtx = mconcat
     , defaultContext
     ]
 
-postList :: Tags -> Pattern -> ([Item String] -> [Item String]) -> Compiler String
+postList :: Tags -> Pattern -> ([Item String] -> Compiler [Item String]) -> Compiler String
 postList tags pattern preprocess' = do
     postItemTpl <- loadBody "templates/postitem.html"
-    posts <- preprocess' <$> loadAll pattern
+    posts <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
     applyTemplateList postItemTpl (postCtx tags) posts
 
 config :: Configuration
@@ -160,7 +164,7 @@ mathCtx = field "mathjax" $ \item -> do
 feedConfiguration :: String -> FeedConfiguration
 feedConfiguration title = FeedConfiguration
     { feedTitle       = "Qnikst blog RSS feed - " ++ title
-    , feedDescription = "here should be description.."
+    , feedDescription = "qnikst blog: gentoo, haskell, etc."
     , feedAuthorName  = "Alexander Vershilov"
     , feedAuthorEmail = "alexander.vershilov@gmail.com"
     , feedRoot        = "http://qnikst.github.com"
