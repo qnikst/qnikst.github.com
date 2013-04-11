@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Using queues in conduits</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+    <h1>Using queues in conduits <br /><small><strong>April 11, 2013</strong></small></h1>
+</div>
+
+<p>Sometime when you use conduit you need to split processes for example when you have CPU bound and IO bound tasks thus you will have better workload. Also you may need to get events from different sources concurrently, and for such purposes you may want to use <a href="http://hackage.haskell.org/package/stm-conduit">stm-conduit</a> library.</p>
+<p>This library provides conduits over STM primitives:</p>
+<ul>
+<li><a href="http://hackage.haskell.org/packages/archive/stm-chans/1.3.1/doc/html/Control-Concurrent-STM-TMChan.html#t:TMChan">TMChans</a> - closable (finite) STM channels</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm-chans/1.3.1/doc/html/Control-Concurrent-STM-TBMChan.html#t:TBMChan">TBMChans</a> - closable (finite) bounded STM channels</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm/2.4.2/doc/html/Control-Concurrent-STM-TQueue.html#t:TQueue">TQueue</a> - infinite STM Queues</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm/2.4.2/doc/html/Control-Concurrent-STM-TBQueue.html#t:TBQueue">TBQueue</a> - infinite bounded STM Queues</li>
+</ul>
+<p>and closable queues comming soon.</p>
+<p>Here closable means that you can close a primitives outside it, so source will report that it is closed on the opposite infinite primitive will wait for an input forever, so you should use another conduit to handle end of a stream or send an asynchronous exception.</p>
+<p>Bounded means that there is an limit of pending messages inside primitive and if that limit is reached any thread that wants to write to the primitive will be blocked on input. This is basically what you need to guarantee limited (or event constant memory usage).</p>
+<p>New primitive TQueue was added in stm-2.3 and provides an shared amortized queue that is faster than TChan/Chan but doesn’t provide dupTChan, cloneTChan primitives.</p>
+<hr />
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

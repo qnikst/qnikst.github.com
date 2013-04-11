@@ -8,8 +8,27 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-04-07T00:00:00Z</updated>
+    <updated>2013-04-11T00:00:00Z</updated>
     <entry>
+    <title>Using queues in conduits</title>
+    <link href="http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html" />
+    <id>http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html</id>
+    <published>2013-04-11T00:00:00Z</published>
+    <updated>2013-04-11T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Sometime when you use conduit you need to split processes for example when you have CPU bound and IO bound tasks thus you will have better workload. Also you may need to get events from different sources concurrently, and for such purposes you may want to use <a href="http://hackage.haskell.org/package/stm-conduit">stm-conduit</a> library.</p>
+<p>This library provides conduits over STM primitives:</p>
+<ul>
+<li><a href="http://hackage.haskell.org/packages/archive/stm-chans/1.3.1/doc/html/Control-Concurrent-STM-TMChan.html#t:TMChan">TMChans</a> - closable (finite) STM channels</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm-chans/1.3.1/doc/html/Control-Concurrent-STM-TBMChan.html#t:TBMChan">TBMChans</a> - closable (finite) bounded STM channels</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm/2.4.2/doc/html/Control-Concurrent-STM-TQueue.html#t:TQueue">TQueue</a> - infinite STM Queues</li>
+<li><a href="http://hackage.haskell.org/packages/archive/stm/2.4.2/doc/html/Control-Concurrent-STM-TBQueue.html#t:TBQueue">TBQueue</a> - infinite bounded STM Queues</li>
+</ul>
+<p>and closable queues comming soon.</p>
+<p>Here closable means that you can close a primitives outside it, so source will report that it is closed on the opposite infinite primitive will wait for an input forever, so you should use another conduit to handle end of a stream or send an asynchronous exception.</p>
+<p>Bounded means that there is an limit of pending messages inside primitive and if that limit is reached any thread that wants to write to the primitive will be blocked on input. This is basically what you need to guarantee limited (or event constant memory usage).</p>
+<p>New primitive TQueue was added in stm-2.3 and provides an shared amortized queue that is faster than TChan/Chan but doesn’t provide dupTChan, cloneTChan primitives.</p>]]></summary>
+</entry>
+<entry>
     <title>Anouncing binary conduit</title>
     <link href="http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html" />
     <id>http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html</id>
@@ -503,110 +522,6 @@ M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and 
 <p>About status and future of library:</p>
 <p>I had some cool plans for this bindings such as make full imagemagick API support and provide a functional/declarative inteface but unfortunatelly I have no time for this library. So all functionality will be added on demand, i.e. if you lack some features feel free to request it or pull-request.</p>
 <p>[1] library using resourcet for controlling external resources lifetime and scope, it’s not as safe as it could be possible with regions but unlucky regions regions are not working with recent GHC.</p>]]></summary>
-</entry>
-<entry>
-    <title>Playing with trees: prefix map</title>
-    <link href="http://qnikst.github.com/posts/2013-01-01-playing-with-trees-one.html" />
-    <id>http://qnikst.github.com/posts/2013-01-01-playing-with-trees-one.html</id>
-    <published>2013-01-01T00:00:00Z</published>
-    <updated>2013-01-01T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>We introduce a binary tree like data structure with next structure.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span>
-<span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="kw">import</span> Prelude <span class="kw">hiding</span> (head, length, drop, take, lookup, null)
-<span class="ot">&gt;</span> <span class="kw">import</span> Data.Function
-<span class="ot">&gt;</span> <span class="kw">import</span> Data.ByteString.Char8 <span class="kw">hiding</span> (empty)
-<span class="ot">&gt;</span> <span class="kw">import</span> Test.QuickCheck
-<span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="co">--        [Node (current value) l v r eq]</span>
-<span class="ot">&gt;</span> <span class="co">--                              | | |  +------------------------------------+</span>
-<span class="ot">&gt;</span> <span class="co">--        +---------------------+ | +------------------+                    |</span>
-<span class="ot">&gt;</span> <span class="co">--        |                       |                    |                    |</span>
-<span class="ot">&gt;</span> <span class="co">--        +                       |                    +                    |</span>
-<span class="ot">&gt;</span> <span class="co">--  element less            value or nothing        elements that        elements that</span>
-<span class="ot">&gt;</span> <span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span>
-<span class="ot">&gt;</span> <span class="co">--                              node                current              as prefix</span>
-<span class="ot">&gt;</span> <span class="co">-- </span></code></pre>
-<p>Top level item represent empty value and can have a value.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="fu">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</code></pre>
-<p>Inner tree is either an empty value or node, that has left/right children and maybe can have a value and next element</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span>
-<span class="ot">&gt;</span>              <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)
-<span class="ot">&gt;</span>              <span class="co">{-   current    less      value        more    eq   -}</span>
-<span class="ot">&gt;</span>              <span class="kw">deriving</span> (<span class="kw">Show</span>)</code></pre>
-<p>Having PrefixMap as a additional layer we can assume, that we have a non-null prefix on each level.</p>
-<p>Introduce simple builders</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; empty ::</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> empty <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">E</span>)
-<span class="ot">&gt;</span> 
-<span class="ot">&gt; node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> node b a <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, <span class="dt">E</span>) 
-<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="kw">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
-<p>Now inserting elements it’s a bit tricky and may be simplified in the way of removing not needed insances</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> insert b a (v,n) <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, n)
-<span class="ot">&gt;</span>                  <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (v, inner b a n)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a
-<span class="ot">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="kw">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
-<span class="ot">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b&#39; l v r e) <span class="fu">|</span> <span class="fu">null</span> b     <span class="fu">=</span> n
-<span class="ot">&gt;</span>                            <span class="fu">|</span> <span class="fu">otherwise</span>  <span class="fu">=</span> 
-<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
-<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; (inner b a l) v r e   <span class="co">-- value less then current</span>
-<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b&#39; l v (inner b a r) e   <span class="co">-- value more then current</span>
-<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39; <span class="co">-- value has common part</span>
-<span class="ot">&gt;</span>               c <span class="fu">=</span> <span class="fu">take</span> x b
-<span class="ot">&gt;</span>               c&#39;<span class="fu">=</span> <span class="fu">take</span> x b&#39;
-<span class="ot">&gt;</span>               n&#39; <span class="fu">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b&#39;) <span class="dt">E</span> v <span class="dt">E</span> e
-<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b&#39;       <span class="co">-- b&#39; isPrefix of b</span>
-<span class="ot">&gt;</span>                  <span class="kw">then</span> 
-<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b    <span class="co">-- b&#39; == b </span>
-<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="kw">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
-<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b&#39;]</span>
-<span class="ot">&gt;</span>                  <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span>
-<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b
-<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c&#39; l (<span class="kw">Just</span> a) r n&#39;
-<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="kw">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n&#39;)
-<span class="ot">&gt;</span>   <span class="kw">where</span> 
-<span class="ot">&gt;</span>     fq a _ <span class="fu">=</span> a</code></pre>
-<p>lookup function</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookup ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="ot">&gt;</span> <span class="fu">lookup</span> b (v, n) <span class="fu">|</span> <span class="fu">null</span> b <span class="fu">=</span> v 
-<span class="ot">&gt;</span>                 <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> lookinner b n</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="ot">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="kw">Nothing</span>
-<span class="ot">&gt;</span> lookinner b (<span class="dt">N</span> b&#39; l v r e) <span class="fu">=</span>
-<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b&#39; <span class="kw">of</span>
-<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> lookinner b l
-<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> lookinner b r
-<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b&#39;
-<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b&#39;
-<span class="ot">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e
-<span class="ot">&gt;</span>                 <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
-<span class="ot">&gt;</span> commonPart a b <span class="fu">=</span> go <span class="dv">0</span>
-<span class="ot">&gt;</span>   <span class="kw">where</span> 
-<span class="ot">&gt;     go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
-<span class="ot">&gt;</span>     go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x
-<span class="ot">&gt;</span>          <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="fu">+</span><span class="dv">1</span>)
-<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span>             <span class="fu">=</span> x
-<span class="ot">&gt;</span>     y <span class="fu">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b
-<span class="ot">&gt;</span>     findex <span class="fu">=</span> <span class="fu">flip</span> <span class="fu">index</span>
-<span class="ot">&gt;</span>     <span class="ot">{-# INLINE findex #-}</span>
-<span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> comparing <span class="fu">=</span> on <span class="fu">compare</span></code></pre>
-<p>Check if we are right</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> 
-<span class="ot">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls
-<span class="ot">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="kw">Just</span> (<span class="fu">pack</span> l)) ls
-<span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> main <span class="fu">=</span> quickCheck prop_InsertList</code></pre>
-<p>What interesting is what properties to we have, ideally we can rewrite code thinking of a N c l v r e as a Tree (M v e)</p>
-<p>Caveats:</p>
-<ul>
-<li><p>this tree is unbalanced so we don’t have best case: this can be fixed by rewriting structure as RB-tree so tree on each level will be sorted.</p></li>
-<li><p>this tree doesn’t pack data as it possible: to pack data correctly one need to store a lenght of full bytestring in each node and replace element by the longer string, and copy bytestiring at the leaf node. It this variant we will smallest overhead.</p></li>
-<li><p>Node can be rewritten as N (PMap a) (PMap a) (PrefixTree a) this will add a level of indirection but will simplify an insert and lookup a bit.</p></li>
-</ul>]]></summary>
 </entry>
 
 </feed>
