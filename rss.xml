@@ -236,7 +236,7 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
 <p>В данном решении есть проблема: будучи суперпользователем пользователь может перемещать свои задачи по cgroup-ам, для решения этой проблемы нужно писать политику selinux запрещающую переносить задачи выше, чем cgroup породившего их процесса.</p>]]></summary>
 </entry>
 <entry>
-    <title>Using mathjax latex formula with Pandoc-4</title>
+    <title>Using mathjax latex formula with Hakyll-4</title>
     <link href="http://qnikst.github.com/posts/2013-02-04-hakyll-latex.html" />
     <id>http://qnikst.github.com/posts/2013-02-04-hakyll-latex.html</id>
     <published>2013-02-04T00:00:00Z</published>
