@@ -1,34 +1,50 @@
-<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-    <title>Qnikst blog RSS feed - Post tagged gentoo</title>
-    <link href="http://qnikst.github.com/tags/gentoo.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/gentoo.xml</id>
-    <author>
-        <name>Alexander Vershilov</name>
-        <email>alexander.vershilov@gmail.com</email>
-    </author>
-    <updated>2013-07-31T00:00:00Z</updated>
-    <entry>
-    <title>Supervision in pure OpenRC using cgroup subsystem.</title>
-    <link href="http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
-    <id>http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
-    <published>2013-07-31T00:00:00Z</published>
-    <updated>2013-07-31T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<h1 id="abstract">Abstract</h1>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Supervision in pure OpenRC using cgroup subsystem.</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+    <h1>Supervision in pure OpenRC using cgroup subsystem. <br /><small><strong>July 31, 2013</strong></small></h1>
+</div>
+
+<h2 id="abstract">Abstract</h2>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows a way to create basic supervision daemon based on cgroups.</p>
 <p>This post describes OpenRC-0.11/0.12_beta and some things can differ in later versions. Please notify me to post updates here if you find a differences.</p>
-<h1 id="introduction">Introduction</h1>
-<h2 id="the-problem">The problem</h2>
+<h2 id="introduction">Introduction</h2>
+<h3 id="the-problem">The problem</h3>
 <p>In a general case there are many services that should be run and restarted if they fails. There are many other subproblems like when we should restart services and when not. Many existing systems can solve those issues but have different trade-offs. In this post I’ll try to present a simple mechanism that allowes to create basic supervision and other nice things.</p>
-<h2 id="idea">Idea</h2>
+<h3 id="idea">Idea</h3>
 <p>Linux kernel provides a mechanism to track groups of processes - <code>Cgroups</code>. All process childs will belong to the same cgroups and that groups are easily trackable from user space. If you want to understand cgroups better you may read following docs <a href="https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">cgroups</a>. Cgroups provides a way of setting limits and controlling groups, that is also usefull but at this moment it’s out of the scope.</p>
 <p>When all processes dies kernel will call ‘release_notify_agent’ script and will provide a path to cgroup, this may be used to remove empty cgroups and make some additional actions.</p>
 <p>Idea is that we can check service state to understand if we need to restart it.</p>
-<h1 id="details">Details</h1>
-<h2 id="implementation">Implementation</h2>
+<h2 id="details">Details</h2>
+<h3 id="implementation">Implementation</h3>
 <p>Here are improvements and files that should be added to OpenRC to provide required functionallity.</p>
-<h3 id="restart-daemon">Restart daemon</h3>
+<h4 id="restart-daemon">Restart daemon</h4>
 <p>First we need to create a deamon for restarting a services, because we can’t start service from agent, as it has <code>PF_NO_SETAFFINITY</code> flag and thus cgroups will not work for any of it’s children. So lets have a very simple daemon, it will be extended in the next posts</p>
 <pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
 <span class="kw">if [</span> <span class="ot">$#</span> <span class="ot">-lt</span> 1<span class="kw"> ]</span> ; <span class="kw">then</span>
@@ -41,7 +57,7 @@
       <span class="kw">echo</span> <span class="st">&quot;rc-service </span><span class="ot">$line</span><span class="st">&quot;</span><span class="kw">;</span>
    <span class="kw">done</span> <span class="kw">&lt;</span><span class="ot">$1</span>
 <span class="kw">done</span></code></pre>
-<h3 id="release-notify-agent-improvement">Release notify agent improvement</h3>
+<h4 id="release-notify-agent-improvement">Release notify agent improvement</h4>
 <p>Current release notify agent is very simple idea is to extend it to support user hooks. There are some different way to do it:</p>
 <ol style="list-style-type: decimal">
 <li>Add it to the service state. Requires hook in a script</li>
@@ -80,7 +96,7 @@
 <p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
 <pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
 <span class="co"># This script is run for service that need to be restarted</span>
-<span class="co"># if it&#39;s last process leaves cgroup.</span>
+<span class="co"># if it's last process leaves cgroup.</span>
 
 <span class="ot">action=$1</span>
 <span class="ot">service=$2</span>
@@ -97,7 +113,7 @@
             <span class="kw">return</span> 0<span class="kw">;;</span>
     <span class="kw">esac</span>
 <span class="kw">fi</span></code></pre>
-<h2 id="other-solutions">Other solutions</h2>
+<h3 id="other-solutions">Other solutions</h3>
 <p>The general supervision is quite complicated problems as there are many conditions when we can think that our service failed, like:</p>
 <ul>
 <li>main process dies</li>
@@ -118,52 +134,53 @@
 <li>systemd</li>
 <li>upstart</li>
 </ul>
-<h1 id="related-work">Related work</h1>
+<h2 id="related-work">Related work</h2>
 <ol style="list-style-type: decimal">
 <li>work on inclusion of a user hooks to OpenRC release agent.</li>
 <li>improve restart script to track really dead services that can be restart</li>
 </ol>
-<h1 id="conclusions-and-futher-work">Conclusions and futher work</h1>
+<h2 id="conclusions-and-futher-work">Conclusions and futher work</h2>
 <p>It’s possible to create a very simple and extensible supervision system on the top of OpenRC, by extending notification systems. Also there are more usecases for it, like:</p>
 <pre><code>* adding system wide notification mechanism via dbus
-* additional logging system</code></pre>]]></summary>
-</entry>
-<entry>
-    <title>Немного о gentoo-haskell</title>
-    <link href="http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html" />
-    <id>http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html</id>
-    <published>2013-03-31T00:00:00Z</published>
-    <updated>2013-03-31T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Как всем известно у haskell пакетов существует прекрасная система с сборки с центральным репозиторием, в котором хранятся пакеты, однако у этой проблемы существует ряд минусов:</p>
-<ul>
-<li>далеко не все пакеты собираются друг с другом даже если эти версии разрешены в cabal файле.</li>
-<li>далеко не все пакеты протестированы</li>
-<li>часть пакетов нацелены на работу под конкретной платформой и обновлять их до выхода следующей платформы не собираются</li>
-<li>при обновлении пакета нужно пересобирать все обратные зависимости</li>
-<li>в случае если нужны профилировочные библиотеки, то нужно пересобирать все зависимости с опциями профилировки.</li>
-<li>полное отстуствие верификации исходников, которые вы качаете.</li>
-</ul>
-<p>Все эти пункты делают использование haskell не очень приятным, так же проблема усугубляется тем, что во многих дистрибутивах представлены устаревшие версии пакетов, за которыми не успевают следить (не верите, то можете посмотреть результаты <a href="https://docs.google.com/forms/d/1y5WtrCB7O9-jb-2Mzo1MtkToh4O6oY2oBXGkc_Q-cy0/viewanalytics">haskell survey</a> Обычным решением является использование cabal на пользовательном уровне, или сборка в песочницах. Но иногда бывают способы и лучше.</p>
-<p>Естественно, каждый дистрибутив пытается по своему предложить решение проблем. В посте описана краткая инфрастурктура gentoo-linux и дополнительные пакеты сильно упрощающие работу с haskell, в целом пост может быть интересен, как пользователям Gentoo, так интересующимся пользователям других дистрибутивов, даже в том случае если не они не планируют переход или использование Gentoo Linux.</p>
-<ol style="list-style-type: decimal">
-<li><p>Gentoo работает под многими платформами: (alpha amd64 ia64 ppc ppc64 sparc x86) и под каждую есть поставка ghc и пакетов. Сам пакет ghc можно поставить в бинарном виде, в том случае, если его сборка слишком тяжела для хоста.</p></li>
-<li><p>Для исправления зависимостей существует программа haskell-updater, которая находит все “поломанные” зависимости и пересобирает нужные пакеты. Не так давно для улучшения ситуации добавлен механизм подслотов (subslots) специальная форма зависимостей позволяющая указать, то что программа должна быть обновлена в случае обновления зависимости. В текущий момент этот метод не может решить все проблемы (и даже приводит к некоторым новым), то уже в скором времени подслоты будут <a href="https://bugs.gentoo.org/show_bug.cgi?id=449094">рекурсивными</a> и полностью решат проблему автоматического обновления зависимостей</p></li>
-<li><p>Большая часть пакетов доступных на Hackage может быть установлена из оверлея gentoo-haskell. Это надет дополнительный слой, в котором можно провести дополнительные исправления, такие как фиксация зависимостей и добавление патчей, плюс с каждым пакетом ассоциирована хэш сумма, которая ползволяет автоматически проверять валидность скачанных исходников.</p></li>
-</ol>
-<p>В нашем проекте проводятся следующие политики:</p>
-<ol style="list-style-type: decimal">
-<li>в оверлее держится последняя версия пакета, и она патчится таким образом, чтобы она могла работать с последними версиями других пакетов. Для некоторых пакетов есть исключения по запросам от пользователей или в случае серьезного изменеия апи.</li>
-<li>Во всех пакетах проверяется то, что тесты проходятся (если они есть).</li>
-<li>сделаны утилиты для простого создания новых пакетов <em>действительно простого</em></li>
-</ol>
-<p>Таким образом в gentoo можно спокойно использовать haskell на системном уровне используя песочницы только в исключительных ситуациях.</p>
-<p>Так же в дистрибутив входят допонительные полезные утилиты такие как hoogle с поддержкой локальной базы (т.е. всех установленных пакетов).</p>
-<p>Если кому-то интересны подробности, шаги по быстрой установке или хочется рассказать, как в вашем дистрибутиве решаются подобные проблемы, то добро пожаловать в комментарии.</p>
-<p>P.S. и важно, что gentoo можно поставить под любой вашей осью, данных механизм называется gentoo prefix, и подробности можно найти <a href="http://www.gentoo.org/proj/en/gentoo-alt/prefix/">тут</a>.</p>
-<p>Полезные ссылки:</p>
-<p>[1] Страница на gentoo wiki: <a href="">http://wiki.gentoo.org/wiki/Haskell</a></p>
-<p>[2] Тематический блог: <a href="">http://gentoohaskell.wordpress.com/</a></p>
-<p>[3] Haskell wiki: <a href="">http://www.haskell.org/haskellwiki/Gentoo</a></p>]]></summary>
-</entry>
+* additional logging system</code></pre>
+<hr />
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
 
-</feed>
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
