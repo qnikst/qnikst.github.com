@@ -8,74 +8,94 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-07-31T00:00:00Z</updated>
+    <updated>2013-08-08T00:00:00Z</updated>
     <entry>
     <title>Supervision in pure OpenRC using cgroup subsystem.</title>
     <link href="http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
     <id>http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
-    <published>2013-07-31T00:00:00Z</published>
-    <updated>2013-07-31T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<h1 id="abstract">Abstract</h1>
-<p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows a way to create basic supervision daemon based on cgroups.</p>
-<p>This post describes OpenRC-0.11/0.12_beta and some things can differ in later versions. Please notify me to post updates here if you find a differences.</p>
+    <published>2013-08-08T00:00:00Z</published>
+    <updated>2013-08-08T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
+  
+Updates:
+<ul>
+      <li> 
+2008.08.09 - small corrections, acknowledgement section added
+</li>
+    </ul>
+  
+Versions:
+<ul>
+      <li> 
+Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10
+</li>
+      <li> 
+Openrc 0.12
+</li>
+    </ul>
+</div>
+
+<h1 id="abstract">Abstract</h1>
+<p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
+<p>This post describes OpenRC-0.11/0.12_beta and some things may change in later versions. Please notify me to post updates here if you find such changes.</p>
 <h1 id="introduction">Introduction</h1>
 <h2 id="the-problem">The problem</h2>
-<p>In a general case there are many services that should be run and restarted if they fails. There are many other subproblems like when we should restart services and when not. Many existing systems can solve those issues but have different trade-offs. In this post I’ll try to present a simple mechanism that allowes to create basic supervision and other nice things.</p>
+<p>In a general case, there are many services that should be run and restarted when they fail. There are many other subproblems like when should we restart services and when not. Many existing systems can solve those issues but have different trade-offs. In this post I’ll try to present a simple mechanism that allows to create basic supervision and other nice things.</p>
 <h2 id="idea">Idea</h2>
-<p>Linux kernel provides a mechanism to track groups of processes - <code>Cgroups</code>. All process childs will belong to the same cgroups and that groups are easily trackable from user space. If you want to understand cgroups better you may read following docs <a href="https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">cgroups</a>. Cgroups provides a way of setting limits and controlling groups, that is also usefull but at this moment it’s out of the scope.</p>
-<p>When all processes dies kernel will call ‘release_notify_agent’ script and will provide a path to cgroup, this may be used to remove empty cgroups and make some additional actions.</p>
-<p>Idea is that we can check service state to understand if we need to restart it.</p>
+<p>The Linux kernel provides a mechanism to track groups of processes - <code>Cgroups</code>. All process children will put in the process’s cgroup. And it’s easy to track cgroups from user space. If you want to understand cgroups better you may read <a href="https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">cgroups documentation</a>. Cgroups provide a way of setting limits and controlling groups, that is also useful but at this moment it’s out of the scope.</p>
+<p>When all processes in a group die, kernel will call ‘release_notify_agent’ script, proving the path to the cgroup. This may be used to remove empty cgroups and take additional actions.</p>
+<p>Idea is that we can check service state to decide if we should restart it.</p>
 <h1 id="details">Details</h1>
 <h2 id="implementation">Implementation</h2>
-<p>Here are improvements and files that should be added to OpenRC to provide required functionallity.</p>
+<p>Here are improvements and files that should be added to OpenRC to provide the required functionality.</p>
 <h3 id="restart-daemon">Restart daemon</h3>
-<p>First we need to create a deamon for restarting a services, because we can’t start service from agent, as it has <code>PF_NO_SETAFFINITY</code> flag and thus cgroups will not work for any of it’s children. So lets have a very simple daemon, it will be extended in the next posts</p>
-<pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
-<span class="kw">if [</span> <span class="ot">$#</span> <span class="ot">-lt</span> 1<span class="kw"> ]</span> ; <span class="kw">then</span>
-   <span class="kw">echo</span> <span class="st">&quot;usage is </span><span class="ot">$0</span><span class="st"> &lt;path to fifo&gt;&quot;</span> 
-   <span class="kw">exit</span> 1
-<span class="kw">fi</span>
-
-<span class="kw">while [</span> <span class="ot">-p</span> <span class="ot">$1</span><span class="kw"> ]</span> ; <span class="kw">do</span> 
-   <span class="kw">while</span> <span class="kw">read</span> <span class="ot">line</span> ; <span class="kw">do</span>
-      <span class="kw">echo</span> <span class="st">&quot;rc-service </span><span class="ot">$line</span><span class="st">&quot;</span><span class="kw">;</span>
-   <span class="kw">done</span> <span class="kw">&lt;</span><span class="ot">$1</span>
-<span class="kw">done</span></code></pre>
+<p>First we need to create a daemon to restart a services, because we can’t start service from agent, as it has <code>PF_NO_SETAFFINITY</code> flag and thus cgroups will not work for any of its children. So let’s have a very simple daemon, it will be extended in the next posts</p>
+<pre><code> #!/bin/sh
+ if [ $# -lt 1 ] ; then
+    echo &quot;usage is $0 &lt;path to fifo&gt;&quot; 
+    exit 1
+ fi
+ 
+ while [ -p $1 ] ; do 
+    while read line ; do
+       echo &quot;rc-service $line&quot;;
+    done &lt;$1
+ done</code></pre>
 <h3 id="release-notify-agent-improvement">Release notify agent improvement</h3>
-<p>Current release notify agent is very simple idea is to extend it to support user hooks. There are some different way to do it:</p>
+<p>The current release notify agent is very simple; so we extend it to support user hooks. There are some different ways to do it:</p>
 <ol style="list-style-type: decimal">
-<li>Add it to the service state. Requires hook in a script</li>
+<li>Add it to the service state. (Requires hook in the init script)</li>
 <li>Create static structure in a filesystem</li>
 </ol>
-<p>We will use 2. as it’s simplier and doesn’t lead to a init script hacking. We will have following file structure:</p>
-<p>In /etc/conf.d/cgroups there will be hooks ‘cgroup-release’ for default one ‘service-name.cgroup-release’ for service specific one. Here is my example.</p>
+<p>We will use 2. as it’s simpler and doesn’t lead to a init script hacking. We will have following file structure:</p>
+<p>In /etc/conf.d/cgroups there will be hooks, ‘cgroup-release’ for default one ‘service-name.cgroup-release’ for service specific one. Here is my example.</p>
 <pre><code>/etc/conf.d/cgroups/
 |-- cgroup-release                                            # default release hook
-|-- service1.cgroup-release -&gt; service-restart.cgroup-release # service release hook
+|-- foo.cgroup-release -&gt; service-restart.cgroup-release      # service release hook
 `-- service-restart.cgroup-release                            # example script
 </code></pre>
-<p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will be not deleted after a hook.</p>
-<p>Here is script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
+<p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will not be deleted after a hook.</p>
+<p>Here is a script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
 <pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
 <span class="ot">cgroup=</span>/sys/fs/cgroup/openrc
 <span class="ot">cgroup_rmdir=</span>1
-<span class="ot">RC_SVCNAME=${1}</span>
+<span class="ot">RC_SVCNAME=$1</span>
+<span class="ot">RC_CGROUP_CONTINUE=</span>3; 
+<span class="kw">export</span> <span class="ot">RC_CGROUP_CONTINUE</span> <span class="ot">RC_SVCNAME</span> <span class="ot">PATH</span>;
 
 <span class="kw">if [</span> <span class="ot">-n</span> <span class="st">&quot;</span><span class="ot">${RC_SVCNAME}</span><span class="st">&quot;</span><span class="kw"> ]</span> ; <span class="kw">then</span>
-<span class="ot">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="ot">${RC_SVCNAME}</span>.cgroup-release
-<span class="kw">[</span> <span class="ot">-f</span> <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span> <span class="ot">-a</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">||</span> <span class="ot">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;
-<span class="kw">if [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span><span class="kw"> ]</span>; <span class="kw">then</span>
-<span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span> <span class="kw">cleanup</span> <span class="st">&quot;</span><span class="ot">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="ot">$?</span><span class="kw"> in</span> <span class="ot">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="ot">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;
-<span class="kw">fi</span>
-<span class="kw">else</span>
-<span class="ot">cgroup_rmdir=</span>1
+  <span class="ot">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="ot">${RC_SVCNAME}</span>.cgroup-release
+ <span class="kw"> [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">||</span> <span class="ot">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;
+  <span class="kw">if [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span><span class="kw"> ]</span>; <span class="kw">then</span>
+    <span class="st">&quot;</span><span class="ot">$hook</span><span class="st">&quot;</span> <span class="kw">cleanup</span> <span class="st">&quot;</span><span class="ot">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="ot">$?</span><span class="kw"> in</span> <span class="ot">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="ot">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;
+  <span class="kw">fi</span>
 <span class="kw">fi</span>
 
-<span class="kw">if [</span> <span class="ot">${cgroup_rmdir}</span> <span class="ot">-a</span> <span class="ot">-d</span> <span class="ot">${cgroup}</span>/<span class="st">&quot;</span><span class="ot">$1</span><span class="st">&quot;</span><span class="kw"> ]</span>; <span class="kw">then</span>
-<span class="kw">for</span> <span class="ot">$c</span> <span class="kw">in</span> <span class="kw">/sys/fs/cgroup/*</span> <span class="kw">;</span> <span class="kw">do</span>
-<span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">${c}</span><span class="st">&quot;</span>/openrc_<span class="st">&quot;</span><span class="ot">$1</span><span class="st">&quot;</span>
-<span class="kw">done</span>;
-<span class="kw">rmdir</span> <span class="ot">$cgroup</span>/<span class="st">&quot;</span><span class="ot">${1}</span><span class="st">&quot;</span>
+<span class="kw">if [</span> <span class="ot">${cgroup_rmdir}</span> <span class="ot">-eq</span> 1<span class="kw"> ]</span> <span class="kw">&amp;&amp; [</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="ot">${cgroup}</span><span class="st">/</span><span class="ot">$1</span><span class="st">&quot;</span><span class="kw"> ]</span>; <span class="kw">then</span>
+  <span class="kw">for</span> <span class="kw">c</span> in /sys/fs/cgroup/*/<span class="st">&quot;openrc_</span><span class="ot">$1</span><span class="st">&quot;</span> <span class="kw">;</span> <span class="kw">do</span>
+    <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">${c}</span><span class="st">&quot;</span>
+  <span class="kw">done</span>;
+  <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">$cgroup</span><span class="st">/</span><span class="ot">${1}</span><span class="st">&quot;</span>
 <span class="kw">fi</span></code></pre>
 <p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
 <pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
@@ -85,7 +105,7 @@
 <span class="ot">action=$1</span>
 <span class="ot">service=$2</span>
 
-<span class="kw">if [</span> x<span class="ot">$action</span> <span class="ot">==</span> x<span class="st">&quot;cleanup&quot;</span><span class="kw"> ]</span> ; <span class="kw">then</span>
+<span class="kw">if [</span> cleanup <span class="ot">=</span> <span class="st">&quot;</span><span class="ot">$action</span><span class="st">&quot;</span><span class="kw"> ]</span> ; <span class="kw">then</span>
 
     <span class="kw">rc-service</span> <span class="ot">$service</span> status <span class="kw">&gt;</span> /dev/null
     <span class="kw">case</span> <span class="ot">$?</span><span class="kw"> in</span>
@@ -98,35 +118,39 @@
     <span class="kw">esac</span>
 <span class="kw">fi</span></code></pre>
 <h2 id="other-solutions">Other solutions</h2>
-<p>The general supervision is quite complicated problems as there are many conditions when we can think that our service failed, like:</p>
+<p>Generic supervision is quite a complicated problem as there are many conditions when we may suppose that our service failed, like:</p>
 <ul>
-<li>main process dies</li>
-<li>all service children dies</li>
-<li>service to not write logs for some time</li>
-<li>big resource memory/cpu consuming</li>
-<li>service to not respond on logs for some time</li>
+<li>main process dies;</li>
+<li>all service children die;</li>
+<li>service does not write logs for some time;</li>
+<li>large resource memory/cpu consuming;</li>
+<li>service does not respond to control call;</li>
 <li>log fd is closed.</li>
 </ul>
-<p>Some of the options can be translated to another, like big resource consuming can be translated to process death by setting correct limits. And process death (and in some cases even children death) can be tracked by log fd (in case of a process in background).</p>
-<p>One more thing that you may need complicated hooks, that have a state do decide what to do with failed service, like do not restart if it was failed many times in a small time period.</p>
-<p>So full features system will be very complicated so non-specialized subsystems address only a part of a problem domain. Here are some examples for other supervision systems:</p>
+<p>Some of the options can be translated to another, like large resource consuming can be translated to process death by setting correct limits. And process death (and in some cases even children deaths) can be tracked by log fd (in case of a process in background).</p>
+<p>More complex hooks may be also needed, when deciding what to do with failed service, e.g. do not restart if it has failed many times in a short period of time.</p>
+<p>So with all required features will be very complicated. So non-specialized subsystems address only a part of a problem domain. Here are some other examples of supervision systems:</p>
 <ul>
-<li>monit</li>
-<li>s6</li>
+<li>monit (full featured)</li>
+<li>s6 (pid, fd based)</li>
 <li>daemon-tools</li>
 <li>angel</li>
-<li>systemd</li>
-<li>upstart</li>
+<li>systemd (pid, cgroups based)</li>
+<li>upstart (pid based)</li>
 </ul>
-<h1 id="related-work">Related work</h1>
+<h1 id="future-work">Future work</h1>
 <ol style="list-style-type: decimal">
 <li>work on inclusion of a user hooks to OpenRC release agent.</li>
-<li>improve restart script to track really dead services that can be restart</li>
+<li>improve restart script to track really dead services that can be restarted</li>
 </ol>
 <h1 id="conclusions-and-futher-work">Conclusions and futher work</h1>
-<p>It’s possible to create a very simple and extensible supervision system on the top of OpenRC, by extending notification systems. Also there are more usecases for it, like:</p>
-<pre><code>* adding system wide notification mechanism via dbus
-* additional logging system</code></pre>]]></summary>
+<p>It’s possible to create a very simple and extensible supervision system based on OpenRC, by extending notification systems. Also there are more usecases for it, like:</p>
+<ul>
+<li>adding system wide notification mechanism via dbus</li>
+<li>additional logging system</li>
+</ul>
+<h1 id="acknowledgements">Acknowledgements</h1>
+<p>I want to thank igli for code corrections and usefull tips, and Kirill Zaborsky for correcting lingual mistakes.</p>]]></summary>
 </entry>
 <entry>
     <title>Using queues in conduits</title>
