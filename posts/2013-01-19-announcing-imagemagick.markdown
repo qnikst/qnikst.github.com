@@ -3,6 +3,7 @@ author: Alexander Vershilov
 title: announcing imagemagick-hs
 date: 2013-01-19
 tags: haskell
+license: cc-by
 -----
 
 I'm happy to announce new [haskell binding library to imagemagick](http://hackage.haskell.org/package/imagemagick).

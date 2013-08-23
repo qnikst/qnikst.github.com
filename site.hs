@@ -12,6 +12,9 @@ import qualified Data.Map as M
 
 import Hakyll
 import Hakyll.Web.Pandoc
+import Data.Char
+
+import Debug.Trace
 
 main :: IO ()
 main = hakyllWith config $ do
@@ -41,8 +44,8 @@ main = hakyllWith config $ do
     compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
       >>= saveSnapshot "content"
       >>= return . fmap demoteHeaders
-      >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
-      >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
+      >>= loadAndApplyTemplate "templates/post.html" (licenseCtx <> postCtx tags)
+      >>= loadAndApplyTemplate "templates/default.html" (mathCtx  <> defaultContext)
       >>= relativizeUrls
 
   match "posts/*.lhs" $ version "raw" $ do
@@ -81,6 +84,7 @@ main = hakyllWith config $ do
                (constField "title" "Posts" `mappend`
                constField "posts" list    `mappend`
                mathCtx                    `mappend`
+               licenseCtx                 `mappend`
                defaultContext)
         >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
         >>= relativizeUrls
@@ -160,6 +164,16 @@ mathCtx = field "mathjax" $ \item -> do
                 then "<script type=\"text/javascript\" src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
                 else ""
 
+licenseCtx :: Context a
+licenseCtx = field "license" $ \item -> do
+    metadata <- getMetadata $ itemIdentifier item
+    return $ case M.lookup "license" metadata of
+                    Nothing -> ""
+                    Just m -> case M.lookup (trim m) licenses of
+                                      Nothing -> "unknown license"
+                                      Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
+  where
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 feedConfiguration :: String -> FeedConfiguration
 feedConfiguration title = FeedConfiguration
@@ -169,3 +183,19 @@ feedConfiguration title = FeedConfiguration
     , feedAuthorEmail = "alexander.vershilov@gmail.com"
     , feedRoot        = "http://qnikst.github.com"
     }
+
+--licenses :: String -> String
+licenses = m.fromlist 
+    [ ("by",       ( "http://creativecommons.org/licenses/by/3.0"
+                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-sa",    ( "http://creativecommons.org/licenses/by-sa/3.0"
+                   , "http://i.creativecommons.org/l/by-sa/3.0/88x31.png"))
+    , ("by-nd",    ( "http://creativecommons.org/licenses/by/3.0"
+                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-nc",    ( "http://creativecommons.org/licenses/by/3.0"
+                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-nc-sa", ( "http://creativecommons.org/licenses/by-nc-sa/3.0"
+                   , "http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png"))
+    , ("by-nc-nd", ( "http://creativecommons.org/licenses/by-nc-nd/3.0"
+                   , "http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png"))]
+

@@ -3,6 +3,7 @@ author: Alexander Vershilov
 title: Using queues in conduits
 date: 2013-04-11
 tags: haskell
+license: by-nc-sa
 ----
 
 Sometime when you use conduit you need to split processes for example

@@ -1,5 +1,6 @@
 ----
 author: qnikst
+license: none
 ----
 Создание сайта на Yesod/Haskell
 

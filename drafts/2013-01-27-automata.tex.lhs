@@ -2,6 +2,7 @@
 title: Dynamic event handling model using Arrows
 author: Alexander Vershilov
 data: 2012/01/21
+license: none
 ----
 
 \begin{abstract}

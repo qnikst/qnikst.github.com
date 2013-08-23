@@ -3,6 +3,7 @@ title: Немного о gentoo-haskell
 author: Alexander Vershilov
 date: 2013/03/31
 tags: gentoo, haskell
+license: by-nc-sa
 ----
 
 Как всем известно у haskell пакетов существует прекрасная система с 

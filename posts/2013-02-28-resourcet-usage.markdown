@@ -3,6 +3,7 @@ author: Alexander Vershilov
 date: 2012/02/28
 title: Resourcet usage
 tags: haskell, resourcet
+license: by-nc-sa
 ----
 
 This post describes an interesting resourcet usecase that may be usefull due to the

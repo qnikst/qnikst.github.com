@@ -3,6 +3,7 @@ author: Alexander Vershilov
 date:   2013-08-08
 title:  Supervision in pure OpenRC using cgroup subsystem.
 tags:   OpenRC, gentoo, programming, linux, supervision
+license: by
 -----
 
 <div style="float:right;width:200px;font-size:0.5em;">

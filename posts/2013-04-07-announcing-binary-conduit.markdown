@@ -3,6 +3,7 @@ author: Alexander Vershilov
 title: Anouncing binary conduit
 date: 2013/04/07
 tags: haskell, projects
+license: by
 ----
 
 I'm happy to announce [binary-conduit](http://hackage.haskell.org/package/binary-conduit) an library for

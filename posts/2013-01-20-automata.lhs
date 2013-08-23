@@ -2,6 +2,7 @@
 author: Alexander Vershilov
 titile: Automata (draft)
 data: 2012/01/21
+license: cc-nc-sa
 ----
 
 

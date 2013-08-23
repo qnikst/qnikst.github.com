@@ -3,6 +3,7 @@ title: java//Runtime exec
 date: 2010/05/09
 author: Alexander Vershilov
 tag: java, exec, runtime, process, IO
+license: by-nc-sa
 ----
 
 Поскольку в одной совершенно не требующей этого задаче мне пришлось столкнуться с тем, 

@@ -3,6 +3,7 @@ title: Playing with trees: prefix map
 author: Alexander Vershilov
 date: January 1, 2013
 tags: haskell
+license: by-nc-sa
 ---
 
 We introduce a binary tree like data structure with next structure.
