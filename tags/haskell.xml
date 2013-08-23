@@ -8,8 +8,51 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-04-11T00:00:00Z</updated>
+    <updated>2013-08-23T00:00:00Z</updated>
     <entry>
+    <title>Adding license notes to blog pages.</title>
+    <link href="http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html" />
+    <id>http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
+    <published>2013-08-23T00:00:00Z</published>
+    <updated>2013-08-23T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I’ve finally manged to create configurable license notes for each article:</p>
+<p>To do it you need to add additional context:</p>
+<pre><code>licenseCtx :: Context a
+licenseCtx = field &quot;license&quot; $ \item -&gt; do
+    metadata &lt;- getMetadata $ itemIdentifier item
+    return $ case M.lookup &quot;license&quot; metadata of
+                    Nothing -&gt; &quot;&quot;
+                    Just m -&gt; case M.lookup (trim m) licenses of
+                                      Nothing -&gt; &quot;unknown license&quot;
+                                      Just (u,i) -&gt; &quot;&lt;a href=\&quot;&quot;++u++&quot;\&quot;&gt;&lt;img src=\&quot;&quot;++i++&quot;\&quot;/&gt;&lt;/a&gt;&quot;
+  where
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+
+licenses = m.fromlist 
+    [ (&quot;by&quot;,       ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-sa&quot;,    ( &quot;http://creativecommons.org/licenses/by-sa/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-sa/3.0/88x31.png&quot;))
+    , (&quot;by-nd&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-nc&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-nc-sa&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-sa/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png&quot;))
+    , (&quot;by-nc-nd&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-nd/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png&quot;))]</code></pre>
+<p>Currently only cc-* licenses are added, and but it will be possible to add nother licenses.</p>
+<p>To apply license to template just add <code>$license$</code> and add context:</p>
+<pre><code>  loadAndApplyTemplate &quot;templates/post.html&quot; (licenseCtx &lt;&gt; postCtx tags)</code></pre>
+<p>For my blog I’m trying to use:</p>
+<ul>
+<li>by - for announces and physics</li>
+<li>by-nc-sa - for documentation like posts</li>
+<li>by-nc-nd - for personal posts</li>
+</ul>]]></summary>
+</entry>
+<entry>
     <title>Using queues in conduits</title>
     <link href="http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html" />
     <id>http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html</id>
@@ -294,7 +337,13 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
     <id>http://qnikst.github.com/posts/2012-01-30-cabal-dev.html</id>
     <published>2010-01-30T00:00:00Z</published>
     <updated>2010-01-30T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<blockquote>
+    <summary type="html"><![CDATA[<div class="alert alert-error">
+    
+This article become outdated as there is a sandbox support in cabal starting from 0.18. See <a href="http://coldwa.st/e/blog/2013-08-20-Cabal-sandbox.html#for-the-users-of-cabal-dev">blog post</a> for details
+</div>
+
+
+<blockquote>
 <p>Q: how to use cabal?</p>
 <p>A: just cabal install cabal-dev</p>
 </blockquote>

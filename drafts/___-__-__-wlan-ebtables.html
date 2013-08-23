@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Using ebtables to use internet connection in guest OS</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <div class="page-header">
+    <h1>Using ebtables to use internet connection in guest OS <br /><small><strong>August 12, 2013</strong></small></h1>
+</div>
+
+<h1 id="abstract">Abstract</h1>
+<p>In this post I address the problem of having internetconnections for in guests systems in case of using wifi or mixed connections. It’s a common situation for laptops and other wifi devices.</p>
+<h1 id="idea">Idea</h1>
+<p>The common sulution with bridge creation doesn’t work as wifi adapters doesn’t support mac changin (and thus bridging) by design. The common solution in this case is <code>ebtables</code>.</p>
+<pre><code>+------+ 
+| lvm1 | ----+                          
++------+     |   +-------+          +------+
+             +---+ tun   +          | eth0 |------&gt; Internel
+             |   +--+----+          +---+--+
++------+     |      |                   |
+| lvm2 |-----+      +------[ bridge ]---+
++------+                        |
+                             ebtales
+                                |
+                           [ wlan0 ]--------------&gt; Internet</code></pre>
+<h2 id="realization">Realization</h2>
+<ol style="list-style-type: decimal">
+<li>Verify that you have all required kernel options:</li>
+</ol>
+<ul>
+<li>ebtables support</li>
+<li>snat support</li>
+<li>maybe more</li>
+</ul>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Install ebtales</p>
+<p># emerge ebtables</p></li>
+<li><p>Add ebtables option:</p>
+<p># ebtables -t nat -A POSTROUTING -o wlan0 -j snat –to-src <wlan0_mac><br /> –snat-arp ACCEPT #</p></li>
+<li><p>Save ebtables table</p>
+<p># /etc/init.d/ebtables save</p></li>
+<li><p>Start ebtables</p>
+<p># /etc/init.d/ebtables start</p></li>
+</ol>
+<p>Optional:</p>
+<p>Add ebtables to default runlevel: rc-update add ebtables default</p>
+<h1 id="additional">Additional</h1>
+<p>I have more compicated situation because I’m using eth0 at home and wifi in university or guest networks thus I need to use ebtables only when I have to ethernet connection. For this purpose I’ll use stacked runlevels I’ll describe it functionallity in the next posts. As an addition solution it’s possible to use ifup to check if ethernet cable exists and start ebtables script it there is no connection.</p>
+<p>Here are my current conf.d script:</p>
+<pre><code># LAN Network
+modules_eth0=&quot;ifconfig&quot;
+
+# Bridge for virtual networks
+config_br0=&quot;dhcp&quot;
+brctl_br0=&quot;
+   setfd 0
+   stp off
+&quot;
+bridge_br0=&quot;eth0&quot;
+RC_NEED_br0=&quot;net.eth0&quot;
+
+# Ethernet
+config_eth0=&quot;null&quot;
+
+# WIFI
+config_wlan0=&quot;dhcp&quot;
+wpa_supplicant_wlan0=&quot;-Dwext&quot;</code></pre>
+<h1 id="links">Links</h1>
+<p>[TODO] ebtables docs [TODO] nat docs [TODO] openrc page http://forums.gentoo.org/viewtopic-t-430571-start-0.html https://wiki.debian.org/BridgeNetworkConnections</p>
+<hr />
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    cc-by-sa
+</div>
+<br class="clearfix" />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

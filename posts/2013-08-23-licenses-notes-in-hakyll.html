@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - Anouncing binary conduit</title>
+    <title>Qnikst blog - Adding license notes to blog pages.</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <style>
@@ -28,14 +28,49 @@
   </div>
   <div class="container">
     <div class="page-header">
-    <h1>Anouncing binary conduit <br /><small><strong>April  7, 2013</strong></small></h1>
+    <h1>Adding license notes to blog pages. <br /><small><strong>August 23, 2013</strong></small></h1>
 </div>
 
-<p>I’m happy to announce <a href="http://hackage.haskell.org/package/binary-conduit">binary-conduit</a> an library for <a href="http://hackage.haskell.org/package/conduit">conduit</a> streaming data library using <a href="http://hackage.haskell.org/package/binary">binary</a> package.</p>
+<p>I’ve finally manged to create configurable license notes for each article:</p>
+<p>To do it you need to add additional context:</p>
+<pre><code>licenseCtx :: Context a
+licenseCtx = field &quot;license&quot; $ \item -&gt; do
+    metadata &lt;- getMetadata $ itemIdentifier item
+    return $ case M.lookup &quot;license&quot; metadata of
+                    Nothing -&gt; &quot;&quot;
+                    Just m -&gt; case M.lookup (trim m) licenses of
+                                      Nothing -&gt; &quot;unknown license&quot;
+                                      Just (u,i) -&gt; &quot;&lt;a href=\&quot;&quot;++u++&quot;\&quot;&gt;&lt;img src=\&quot;&quot;++i++&quot;\&quot;/&gt;&lt;/a&gt;&quot;
+  where
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+
+licenses = m.fromlist 
+    [ (&quot;by&quot;,       ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-sa&quot;,    ( &quot;http://creativecommons.org/licenses/by-sa/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-sa/3.0/88x31.png&quot;))
+    , (&quot;by-nd&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-nc&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
+    , (&quot;by-nc-sa&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-sa/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png&quot;))
+    , (&quot;by-nc-nd&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-nd/3.0&quot;
+                   , &quot;http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png&quot;))]</code></pre>
+<p>Currently only cc-* licenses are added, and but it will be possible to add nother licenses.</p>
+<p>To apply license to template just add <code>$license$</code> and add context:</p>
+<pre><code>  loadAndApplyTemplate &quot;templates/post.html&quot; (licenseCtx &lt;&gt; postCtx tags)</code></pre>
+<p>For my blog I’m trying to use:</p>
+<ul>
+<li>by - for announces and physics</li>
+<li>by-nc-sa - for documentation like posts</li>
+<li>by-nc-nd - for personal posts</li>
+</ul>
 <hr />
 <div class="pull-right">
     <em>Alexander Vershilov</em>
-    <a href="http://creativecommons.org/licenses/by/3.0"><img src="http://i.creativecommons.org/l/by/3.0/88x31.png" /></a>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
 </div>
 <br class="clearfix" />
 
