@@ -33,7 +33,7 @@ main = hakyllWith config $ do
 
   match "tmp/index.html" $ do
     route idRoute
-    compile $ getResourceBody >>= relativizeUrls
+    compile $ getResourceBody  >>= relativizeUrls
 
   -- Build tags
   tags <- buildTags "posts/*" (fromCapture "tags/*.html")
@@ -64,11 +64,12 @@ main = hakyllWith config $ do
        route idRoute
        compile $ do
           list <- postList tags "posts/*" recentFirst
+          let ctx =  constField "title" "Posts"
+                  <> constField "posts" list
+                  <> field "tags" (\_ -> renderTagList tags)
+                  <> defaultContext
           makeItem ""
-            >>= loadAndApplyTemplate "templates/posts.html"
-                  (constField "title" "Posts" `mappend`
-                   constField "posts" list    `mappend`
-                   defaultContext)
+            >>= loadAndApplyTemplate "templates/posts.html" ctx
             >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
             >>= relativizeUrls
 
@@ -79,13 +80,15 @@ main = hakyllWith config $ do
     route idRoute
     compile $ do
       list <- postList tags pattern recentFirst
-      makeItem ""
-        >>= loadAndApplyTemplate "templates/posts.html"
+      let ctx = 
                (constField "title" "Posts" `mappend`
                constField "posts" list    `mappend`
+               field "tags" (\_ -> renderTagList tags) `mappend`
                mathCtx                    `mappend`
                licenseCtx                 `mappend`
                defaultContext)
+      makeItem ""
+        >>= loadAndApplyTemplate "templates/posts.html" ctx
         >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
         >>= relativizeUrls
      -- Create RSS feed as well
@@ -106,6 +109,7 @@ main = hakyllWith config $ do
                          <> defaultContext
         getResourceBody
             >>= applyAsTemplate indexContext
+            >>= loadAndApplyTemplate "templates/index.html" indexContext -- defaultContext 
             >>= loadAndApplyTemplate "templates/default.html" indexContext
             >>= relativizeUrls
 
@@ -185,7 +189,7 @@ feedConfiguration title = FeedConfiguration
     }
 
 --licenses :: String -> String
-licenses = m.fromlist 
+licenses = M.fromList 
     [ ("by",       ( "http://creativecommons.org/licenses/by/3.0"
                    , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
     , ("by-sa",    ( "http://creativecommons.org/licenses/by-sa/3.0"
