@@ -5,6 +5,7 @@
     <title>Qnikst blog - Resourcet usage</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
     <style>
       body {
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
@@ -28,7 +29,10 @@
       </div>
   </div>
   <div class="container">
-    <div class="page-header">
+    <meta name="keywords" content="haskell, resourcet">
+
+
+<div class="page-header">
     <h1>Resourcet usage <br /><small><strong>February 28, 2013</strong></small></h1>
 </div>
 
@@ -111,11 +115,28 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
 <li>Read and writes should be exception safe</li>
 </ol>
 <hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=/posts/2013-02-28-resourcet-usage.html" target="_blank" class="social">t</a> -
+  <a href="http://www.facebook.com/sharer/sharer.php?u=/posts/2013-02-28-resourcet-usage.html" target="_blank" class="social">`</a> -
+  <a href="https://plus.google.com/share?url=/posts/2013-02-28-resourcet-usage.html" target="_blank" class="social">g</a>
+</div>
+<script type="text/javascript">
+//
+  (function(){window.addEventListener("DOMContentLoaded",function(){
+     var url=document.location;
+     var links=document.getElementById("sociallinks").getElementsByTagName('a');
+     for (var i=0;i!=links.length;i++){
+     links[i].setAttribute("href",
+     links[i].href.replace('/posts/2013-02-28-resourcet-usage.html',url));}})})();
+//
+</script>
 <div class="pull-right">
     <em>Alexander Vershilov</em>
     <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
 </div>
 <br class="clearfix" />
+<hr />
 
 
 <div id="disqus_thread"></div>

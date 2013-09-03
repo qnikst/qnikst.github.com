@@ -5,6 +5,7 @@
     <title>Qnikst blog - Using ebtables to use internet connection in guest OS</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
     <style>
       body {
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
@@ -28,7 +29,10 @@
       </div>
   </div>
   <div class="container">
-    <div class="page-header">
+    <meta name="keywords" content="linux, gentoo, networking">
+
+
+<div class="page-header">
     <h1>Using ebtables to use internet connection in guest OS <br /><small><strong>August 12, 2013</strong></small></h1>
 </div>
 
@@ -92,11 +96,28 @@ wpa_supplicant_wlan0=&quot;-Dwext&quot;</code></pre>
 <h1 id="links">Links</h1>
 <p>[TODO] ebtables docs [TODO] nat docs [TODO] openrc page http://forums.gentoo.org/viewtopic-t-430571-start-0.html https://wiki.debian.org/BridgeNetworkConnections</p>
 <hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=/drafts/___-__-__-wlan-ebtables.html" target="_blank" class="social">t</a> -
+  <a href="http://www.facebook.com/sharer/sharer.php?u=/drafts/___-__-__-wlan-ebtables.html" target="_blank" class="social">`</a> -
+  <a href="https://plus.google.com/share?url=/drafts/___-__-__-wlan-ebtables.html" target="_blank" class="social">g</a>
+</div>
+<script type="text/javascript">
+//
+  (function(){window.addEventListener("DOMContentLoaded",function(){
+     var url=document.location;
+     var links=document.getElementById("sociallinks").getElementsByTagName('a');
+     for (var i=0;i!=links.length;i++){
+     links[i].setAttribute("href",
+     links[i].href.replace('/drafts/___-__-__-wlan-ebtables.html',url));}})})();
+//
+</script>
 <div class="pull-right">
     <em>Alexander Vershilov</em>
     cc-by-sa
 </div>
 <br class="clearfix" />
+<hr />
 
 
 <div id="disqus_thread"></div>

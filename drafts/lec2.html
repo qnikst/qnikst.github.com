@@ -5,6 +5,7 @@
     <title>Qnikst blog - Лекция 2</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
     <style>
       body {
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
@@ -28,7 +29,9 @@
       </div>
   </div>
   <div class="container">
-    <div class="page-header">
+    
+
+<div class="page-header">
     <h1>Лекция 2 <br /><small><strong>unknown</strong></small></h1>
 </div>
 
@@ -172,11 +175,28 @@
 <p>построив полином мы можем построить матрицу взаимодействия (Кравчук)</p>
 <p><span class="math">\[y(x) = {}_2F_1 \left( \begin{matrix} -x_1-1 \\ N \end{matrix} \right|\left.\frac{1}{p}\right)\]</span></p>
 <hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=/drafts/lec2.html" target="_blank" class="social">t</a> -
+  <a href="http://www.facebook.com/sharer/sharer.php?u=/drafts/lec2.html" target="_blank" class="social">`</a> -
+  <a href="https://plus.google.com/share?url=/drafts/lec2.html" target="_blank" class="social">g</a>
+</div>
+<script type="text/javascript">
+//
+  (function(){window.addEventListener("DOMContentLoaded",function(){
+     var url=document.location;
+     var links=document.getElementById("sociallinks").getElementsByTagName('a');
+     for (var i=0;i!=links.length;i++){
+     links[i].setAttribute("href",
+     links[i].href.replace('/drafts/lec2.html',url));}})})();
+//
+</script>
 <div class="pull-right">
     <em>text by Vershilov A.V. <br /> lecture by Tsiganov A. V.</em>
     cc-nc-nd
 </div>
 <br class="clearfix" />
+<hr />
 
 
 <div id="disqus_thread"></div>
