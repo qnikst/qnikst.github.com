@@ -22,6 +22,10 @@ main = hakyllWith config $ do
      route idRoute
      compile copyFileCompiler
 
+  match "fonts/*" $ do
+     route idRoute
+     compile copyFileCompiler
+
   -- Compress CSS
   match "css/*" $ do
     route idRoute
@@ -44,7 +48,7 @@ main = hakyllWith config $ do
     compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
       >>= saveSnapshot "content"
       >>= return . fmap demoteHeaders
-      >>= loadAndApplyTemplate "templates/post.html" (licenseCtx <> postCtx tags)
+      >>= loadAndApplyTemplate "templates/post.html" (licenseCtx <> postCtx tags <> keywordCtx)
       >>= loadAndApplyTemplate "templates/default.html" (mathCtx  <> defaultContext)
       >>= relativizeUrls
 
@@ -168,16 +172,12 @@ mathCtx = field "mathjax" $ \item -> do
                 then "<script type=\"text/javascript\" src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
                 else ""
 
-licenseCtx :: Context a
-licenseCtx = field "license" $ \item -> do
-    metadata <- getMetadata $ itemIdentifier item
-    return $ case M.lookup "license" metadata of
-                    Nothing -> ""
-                    Just m -> case M.lookup (trim m) licenses of
-                                      Nothing -> "unknown license"
-                                      Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
+keywordCtx :: Context String
+keywordCtx = field "metaKeywords" $ \item -> do
+    tags <- getMetadataField (itemIdentifier item) "tags"
+    return $ maybe "" showMetaTags tags
   where
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+    showMetaTags t = "<meta name=\"keywords\" content=\""++t++"\">\n"
 
 feedConfiguration :: String -> FeedConfiguration
 feedConfiguration title = FeedConfiguration
@@ -188,6 +188,16 @@ feedConfiguration title = FeedConfiguration
     , feedRoot        = "http://qnikst.github.com"
     }
 
+licenseCtx :: Context a
+licenseCtx = field "license" $ \item -> do
+    metadata <- getMetadata $ itemIdentifier item
+    return $ case M.lookup "license" metadata of
+                    Nothing -> ""
+                    Just m -> case M.lookup (trim m) licenses of
+                                      Nothing -> "unknown license"
+                                      Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
+  where
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 --licenses :: String -> String
 licenses = M.fromList 
     [ ("by",       ( "http://creativecommons.org/licenses/by/3.0"
