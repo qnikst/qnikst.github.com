@@ -59,7 +59,7 @@ main = hakyllWith config $ do
   match "drafts/*" $ do
     route $ setExtension ".html"
     compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
-      >>= loadAndApplyTemplate "templates/post.html" (postCtx tags)
+      >>= loadAndApplyTemplate "templates/post.html" (postCtx tags <> keywordCtx)
       >>= loadAndApplyTemplate "templates/default.html" (mathCtx `mappend` defaultContext)
       >>= relativizeUrls
 
