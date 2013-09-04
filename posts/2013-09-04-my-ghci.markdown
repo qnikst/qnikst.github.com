@@ -1,0 +1,68 @@
+----
+author: Alexander Vershilov
+date:  2013-09-04
+tags: gentoo, haskell, ghci
+title: My ghci
+----
+
+Here is small collection of my ghci scripts taken from different places.
+
+## Pointfree
+    
+Convert expression into [pointfree](http://www.haskell.org/haskellwiki/Pointfree) style.
+You need to install [pointree package](http://hackage.haskell.org/package/pointfree) before
+In Gentoo case run `emerge dev-haskell/pointfree`.
+
+    -- pointfree
+    :def pf \str -> return $ ":! pointfree \"" ++ str ++ "\""
+
+## Haskell-docs
+
+Show documentation on given function. In order to use it you need to intall
+[haskell-doc package](http://hackage.haskell.org/package/haskell-docs) and built
+documentation for packages.
+
+In Gentoo case:
+  1. echo 'dev-haskell/* docs' >> /etc/portage/package.use
+  2. `emerge dev-haskell/haskell-docs`
+  
+    -- documentation
+    :def doc \input -> return (":!haskell-docs " ++ input)
+
+The format is following:
+  <modulename> <name> [<package name>]
+
+   > :doc System.IO getContents base
+   The getContents operation returns all user input as a single string,
+   which is read lazily as it is needed
+   (same as hGetContents stdin).
+
+## GHC-Vis
+
+A great tool to show how expressions will be presented in memory. You can use it 
+in order to understand your data structure and laziness/strictness of expressions.
+As usual you need to install [ghc-vis package](http://hackage.haskell.org/package/ghc-vis).
+Documentation for package (nice pictures included): http://felsin9.de/nnis/ghc-vis/
+
+    -- ghc-vis
+    :script //usr/share/ghc-vis-0.7.1/ghc-7.6.3/ghci
+
+## Hoogle
+
+To enable searching with hoogle (either local or global) you can install
+[hoogle package](http://hackage.haskell.org/package/hoogle).
+
+    :def hoogle \str -> return $ ":! hoogle --count=15 \"" ++ str ++ "\""
+
+## Prompt
+
+To hide a big list of imported modules and have a nice look'n'feel you can 
+change you ghci prompt.
+
+    :set prompt "λ> "
+
+To see list of imported modules you can type: `:show imports`.
+
+
+
+
