@@ -1,0 +1,22 @@
+---
+date: 2013-09-05
+---
+
+  * some more git tips from [git-faq](http://www.kernel.org/pub/software/scm/git/docs/howto/)
+
+  * `git clean` is a very nice command for clearing git repos.
+
+  * I've fixed gentoo-haskell repo for me, and now it's possible to run normal workflow.
+
+## what puzzeles me (new questions):
+
+  * I had not managed to run k-means example in distributed-haskell tutorial by well typed.
+  * is it possible to use comonad for simplifying breadth-first/A* algorithms
+    via [LOR](http://www.linux.org.ru/forum/development/9550013)
+  * how to include list of pending questions on all WHILT pages without troubles
+  
+## list of pending questions
+  * Treadscope fails for me with strange errors (should be debugged and possibly fixed);
+  * I need to blogpost about biegunka once I'll have good config;
+  * Write git-annex usecases I want to implement in order to ask how can I archive them.
+  * How to use zippers to work with trees (see ndtimofeev questions on [juick](http://juick.com/ndtimofeev/2504504))
