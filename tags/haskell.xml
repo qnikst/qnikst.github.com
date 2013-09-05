@@ -8,8 +8,40 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-08-23T00:00:00Z</updated>
+    <updated>2013-09-04T00:00:00Z</updated>
     <entry>
+    <title>My ghci</title>
+    <link href="http://qnikst.github.com/posts/2013-09-04-my-ghci.html" />
+    <id>http://qnikst.github.com/posts/2013-09-04-my-ghci.html</id>
+    <published>2013-09-04T00:00:00Z</published>
+    <updated>2013-09-04T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Here is small collection of my ghci scripts taken from different places.</p>
+<h2 id="pointfree">Pointfree</h2>
+<p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to install <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> before In Gentoo case run <code>emerge dev-haskell/pointfree</code>.</p>
+<pre><code>-- pointfree
+:def pf \str -&gt; return $ &quot;:! pointfree \&quot;&quot; ++ str ++ &quot;\&quot;&quot;</code></pre>
+<h2 id="haskell-docs">Haskell-docs</h2>
+<p>Show documentation on given function. In order to use it you need to intall <a href="http://hackage.haskell.org/package/haskell-docs">haskell-doc package</a> and built documentation for packages.</p>
+<p>In Gentoo case: 1. echo ‘dev-haskell/* docs’ &gt;&gt; /etc/portage/package.use 2. <code>emerge dev-haskell/haskell-docs</code></p>
+<pre><code>-- documentation
+:def doc \input -&gt; return (&quot;:!haskell-docs &quot; ++ input)</code></pre>
+<p>The format is following: <modulename> <name> [<package name>]</p>
+<blockquote>
+<p>:doc System.IO getContents base The getContents operation returns all user input as a single string, which is read lazily as it is needed (same as hGetContents stdin).</p>
+</blockquote>
+<h2 id="ghc-vis">GHC-Vis</h2>
+<p>A great tool to show how expressions will be presented in memory. You can use it in order to understand your data structure and laziness/strictness of expressions. As usual you need to install <a href="http://hackage.haskell.org/package/ghc-vis">ghc-vis package</a>. Documentation for package (nice pictures included): http://felsin9.de/nnis/ghc-vis/</p>
+<pre><code>-- ghc-vis
+:script //usr/share/ghc-vis-0.7.1/ghc-7.6.3/ghci</code></pre>
+<h2 id="hoogle">Hoogle</h2>
+<p>To enable searching with hoogle (either local or global) you can install <a href="http://hackage.haskell.org/package/hoogle">hoogle package</a>.</p>
+<pre><code>:def hoogle \str -&gt; return $ &quot;:! hoogle --count=15 \&quot;&quot; ++ str ++ &quot;\&quot;&quot;</code></pre>
+<h2 id="prompt">Prompt</h2>
+<p>To hide a big list of imported modules and have a nice look’n’feel you can change you ghci prompt.</p>
+<pre><code>:set prompt &quot;λ&gt; &quot;</code></pre>
+<p>To see list of imported modules you can type: <code>:show imports</code>.</p>]]></summary>
+</entry>
+<entry>
     <title>Adding license notes to blog pages.</title>
     <link href="http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html" />
     <id>http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
