@@ -36,9 +36,13 @@
     <h1>My ghci <br /><small><strong>September  4, 2013</strong></small></h1>
 </div>
 
-<p>Here is small collection of my ghci scripts taken from different places.</p>
+<div style="float:right;width:200px;font-size:0.7em">
+<strong>Updates:</strong><br />2013-09-05: add link to dotfile
+</div>
+
+<p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
 <h3 id="pointfree">Pointfree</h3>
-<p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to install <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> before In Gentoo case run <code>emerge dev-haskell/pointfree</code>.</p>
+<p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to have <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> installed in order to use this function (in case of Gentoo run <code>emerge dev-haskell/pointfree</code>).</p>
 <pre><code>-- pointfree
 :def pf \str -&gt; return $ &quot;:! pointfree \&quot;&quot; ++ str ++ &quot;\&quot;&quot;</code></pre>
 <h3 id="haskell-docs">Haskell-docs</h3>
