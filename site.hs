@@ -56,6 +56,15 @@ main = hakyllWith config $ do
     route idRoute
     compile getResourceBody
 
+  -- Render whilt
+  match "wihlt/*" $ do
+      route $ setExtension ".html"
+      compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions
+        >>= saveSnapshot "content"
+        >>= loadAndApplyTemplate "templates/wihlt.html" defaultContext
+        >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
+        >>= relativizeUrls
+
   match "drafts/*" $ do
     route $ setExtension ".html"
     compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
@@ -107,13 +116,15 @@ main = hakyllWith config $ do
       route idRoute
       compile $ do
         list <- postList tags "posts/*" $ fmap (take 10) . recentFirst
+        wihlt <- wihltList "wihlt/*" $ fmap (take 10) . recentFirst
         let indexContext =  constField "posts" list 
+                         <> constField "wihlt" wihlt
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
                          <> defaultContext
         getResourceBody
             >>= applyAsTemplate indexContext
-            >>= loadAndApplyTemplate "templates/index.html" indexContext -- defaultContext 
+            >>= loadAndApplyTemplate "templates/index.html" indexContext
             >>= loadAndApplyTemplate "templates/default.html" indexContext
             >>= relativizeUrls
 
@@ -156,6 +167,12 @@ postList tags pattern preprocess' = do
     postItemTpl <- loadBody "templates/postitem.html"
     posts <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
     applyTemplateList postItemTpl (postCtx tags) posts
+
+wihltList :: Pattern -> ([Item String] -> Compiler [Item String]) -> Compiler String
+wihltList pattern preprocess' = do
+    wihltItemTpl <- loadBody "templates/wihltitem.html"
+    items <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
+    applyTemplateList wihltItemTpl defaultContext items
 
 config :: Configuration
 config = defaultConfiguration
