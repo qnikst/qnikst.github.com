@@ -18,6 +18,9 @@ import Debug.Trace
 
 main :: IO ()
 main = hakyllWith config $ do
+  match "img/**" $ do
+     route idRoute
+     compile copyFileCompiler
   match "images/**" $ do
      route idRoute
      compile copyFileCompiler

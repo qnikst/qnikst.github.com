@@ -1,0 +1,60 @@
+
+digraph coerce {
+  nCString [label="CString"];
+  nString [label="String"];
+  nByteString [label="ByteString"];
+  nPtr   [label="Ptr a"];
+  nForeignPtr [label="ForeignPtr a"]
+  nWord8 [label="[Word8]"];
+  nAddr  [label="Addr#"];
+  nLBS   [label="Lazy ByteString"];
+  nText  [label="Text"];
+  nLText  [label="Lazy Text"];
+  nString -> nCString [color="blue",style="dashed",label="withCString"];
+  nString -> nCString [color="green",label="newCString"];
+  nCString -> nString [color="green",label="peekCString"];
+  nByteString -> nString [color="green",label="unpack"];
+  nString -> nByteString [color="green",label="pack"];
+  nString -> nByteString [color="red",label="unsafePackLenChars"];
+  nByteString -> nCString [color="green",label="packCString"];
+  nByteString -> nCString [color="blue",style="dashed",label="useAsCString"];
+  nByteString -> nCString [color="red",style="dashed",label="unsafeUseAsCString"]
+  nByteString -> nForeignPtr [label="toForeignPtr"];
+  nByteString -> nAddr [color="red", label="unsafePackAddress"];
+  nCString -> nByteString [color="red",label="unsafePackMallocCString"]
+  nCString -> nByteString [color="red",label="unsafePackCString"];
+  nWord8 -> nByteString [color="red",label="unsafePackLenBytes"];
+  nWord8 -> nByteString [color="green",label="packBytes"];
+  nWord8 -> nByteString [color="green",label="packUptoLenBytes"];
+  nPtr -> nByteString   [color="green",label="create"];
+  nPtr -> nByteString   [color="red",label="unsafeCreate"];
+  nForeignPtr -> nByteString [label="fromForeignPtr"];
+  nForeignPtr -> nPtr [color="red",label="unsafeForeignPtrToPtr"];
+  nCString -> nPtr [label = "id"];
+  nPtr -> nAddr [label="let (Ptr a#)"];
+  nLBS -> nByteString [color="green",label="toChuks"];
+  nByteString -> nLBS [color="green",label="fromChunks"];
+  nLBS -> nString [color="green",label="pack"];
+  nString -> nLBS [color="green",label="unpack"];
+  nLBS -> nString [color="green",label="unpackChars"];
+  nLBS -> nWord8  [color="green",label="unpackBytes"];
+  nString -> nLBS [color="green",label="packChars"];
+  nWord8 -> nLBS  [color="green",label="packBytes"];
+  nText -> nString [color="green",label="pack"];
+  nString -> nText [color="green",label="unpack"];
+  nText -> nByteString [color="green",label="encodeUtf8"];
+  nByteString -> nText [color="green",label="decodeUtf8"];
+  nText -> nPtr [style="dashed",label="useAsPtr"];
+  nText -> nForeignPtr [label="asForeignPtr"];
+  nText -> nPtr [color="red", label="unsafeCopyToPtr"];
+  nLText -> nText [label="toChunks"];
+  nText -> nLText [label="fromChunks"];
+  nLText -> nLBS [label="encodeUtf8"];
+  nLBS -> nLText [label="decodeUtf8"];
+  nLText -> nString [label="unpack"];
+  nString -> nLText [label="pack"];
+
+  
+
+}
+
