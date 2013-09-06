@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - univ</title>
+    <title>Qnikst blog - 2013-09-06</title>
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../css/additional.css" rel="stylesheet" media="screen">
@@ -29,28 +29,31 @@
       </div>
   </div>
   <div class="container">
-    <div class="container-fluid">
-    <div class="span8">
-        <div id="posts">
-            <h1>All posts</h1>
-            <ul>
-                <li>
-   <a href="../posts/2013-02-01-phys-formulae.html">Формулы которые нужно знать</a> [February  1, 2013]
-</li>
+    What I have learned today (2013-09-06):
 
-            </ul>
-        </div>
-    </div>
-    <div class="span3">
-        <p><strong>Browse Tags:</strong><br /> <a href="../tags/OpenRC.html">OpenRC (1)</a>, <a href="../tags/cgroups.html">cgroups (1)</a>, <a href="../tags/gentoo.html">gentoo (3)</a>, <a href="../tags/ghci.html">ghci (1)</a>, <a href="../tags/hakyll.html">hakyll (2)</a>, <a href="../tags/haskell.html">haskell (10)</a>, <a href="../tags/latex.html">latex (1)</a>, <a href="../tags/linux.html">linux (2)</a>, <a href="../tags/pam.html">pam (1)</a>, <a href="../tags/phys.html">phys (1)</a>, <a href="../tags/programming.html">programming (1)</a>, <a href="../tags/projects.html">projects (1)</a>, <a href="../tags/resourcet.html">resourcet (1)</a>, <a href="../tags/supervision.html">supervision (1)</a>, <a href="../tags/univ.html">univ (1)</a>, <a href="../tags/web.html">web (1)</a></p>
-        <p><strong>Links:</strong><br />
-        <ul>
-            <li><a href="http://gentoo.org">Gentoo Linux</a></li>
-            <li><a href="http://gentoohaskell.wordpress.com/">Gentoo haskell blog</a></li>
-        </ul>
-        </p>
-    </div>
-</div>
+<ul>
+<li><p>Had a nice discussion why Alternative has no (Monoid m, Applicative m) constraint. (Just look at the kinds they are different)</p>
+<pre><code>λ&gt; :k Monoid
+Monoid :: * -&gt; Constraint
+λ&gt; :k Applicative
+Applicative :: (* -&gt; *) -&gt; Constraint</code></pre></li>
+<li><p>Done: path finding algorithm</p></li>
+</ul>
+<h2 id="what-puzzeles-me-new-questions">what puzzeles me (new questions):</h2>
+<ul>
+<li>It worth of writing a post on pathfinding;</li>
+<li>I need to read articles about repa and understand tutorials;</li>
+<li>I need to have basic undestanding of [http://okmij.org/ftp/meta-programming/HPC.html]</li>
+<li>K-means example still not work for me;</li>
+</ul>
+<h2 id="list-of-pending-questions">list of pending questions</h2>
+<ul>
+<li>Treadscope fails for me with strange errors (should be debugged and possibly fixed) (2013-09-04);</li>
+<li>I need to blogpost about biegunka once I’ll have good config (2013-09-05);</li>
+<li>Write git-annex usecases I want to implement in order to ask how can I archive them. (2013-09-04)</li>
+<li>How to use zippers to work with trees (see ndtimofeev questions on <a href="http://juick.com/ndtimofeev/2504504">juick</a>) (2013-09-05)</li>
+<li>how to include list of pending questions on all WHILT pages without troubles (2013-09-05)</li>
+</ul>
 
     <footer>
     Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
