@@ -8,8 +8,111 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-09-04T00:00:00Z</updated>
+    <updated>2013-09-06T00:00:00Z</updated>
     <entry>
+    <title>Сериализация структур данных в Haskell.<br/> Часть 1: типы данных</title>
+    <link href="http://qnikst.github.com/posts/2013-09-06-serialization-p1.html" />
+    <id>http://qnikst.github.com/posts/2013-09-06-serialization-p1.html</id>
+    <published>2013-09-06T00:00:00Z</published>
+    <updated>2013-09-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p><em>У меня тут в черновиках завалялась старый пост про сериализацию стуктур данных в haskell, доводить её до ума и продолжать мне немного лень, но если будет интересно то могу продолжать. Изначально серия статей предполагалась одновременно с доведением до ума пакета <a href="https://github.com/qnikst/strictput">strictput</a></em></p>
+<p>Этим постом я хочу начать небольшую серию статей про сериализацию данных в Haskell. и описание библиотек их реализующих.</p>
+<h1 id="типы-данных">Типы данных</h1>
+<p>Перед тем как рассматривать непосредственно существующие системы сериализации и сопутсвующие им алгоритмы нужно рассмотреть типы данных, в которые можно сериализовать стуктуры. Это позволит упростить описание самой сериализации, а так же улучшит понимание низкого уровня задачи.</p>
+<p>Сама задача сериализации может возникать в двух случаях:</p>
+<ol style="list-style-type: decimal">
+<li>Взаимодействие с внешним рантаймом, например FFI;</li>
+<li>Взаимодействие с внешним миром (IPC, передача в сеть и т.д.)</li>
+</ol>
+<p>Разница между этими задачами заключается в том, что в первом случае, данные находятся в пространстве одного процесса (группы процессов), а во втором в разных и там будет произведено их копирование (существуют варианты, при которых копирование произведено не будет, но их мы оставим в стороне). В связи с этим структуры данных для варинта 1 не должны быть перемещены GC при сборке мусора, поскольку сериализация главным образом интересна нам по для второго сценария, то мы не будем посвящать много времени рассмотрению непереносимых (pinned) структур, а будем только отмечать данное свойство.</p>
+<h2 id="c-интерфейс">‘C’ интерфейс</h2>
+<p>При взаимодействии с файлами или сетью для передачи бинарных данных в C принятно использовать пару указатель размер данных, которая описывает откуда брать данные и сколько. Существуют более интересные варианты для векторной записи (семейство функций read/writev), в этом случае используется массив структур:</p>
+<p>struct iovec { void *iov_base; size_t iov_len; }</p>
+<p>в некоторых типах данных можно использовать данный подход, что позволит повысить их производительность, но об этом будет сказано отдельно.</p>
+<p>Данный интерфейс может быть изображен в haskell как (# Addr#,CSize #) но крайне не рекомендуется так делать, поскольку это сильно усложнит работу с данными, при этом не принося выгоды, поскольку во многих случаях компилятор может преобразовать структуру к виду аналогичному данному.</p>
+<p>Для данных, которые являются строковыми в C часто ещё использются null-terminated строки</p>
+<h3 id="типы-haskell-соотвествующие-c-интерфейсу">Типы haskell соотвествующие C интерфейсу</h3>
+<p>В haskell существуют следующие типы соответсующие указателям в C:</p>
+<h4 id="addr">Addr#</h4>
+<p>Addr# - unlifted unpacked тип данных являющийся указателем. Стоит напомнить, что данный тип является строгим по построению. С помощью данного типа можно обращаться напрямую к данным внутри примитивных частей программы. Функции для работы есть в GHC.Prim (пакет ghc-prim) и Control.Primitive (пакет primitive). Обычно использовние Addr# не нужно, поскольку компилятор умеет приводить приводить работу к данному типу (за это отвечает анализатор строгости).</p>
+<h4 id="ptr">Ptr</h4>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="fu">#</span>)</code></pre>
+<p>Типизированная обертка над Addr (lifted, unpacked by default (изменится в ghc 7.8)), с помощью данного типа данных можно работать с указателями в “обычном” haskell коде. В подавляющем большинстве случаев ленивость и boxing убираются компилятором. Данный тип не “держит” содержимое на которое указывает и не защищает его от сборки GC.</p>
+<p>Функции для работы с указателями предоставляются модулем ‘Foreign.Ptr’</p>
+<h4 id="foreignptr">ForeignPtr</h4>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="fu">#</span> <span class="dt">ForeignPtrConents</span></code></pre>
+<p>Указатель, к которому можно привязывать финализаторы: действие которое должно быть выполнено как только не осталось ссылок на ForeignPtr из кода.</p>
+<h2 id="общее-описание-структур-данных">Общее описание структур данных</h2>
+<h3 id="cstringcstring-len">CString/CString Len</h3>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">    <span class="kw">type</span> <span class="dt">CString</span> <span class="fu">=</span> <span class="dt">Ptr</span> <span class="dt">CChar</span> <span class="co">-- Defined in `Foreign.C.String`</span>
+    <span class="kw">type</span> <span class="dt">CStringLen</span> <span class="fu">=</span> (<span class="dt">Ptr</span> <span class="dt">CChar</span>, <span class="dt">Int</span>) <span class="co">-- Defined in `Foreign.C.String`</span></code></pre>
+<p>Тип данных соответсвующий null-terminated и length строкам соответсвенно, обычно используется для взаимодействия с C кодом, поскольку данный тип строк является pinned. Данный тип может быть эффективно использован для низкоуровнего взаимодействия с C кодом. Стоит отметить, что существует модификация CString (ACString) в которой выделение происходит на стеке, а не в куче.</p>
+<p>Характеристики:</p>
+<ul>
+<li>строгий</li>
+<li>небезопасный</li>
+<li>не предоставляет возможности работы с данными</li>
+</ul>
+<p>Операции над типом:</p>
+<ul>
+<li>библиотеки haskell не предоставляют операций над данным типом данных</li>
+</ul>
+<h3 id="string">String</h3>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">    <span class="kw">type</span> <span class="dt">String</span> <span class="fu">=</span> [<span class="dt">Char</span>]</code></pre>
+<p>Очень широко используемый тип данных для внутреннего представления тектовых строк в виде потока (Stream/Lazy-Cons-List). Данный тип предоставляется базовой библиотекой Prelude и поэтому весьма часто плохоиспользуется (missused). Поскольку структура данных является ленивой, то возможно создание бесконечных, и цикличеких списков, а так же итеративное построение списка.</p>
+<p>Характеристики:</p>
+<ul>
+<li>ленивый</li>
+<li>безопасный</li>
+<li>простой в использовании</li>
+<li>можно использовать pattern matching без дополнительных расширений</li>
+<li>очень низкая локальность данных (не кэш локальный)</li>
+<li>высокий overhead по памяти для хранения списка (x+8+2)*n+8</li>
+<li>очень низкая скорость работы</li>
+<li>внутренний (не pinned тип)</li>
+<li>build/foldr deforestation</li>
+<li>IO библиотека существует, но все методы являются ленивыми, что подвергается жесткой критике, рекомендуется не использовать LazyIO, а исполььзовать итеративные библиотеки такие как (pipes, conduit, itertee)</li>
+</ul>
+<p>Build/forldr deforestation позволяет не создавать списки в том случае, если это не необходимо, например в случаях если списки играют роль “клея” между операциями.</p>
+<p>Операции над структурой данных:</p>
+<ul>
+<li>size: O(N) /N прыжков по памяти/ const по памяти</li>
+<li>a <code>append</code> b: O(size a), O(size a) выделяется строка O(size a), ‘a’ может быть освобождена.</li>
+<li>a +: b -&gt; O(1),</li>
+<li>a :+ b -&gt; O(size a)</li>
+</ul>
+<p>Все операции изменяющие структуру данных пересоздают структуру слева от списка.</p>
+<h3 id="word8">[Word8]</h3>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">  <span class="kw">data</span> [] a <span class="fu">=</span> [] <span class="fu">|</span> a <span class="fu">:</span> [a]</code></pre>
+<p>Аналог String для бинарных типов данных, к данному типу применяемы все пункты относящиеся к String, кроме того, что нету функционала работы с IO.</p>
+<h3 id="text">Text</h3>
+<p>Современный внутренний тип для предствления строковых данных. Однако рассмотрение данного типа выходит за рамки поста.</p>
+<h3 id="bytestring">ByteString</h3>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">  <span class="kw">data</span> <span class="dt">ByteString</span> <span class="fu">=</span> <span class="dt">PS</span> 
+          <span class="ot">{-# UNPACK #-}</span> (<span class="dt">ForeignPtr</span> <span class="dt">Word8</span>) 
+          <span class="ot">{-# UNPACK #-}</span> <span class="dt">Int</span> 
+          <span class="ot">{-# UNPACK #-}</span> <span class="dt">Int</span></code></pre>
+<p>Данная структура обощает представление данных CStringLen добавляя в него параметр offset, что позволяет сильно расширить круг операций, которые доступны и безопасны. Для данного типа вся работа с памятью скрыта и пользовател предоставляется чистый и безопасный интерфейс для работы.</p>
+<p>Размер структуры ~16байт+выделенная память, она является полностью строгой.</p>
+<p>Данный тип работает с pinned memory посредством libc вызовов и предоставляет быстрый интерфейс для работы с бинарными данными. Операции не требующие изменения самих данных (take,drop) создают новый заголовок O(1), 8 Byte располагающийся в памяти RTS (relocable). Операции требующие изменения данных создают новую строку. Данная структура данных не поддерживает deforestation, но является самой эффективной структурой данных для хранения строк, которые должны быть прочитаны и не изменяются.</p>
+<p>То, что каждый из блоков данных содержит указатель на начало выделенной памяти позволяет обходиться без дополнительного копирования структуры удаляя её в том случае, если на неё никто не ссылается.</p>
+<h3 id="lazy-bytestring">Lazy ByteString</h3>
+<p>data ByteString = Empty | Chunk !Internal.ByteString ByteString</p>
+<p>Как можно увидеть данная структура изоморфна списку байтстрок, однако есть существенное отличие, внутри каждого чанка существует не произвольная строка, а строка определенного размера. (64k)</p>
+<h2 id="перевод-типов-данных-друг-в-друга">Перевод типов данных друг в друга</h2>
+<p>Для того, чтобы показать как перечисленные типы данных переходят друг в друга я привел абсолютно невоспринимаемую картинку: (кто хочет може предложить мне более адекватный вариант).</p>
+<p>При переводе типов из одного в другой нужно следить за следующими вещами:</p>
+<ol style="list-style-type: decimal">
+<li>алгоритмическая сложность операции;</li>
+<li>размер выделяемых структур данных;</li>
+<li>энергичность/ленивость операции;</li>
+<li>безопасность операции.</li>
+</ol>
+<p>С первым пунктом все важно, второй тоже важен так как агрессивное использование памяти существенно изменить поведение программы относительно ожидаемого. То же относится и к ленивости, в этом случае нужно понимать, какие плюсы идут от ленивости и не может ли произойти каскадное “форсирование” вычислений в тот момент когда этого допускать нельзя.</p>
+<p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её полная копия операции ‘useAs*’ в этом случае нужно понимать, что данный подход приводит к увеличению сложности и нагрузки на память.</p>
+<p><img src="/images/posts/parser-1/1.png"/></p>]]></summary>
+</entry>
+<entry>
     <title>My ghci</title>
     <link href="http://qnikst.github.com/posts/2013-09-04-my-ghci.html" />
     <id>http://qnikst.github.com/posts/2013-09-04-my-ghci.html</id>
@@ -456,52 +559,6 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
 <li>наслаждаемся результатом.</li>
 </ol>
 <p>В данном решении есть проблема: будучи суперпользователем пользователь может перемещать свои задачи по cgroup-ам, для решения этой проблемы нужно писать политику selinux запрещающую переносить задачи выше, чем cgroup породившего их процесса.</p>]]></summary>
-</entry>
-<entry>
-    <title>Using mathjax latex formula with Hakyll-4</title>
-    <link href="http://qnikst.github.com/posts/2013-02-04-hakyll-latex.html" />
-    <id>http://qnikst.github.com/posts/2013-02-04-hakyll-latex.html</id>
-    <published>2013-02-04T00:00:00Z</published>
-    <updated>2013-02-04T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Recently I’ve checked a list of manuals for pandoc and latex, but they were quite outdated.</p>
-<p>The problems that by default pandoc tries to use utf only to render formulas but it doesn’t work in many cases. Best solution would be <a href="http://www.mathjax.org/">mathjax</a> as it will work in majority of brousers unlike mathml.</p>
-<p>To set up hakyll to use latex one needs to set pandoc compiler options:</p>
-<pre><code>    -- ...
-    compile \$ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
-    -- ...
-
-pandocOptions :: WriterOptions
-pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax &quot;&quot; }</code></pre>
-<p>But you will have to add mathjax url to pages where you have math, and do nothing at pages without. So you can add a special marker to page header</p>
-<pre><code>----
-....
-mathjax: on
----</code></pre>
-<p>and then add a special context that will check marker it sill populate field mathjax with either script url or nothing</p>
-<pre><code>mathCtx :: Context a
-mathCtx = field &quot;mathjax&quot; $ \item -&gt; do
-    metadata &lt;- getMetadata $ itemIdentifier item
-    return $ if &quot;mathjax&quot; `M.member` metadata
-                  then &quot;&lt;script type=\&quot;text/javascript\&quot; src=\&quot;http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\&quot;&gt;&lt;/script&gt;&quot;
-                  else &quot;&quot;</code></pre>
-<p>now you need to add $mathjax$ value to your tempate and add math context to your context (I’ve used default.html)</p>
-<pre><code>&lt;head&gt;
-    ...
-    &lt;script src=&quot;/js/bootstrap.min.js&quot;&gt;&lt;/script&gt;
-    $mathjax$
-&lt;/head&gt;</code></pre>
-<pre><code>  match &quot;posts/*&quot; $ do
-      route $ setExtension &quot;.html&quot;
-      compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
-         &gt;&gt;= saveSnapshot &quot;content&quot;
-         &gt;&gt;= return . fmap demoteHeaders
-         &gt;&gt;= loadAndApplyTemplate &quot;templates/post.html&quot; (postCtx tags)
-         &gt;&gt;= loadAndApplyTemplate &quot;templates/default.html&quot; (mathCtx `mappend` defaultContext)
-         &gt;&gt;= relativizeUrls</code></pre>
-<p>that’s all</p>
-<p>Example:</p>
-<p><span class="math">\[M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
-M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and <span class="math">\[{\gamma}_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.\]</span> Such as <span class="math">\(C_1=0\)</span> and <span class="math">\[\dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{{\gamma}_3}-\dfrac{4\beta_2{\gamma}_1M_2(1-q_k)}{{\gamma}_3}\,,\]</span></p>]]></summary>
 </entry>
 
 </feed>

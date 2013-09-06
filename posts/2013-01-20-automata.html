@@ -57,7 +57,7 @@
 <span class="ot">&gt;</span>               out_ <span class="ot">&lt;-</span> newTChanIO 
 <span class="ot">&gt;</span>               t <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> g in_ out_
 <span class="ot">&gt;</span>               atomically <span class="fu">$</span> writeTChan in_ i
-<span class="ot">&gt;</span>               <span class="fu">return</span> (t,in_,out_))
+<span class="ot">&gt;</span>               return (t,in_,out_))
 <span class="ot">&gt;</span>           (\(t, _, _) <span class="ot">-&gt;</span> killThread t)
 <span class="ot">&gt;</span>           (\(_, i, o) <span class="ot">-&gt;</span> f i o)</code></pre>
 <p>, where FIO and Generator are helper types:</p>
@@ -66,7 +66,7 @@
 <p>A side node that we need to pass initial value as we use bus-driven logic: a message from the bus starts computaion.</p>
 <p>Let’s write some generators:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; idGenerator ::</span> <span class="dt">Generator</span> a a
-<span class="ot">&gt;</span> idGenerator <span class="fu">=</span> fGenerator <span class="fu">id</span>
+<span class="ot">&gt;</span> idGenerator <span class="fu">=</span> fGenerator id
 <span class="ot">&gt; fGenerator ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> <span class="dt">Generator</span> b a
 <span class="ot">&gt;</span> fGenerator f ic oc <span class="fu">=</span> forever <span class="fu">.</span> atomically <span class="fu">$</span> readTChan oc <span class="fu">&gt;&gt;=</span> writeTChan ic <span class="fu">.</span> f</code></pre>
 <p>Now we can review our problem.</p>
@@ -91,19 +91,19 @@
 <p>This is not a function, this is a computation, so we need to write explicit runner to make it work:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> runner auto i o <span class="fu">=</span> <span class="kw">do</span>
 <span class="ot">&gt;</span>     x <span class="ot">&lt;-</span> atomically <span class="fu">$</span> readTChan i
-<span class="ot">&gt;</span>     <span class="fu">putStr</span> <span class="fu">$</span> <span class="st">&quot;input: &quot;</span><span class="fu">++</span>(<span class="fu">show</span> x) 
+<span class="ot">&gt;</span>     putStr <span class="fu">$</span> <span class="st">&quot;input: &quot;</span><span class="fu">++</span>(show x) 
 <span class="ot">&gt;</span>     <span class="kw">let</span> ret <span class="fu">=</span> stepAuto auto x
 <span class="ot">&gt;</span>     <span class="kw">case</span> ret <span class="kw">of</span>
-<span class="ot">&gt;</span>       <span class="kw">Left</span> (req, next) <span class="ot">-&gt;</span> <span class="kw">do</span>
-<span class="ot">&gt;</span>           <span class="fu">putStrLn</span> <span class="fu">$</span> <span class="st">&quot; requesting: &quot;</span> <span class="fu">++</span> <span class="fu">show</span> req
+<span class="ot">&gt;</span>       <span class="dt">Left</span> (req, next) <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>           putStrLn <span class="fu">$</span> <span class="st">&quot; requesting: &quot;</span> <span class="fu">++</span> show req
 <span class="ot">&gt;</span>           atomically (writeTChan o req)
 <span class="ot">&gt;</span>           runner next i o
-<span class="ot">&gt;</span>       <span class="kw">Right</span> ok <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> (<span class="st">&quot; result: &quot;</span><span class="fu">++show</span> ok) <span class="fu">&gt;&gt;</span> <span class="fu">return</span> ok</code></pre>
+<span class="ot">&gt;</span>       <span class="dt">Right</span> ok <span class="ot">-&gt;</span> putStrLn (<span class="st">&quot; result: &quot;</span><span class="fu">++</span>show ok) <span class="fu">&gt;&gt;</span> return ok</code></pre>
 <p>Will write a simple test function that require incremented value:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; upTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
 <span class="ot">&gt;</span> upTo n f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">&gt;=</span> n
-<span class="ot">&gt;</span>                      <span class="kw">then</span> <span class="kw">Right</span> <span class="fu">$</span> f x
-<span class="ot">&gt;</span>                      <span class="kw">else</span> <span class="kw">Left</span> ((x<span class="fu">+</span><span class="dv">1</span>),  upTo n f)</code></pre>
+<span class="ot">&gt;</span>                      <span class="kw">then</span> <span class="dt">Right</span> <span class="fu">$</span> f x
+<span class="ot">&gt;</span>                      <span class="kw">else</span> <span class="dt">Left</span> ((x<span class="fu">+</span><span class="dv">1</span>),  upTo n f)</code></pre>
 <p><em>Main&gt; run (runner (upTo 2 (</em>2))) (idGenerator) 0</p>
 <p>Loading package array-0.4.0.1 … linking … done.</p>
 <p>Loading package stm-2.4.2 … linking … done.</p>
@@ -113,7 +113,7 @@
 <p>4</p>
 <p>So far so good but, but I’d like not to write requests explicitly, rather to use some ‘request’ function that will break flow:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; request ::</span> o <span class="ot">-&gt;</span> <span class="dt">Auto2</span> i o a i
-<span class="ot">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="kw">Right</span> y)</code></pre>
+<span class="ot">&gt;</span> request req <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="dt">Left</span> (req, <span class="dt">Auto2</span> <span class="fu">$</span> \y <span class="ot">-&gt;</span> <span class="dt">Right</span> y)</code></pre>
 <p>*Main&gt; run (runner (request 5)) idGenerator 0</p>
 <p>input: 0 requesting: 5</p>
 <p>input: 5 result: 5</p>
@@ -121,29 +121,29 @@
 <p>One thing is bad: we need an input to request a state, that input will be ignored, it seems that it’s not a problem and will never hit user, however I have no strong explanation.</p>
 <p>Now we need a way to compose such computation, not a problem, because this is a Category, so we need just to write an instance:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Category</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
-<span class="ot">&gt;</span>     <span class="fu">id</span> <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> x
+<span class="ot">&gt;</span>     id <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="dt">Right</span> x
 <span class="ot">&gt;</span>     auto2 <span class="fu">.</span> auto1 <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
 <span class="ot">&gt;</span>               <span class="kw">let</span> out1 <span class="fu">=</span> stepAuto auto1 x
 <span class="ot">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> out1 <span class="kw">of</span>
-<span class="ot">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
-<span class="ot">&gt;</span>                   <span class="kw">Left</span> (o,auto1') <span class="ot">-&gt;</span> <span class="kw">Left</span> (o, (auto2 <span class="fu">.</span> auto1'))</code></pre>
+<span class="ot">&gt;</span>                   <span class="dt">Right</span> b <span class="ot">-&gt;</span> stepAuto auto2 b
+<span class="ot">&gt;</span>                   <span class="dt">Left</span> (o,auto1') <span class="ot">-&gt;</span> <span class="dt">Left</span> (o, (auto2 <span class="fu">.</span> auto1'))</code></pre>
 <p>id will just return a result and have no effects. Composition will run internal computation and if it’s succeed start outer, otherwise continue to run new inner automata untill it succeeds.</p>
 <p>At this point we doesn’t gain many advantages as we have only composition of automata, and will have a problems once we will leave the types pipeline.</p>
 <p>Now we’ll define an arrow instance so we will be able to lift opaque functions to the Automata level and create a side channels to carry values alongside with computation:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Arrow</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
-<span class="ot">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">Right</span> (f x)
+<span class="ot">&gt;</span>     arr f <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="dt">Right</span> (f x)
 <span class="ot">&gt;</span>     first (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \(x, y) <span class="ot">-&gt;</span> 
 <span class="ot">&gt;</span>         <span class="kw">let</span> next <span class="fu">=</span> f x
 <span class="ot">&gt;</span>         <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="ot">&gt;</span>             <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (b, y)
-<span class="ot">&gt;</span>             <span class="kw">Left</span>  a <span class="ot">-&gt;</span> arec (\z <span class="ot">-&gt;</span> (z,y)) a
+<span class="ot">&gt;</span>             <span class="dt">Right</span> b <span class="ot">-&gt;</span> <span class="dt">Right</span> (b, y)
+<span class="ot">&gt;</span>             <span class="dt">Left</span>  a <span class="ot">-&gt;</span> arec (\z <span class="ot">-&gt;</span> (z,y)) a
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> arec g (o, <span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="kw">Left</span> <span class="fu">$</span> 
+<span class="ot">&gt;</span> arec g (o, <span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Left</span> <span class="fu">$</span> 
 <span class="ot">&gt;</span>          (o, <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span>
 <span class="ot">&gt;</span>               <span class="kw">let</span> next <span class="fu">=</span> f x
 <span class="ot">&gt;</span>               <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="ot">&gt;</span>                   <span class="kw">Right</span> b <span class="ot">-&gt;</span> <span class="kw">Right</span> (g b)
-<span class="ot">&gt;</span>                   <span class="kw">Left</span> y  <span class="ot">-&gt;</span> arec g y)</code></pre>
+<span class="ot">&gt;</span>                   <span class="dt">Right</span> b <span class="ot">-&gt;</span> <span class="dt">Right</span> (g b)
+<span class="ot">&gt;</span>                   <span class="dt">Left</span> y  <span class="ot">-&gt;</span> arec g y)</code></pre>
 <p>Arrow instance just lift a pure function to Automata level, and first run recursive automata and store result in the first box. This is great we can just compose our computation in a straight forward way saving a results alongside a computation</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test1 <span class="fu">=</span> request <span class="dv">5</span> <span class="fu">&gt;&gt;&gt;</span>
 <span class="ot">&gt;</span>         arr (\x <span class="ot">-&gt;</span> (x,x)) <span class="fu">&gt;&gt;&gt;</span>
@@ -170,19 +170,19 @@
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">ArrowChoice</span> (<span class="dt">Auto2</span> i o) <span class="kw">where</span>
 <span class="ot">&gt;</span>   <span class="co">-- left :: a b c -&gt; a (Either b d) (Either c d)</span>
 <span class="ot">&gt;</span>   left (<span class="dt">Auto2</span> f) <span class="fu">=</span> <span class="dt">Auto2</span> <span class="fu">$</span> \x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
-<span class="ot">&gt;</span>           <span class="kw">Left</span> b <span class="ot">-&gt;</span> <span class="kw">let</span> next <span class="fu">=</span> f b
+<span class="ot">&gt;</span>           <span class="dt">Left</span> b <span class="ot">-&gt;</span> <span class="kw">let</span> next <span class="fu">=</span> f b
 <span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="kw">case</span> next <span class="kw">of</span>
-<span class="ot">&gt;</span>                         <span class="kw">Right</span> c <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Left</span> c)
-<span class="ot">&gt;</span>                         <span class="kw">Left</span> l <span class="ot">-&gt;</span> arec <span class="kw">Left</span> l
-<span class="ot">&gt;</span>           <span class="kw">Right</span> d <span class="ot">-&gt;</span> <span class="kw">Right</span> (<span class="kw">Right</span> d)
+<span class="ot">&gt;</span>                         <span class="dt">Right</span> c <span class="ot">-&gt;</span> <span class="dt">Right</span> (<span class="dt">Left</span> c)
+<span class="ot">&gt;</span>                         <span class="dt">Left</span> l <span class="ot">-&gt;</span> arec <span class="dt">Left</span> l
+<span class="ot">&gt;</span>           <span class="dt">Right</span> d <span class="ot">-&gt;</span> <span class="dt">Right</span> (<span class="dt">Right</span> d)
 <span class="ot">&gt;</span>   </code></pre>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; test3 ::</span> <span class="dt">Auto2</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="dt">Int</span>
-<span class="ot">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="kw">Left</span> y <span class="kw">else</span> <span class="kw">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
+<span class="ot">&gt;</span> test3 <span class="fu">=</span> arr (\y <span class="ot">-&gt;</span> <span class="kw">if</span> y <span class="fu">&gt;</span> <span class="dv">5</span> <span class="kw">then</span> <span class="dt">Left</span> y <span class="kw">else</span> <span class="dt">Right</span> y) <span class="fu">&gt;&gt;&gt;</span>
 <span class="ot">&gt;</span>         left (request <span class="dv">3</span>) <span class="fu">&gt;&gt;&gt;</span>
 <span class="ot">&gt;</span>         right (request <span class="dv">7</span>) <span class="fu">&gt;&gt;&gt;</span>
 <span class="ot">&gt;</span>         arr (\x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span>
-<span class="ot">&gt;</span>                 <span class="kw">Left</span> x  <span class="ot">-&gt;</span> x
-<span class="ot">&gt;</span>                 <span class="kw">Right</span> y <span class="ot">-&gt;</span> y)</code></pre>
+<span class="ot">&gt;</span>                 <span class="dt">Left</span> x  <span class="ot">-&gt;</span> x
+<span class="ot">&gt;</span>                 <span class="dt">Right</span> y <span class="ot">-&gt;</span> y)</code></pre>
 <p>*Main&gt; run (runner (test3)) idGenerator 1</p>
 <p>input: 1 requesting: 7</p>
 <p>input: 7 result: 7</p>

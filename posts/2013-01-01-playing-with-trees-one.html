@@ -59,71 +59,71 @@
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span>
 <span class="ot">&gt;</span>              <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)
 <span class="ot">&gt;</span>              <span class="co">{-   current    less      value        more    eq   -}</span>
-<span class="ot">&gt;</span>              <span class="kw">deriving</span> (<span class="kw">Show</span>)</code></pre>
+<span class="ot">&gt;</span>              <span class="kw">deriving</span> (<span class="dt">Show</span>)</code></pre>
 <p>Having PrefixMap as a additional layer we can assume, that we have a non-null prefix on each level.</p>
 <p>Introduce simple builders</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; empty ::</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> empty <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">E</span>)
+<span class="ot">&gt;</span> empty <span class="fu">=</span> (<span class="dt">Nothing</span>, <span class="dt">E</span>)
 <span class="ot">&gt;</span> 
 <span class="ot">&gt; node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> node b a <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, <span class="dt">E</span>) 
-<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (<span class="kw">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="kw">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
+<span class="ot">&gt;</span> node b a <span class="fu">|</span> null b    <span class="fu">=</span> (<span class="dt">Just</span> a, <span class="dt">E</span>) 
+<span class="ot">&gt;</span>          <span class="fu">|</span> otherwise <span class="fu">=</span> (<span class="dt">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="dt">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</code></pre>
 <p>Now inserting elements it’s a bit tricky and may be simplified in the way of removing not needed insances</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a
-<span class="ot">&gt;</span> insert b a (v,n) <span class="fu">|</span> <span class="fu">null</span> b    <span class="fu">=</span> (<span class="kw">Just</span> a, n)
-<span class="ot">&gt;</span>                  <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> (v, inner b a n)</code></pre>
+<span class="ot">&gt;</span> insert b a (v,n) <span class="fu">|</span> null b    <span class="fu">=</span> (<span class="dt">Just</span> a, n)
+<span class="ot">&gt;</span>                  <span class="fu">|</span> otherwise <span class="fu">=</span> (v, inner b a n)</code></pre>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a
-<span class="ot">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="kw">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
-<span class="ot">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b' l v r e) <span class="fu">|</span> <span class="fu">null</span> b     <span class="fu">=</span> n
-<span class="ot">&gt;</span>                            <span class="fu">|</span> <span class="fu">otherwise</span>  <span class="fu">=</span> 
-<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span>
-<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' (inner b a l) v r e   <span class="co">-- value less then current</span>
-<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' l v (inner b a r) e   <span class="co">-- value more then current</span>
-<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b' <span class="co">-- value has common part</span>
-<span class="ot">&gt;</span>               c <span class="fu">=</span> <span class="fu">take</span> x b
-<span class="ot">&gt;</span>               c'<span class="fu">=</span> <span class="fu">take</span> x b'
-<span class="ot">&gt;</span>               n' <span class="fu">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b') <span class="dt">E</span> v <span class="dt">E</span> e
-<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b'       <span class="co">-- b' isPrefix of b</span>
+<span class="ot">&gt;</span> inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="dt">Just</span> a) <span class="dt">E</span> <span class="dt">E</span>
+<span class="ot">&gt;</span> inner b a n<span class="fu">@</span>(<span class="dt">N</span> b' l v r e) <span class="fu">|</span> null b     <span class="fu">=</span> n
+<span class="ot">&gt;</span>                            <span class="fu">|</span> otherwise  <span class="fu">=</span> 
+<span class="ot">&gt;</span>   <span class="kw">case</span> comparing head b b' <span class="kw">of</span>
+<span class="ot">&gt;</span>     <span class="dt">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' (inner b a l) v r e   <span class="co">-- value less then current</span>
+<span class="ot">&gt;</span>     <span class="dt">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' l v (inner b a r) e   <span class="co">-- value more then current</span>
+<span class="ot">&gt;</span>     <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b' <span class="co">-- value has common part</span>
+<span class="ot">&gt;</span>               c <span class="fu">=</span> take x b
+<span class="ot">&gt;</span>               c'<span class="fu">=</span> take x b'
+<span class="ot">&gt;</span>               n' <span class="fu">=</span> <span class="dt">N</span> (drop x b') <span class="dt">E</span> v <span class="dt">E</span> e
+<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) length c b'       <span class="co">-- b' isPrefix of b</span>
 <span class="ot">&gt;</span>                  <span class="kw">then</span> 
-<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b    <span class="co">-- b' == b </span>
-<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="kw">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
-<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b']</span>
+<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) length c b    <span class="co">-- b' == b </span>
+<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c l (<span class="dt">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e
+<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (drop x b) a e) <span class="co">-- [b &lt; b']</span>
 <span class="ot">&gt;</span>                  <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span>
-<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) <span class="fu">length</span> c b
-<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c' l (<span class="kw">Just</span> a) r n'
-<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="kw">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n')
+<span class="ot">&gt;</span>                   <span class="kw">if</span> on (<span class="fu">==</span>) length c b
+<span class="ot">&gt;</span>                       <span class="kw">then</span> <span class="dt">N</span> c' l (<span class="dt">Just</span> a) r n'
+<span class="ot">&gt;</span>                       <span class="kw">else</span> <span class="dt">N</span> c  l <span class="dt">Nothing</span>  r (inner (drop x b) a n')
 <span class="ot">&gt;</span>   <span class="kw">where</span> 
 <span class="ot">&gt;</span>     fq a _ <span class="fu">=</span> a</code></pre>
 <p>lookup function</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookup ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="ot">&gt;</span> <span class="fu">lookup</span> b (v, n) <span class="fu">|</span> <span class="fu">null</span> b <span class="fu">=</span> v 
-<span class="ot">&gt;</span>                 <span class="fu">|</span> <span class="fu">otherwise</span> <span class="fu">=</span> lookinner b n</code></pre>
+<span class="ot">&gt;</span> lookup b (v, n) <span class="fu">|</span> null b <span class="fu">=</span> v 
+<span class="ot">&gt;</span>                 <span class="fu">|</span> otherwise <span class="fu">=</span> lookinner b n</code></pre>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a
-<span class="ot">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="kw">Nothing</span>
+<span class="ot">&gt;</span> lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="dt">Nothing</span>
 <span class="ot">&gt;</span> lookinner b (<span class="dt">N</span> b' l v r e) <span class="fu">=</span>
-<span class="ot">&gt;</span>   <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span>
-<span class="ot">&gt;</span>     <span class="kw">LT</span> <span class="ot">-&gt;</span> lookinner b l
-<span class="ot">&gt;</span>     <span class="kw">GT</span> <span class="ot">-&gt;</span> lookinner b r
-<span class="ot">&gt;</span>     <span class="kw">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b'
-<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b'
-<span class="ot">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e
-<span class="ot">&gt;</span>                 <span class="kw">else</span> <span class="kw">Nothing</span></code></pre>
+<span class="ot">&gt;</span>   <span class="kw">case</span> comparing head b b' <span class="kw">of</span>
+<span class="ot">&gt;</span>     <span class="dt">LT</span> <span class="ot">-&gt;</span> lookinner b l
+<span class="ot">&gt;</span>     <span class="dt">GT</span> <span class="ot">-&gt;</span> lookinner b r
+<span class="ot">&gt;</span>     <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b'
+<span class="ot">&gt;</span>           <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> length b'
+<span class="ot">&gt;</span>                 <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> length b <span class="kw">then</span> v <span class="kw">else</span> lookinner (drop x b) e
+<span class="ot">&gt;</span>                 <span class="kw">else</span> <span class="dt">Nothing</span></code></pre>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
 <span class="ot">&gt;</span> commonPart a b <span class="fu">=</span> go <span class="dv">0</span>
 <span class="ot">&gt;</span>   <span class="kw">where</span> 
 <span class="ot">&gt;     go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
 <span class="ot">&gt;</span>     go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x
 <span class="ot">&gt;</span>          <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="fu">+</span><span class="dv">1</span>)
-<span class="ot">&gt;</span>          <span class="fu">|</span> <span class="fu">otherwise</span>             <span class="fu">=</span> x
-<span class="ot">&gt;</span>     y <span class="fu">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b
-<span class="ot">&gt;</span>     findex <span class="fu">=</span> <span class="fu">flip</span> <span class="fu">index</span>
+<span class="ot">&gt;</span>          <span class="fu">|</span> otherwise             <span class="fu">=</span> x
+<span class="ot">&gt;</span>     y <span class="fu">=</span> on min length a b
+<span class="ot">&gt;</span>     findex <span class="fu">=</span> flip index
 <span class="ot">&gt;</span>     <span class="ot">{-# INLINE findex #-}</span>
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> comparing <span class="fu">=</span> on <span class="fu">compare</span></code></pre>
+<span class="ot">&gt;</span> comparing <span class="fu">=</span> on compare</code></pre>
 <p>Check if we are right</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> 
-<span class="ot">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls
-<span class="ot">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="kw">Just</span> (<span class="fu">pack</span> l)) ls
+<span class="ot">&gt;</span>   <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (pack x) (pack x) o) empty ls
+<span class="ot">&gt;</span>   <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> pack l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="dt">Just</span> (pack l)) ls
 <span class="ot">&gt;</span> 
 <span class="ot">&gt;</span> main <span class="fu">=</span> quickCheck prop_InsertList</code></pre>
 <p>What interesting is what properties to we have, ideally we can rewrite code thinking of a N c l v r e as a Tree (M v e)</p>
