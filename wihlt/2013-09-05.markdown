@@ -11,8 +11,8 @@ date: 2013-09-05
 ## what puzzeles me (new questions):
 
   * I had not managed to run k-means example in distributed-haskell tutorial by well typed.
-  * is it possible to use comonad for simplifying breadth-first/A* algorithms
-    via [LOR](http://www.linux.org.ru/forum/development/9550013)
+  * <strike>is it possible to use comonad for simplifying breadth-first/A* algorithms
+    via [LOR](http://www.linux.org.ru/forum/development/9550013)</strike>
   * how to include list of pending questions on all WHILT pages without troubles
   
 ## list of pending questions
