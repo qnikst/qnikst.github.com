@@ -5,13 +5,18 @@ tags: gentoo, haskell, ghci
 title: My ghci
 ----
 
+<div style="float:right;width:200px;font-size:0.7em">
+<strong>Updates:</strong><br />2013-09-05: add link to dotfile
+</div>
+
 Here is small collection of my ghci scripts taken from different places.
+For complete file see my [dotfiles](http://github.com/qnikst/dotfiles/ghc/ghci).
 
 ## Pointfree
     
 Convert expression into [pointfree](http://www.haskell.org/haskellwiki/Pointfree) style.
-You need to install [pointree package](http://hackage.haskell.org/package/pointfree) before
-In Gentoo case run `emerge dev-haskell/pointfree`.
+You need to have [pointree package](http://hackage.haskell.org/package/pointfree) installed 
+in order to use this function (in case of Gentoo run `emerge dev-haskell/pointfree`).
 
     -- pointfree
     :def pf \str -> return $ ":! pointfree \"" ++ str ++ "\""
