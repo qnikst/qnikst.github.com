@@ -1,0 +1,71 @@
+graph {
+    subgraph {
+        d1[label=1,color=red]
+        d2[label=2,color=red]
+        d3[label=3,color=red]
+        d4[label=4,color=green]
+        d5[label=5,color=blue]
+        edge[weight=95,label=5];
+        d1 -- d2;
+        edge[weight=60,label=40];
+        d1 -- d3;
+        edge[weight=1,label=100];
+        d1 -- d5;
+        edge[weight=90,label=10];
+        d2 -- d3;
+        edge[weight=70,label=30];
+        d2 -- d4;
+        edge[weight=90,label=10];
+        d3 -- d4;
+        edge[weight=80,label=20];
+        d3 -- d5;
+        edge[weight=95,label=5];
+        d4 -- d5;
+    }
+    subgraph cluster0 {
+        label="frontier";
+        subgraph {
+            f1[label="1 (100)",color=red];
+            f3_4[label="3 (15)",color=red];
+            f2_4[label="2 (35)",color=red];
+            f3[label="3 (20)",color=red];
+            fh5[label="5 (0)",color=magenta];
+            fh4[label="4 (5)",color=magenta];
+            f3 -- f1;
+            f3_4 -- f2_4;
+            merge -- f3;
+            merge -- f3_4;
+            edge[style=dotted,dir=forward];
+            f3_4 -- fh4 -- fh5;
+            f2_4 -- fh4 -- fh5;
+            f1   -- fh5;
+            f3   -- fh5;
+        }
+        subgraph {
+            node[style=dashed];
+            g1[label="1 (100)",color=red];
+            g2_4[label="2 (35)",color=red];
+            g3[label="3 (20)",color=red];
+            merge[label="<>"];
+            g3_4 -- g3 -- g2_4 -- g1
+        }
+        {
+            rank=same;
+            merge[label="<>"];
+            g3_4[label="3 (15)",color=green];
+            edge[style=dashed, dir=forward];
+            merge -- g3_4;
+        }
+    }
+    {
+      edge[style=dashed, dir=forward];
+      g3_4 -- h3;
+    }
+    subgraph cluster1{
+        label="result";
+        h1[label="5 (0)",color=blue];
+        h3[label="3 (15)", style=dashed, color=green];
+        h4[label="4 (5)",color=green];
+        h3 -- h4 -- h1;
+    }
+}

@@ -1,0 +1,41 @@
+graph {
+    subgraph {
+        d1[label=1,color=red]
+        d2[label=2,color=red]
+        d3[label=3,color=green]
+        d4[label=4,color=blue]
+        d5[label=5,color=blue]
+        edge[weight=95,label=5];
+        d1 -- d2;
+        edge[weight=60,label=40];
+        d1 -- d3;
+        edge[weight=1,label=100];
+        d1 -- d5;
+        edge[weight=90,label=10];
+        d2 -- d3;
+        edge[weight=70,label=30];
+        d2 -- d4;
+        edge[weight=90,label=10];
+        d3 -- d4;
+        edge[weight=80,label=20];
+        d3 -- d5;
+        edge[weight=95,label=5];
+        d4 -- d5;
+    }
+    subgraph cluster0 {
+        label="frontier";
+        subgraph {
+            g1[label="1 (100)",color=red];
+            g2_4[label="2 (35)",color=red];
+            g3[label="3̶ ̶(̶2̶0̶)̶",color=green];
+            g3 -- g2_4 -- g1
+        }
+    }
+    subgraph cluster1{
+        label="history";
+        h1[label="5 (0)",color=blue];
+        h3[label="3 (15)", color=blue];
+        h4[label="4 (5)",color=blue];
+        h3 -- h4 -- h1;
+    }
+}
