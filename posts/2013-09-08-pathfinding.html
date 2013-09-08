@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Basic pathfinding</title>
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+       <a class="brand" href="../">Qnikst blog</a>
+       <ul class="nav ">
+           <li class="active"><a href="../">Home</a></li>
+           <li><a href="../posts.html">Blog</a></li>
+           <li><a href="../projects.html">Projects</a></li>
+           <li><a href="../contact.html">Contacts</a></li>
+           <li><a href="../rss.xml">RSS</a></li>
+       </ul>
+      </div>
+  </div>
+  <div class="container">
+    <meta name="keywords" content="haskell">
+
+
+<div class="page-header">
+    <h1>Basic pathfinding <br /><small><strong>September  8, 2013</strong></small></h1>
+</div>
+
+<p>In this post I’ll review basic approach to pathfinding using functional approach. It possible that this post doesn’t contain the best approach and all other solutions are welcome.</p>
+<div class="row">
+<div class="span8">
+
+<p>On the right you can see example of a simple map.</p>
+<p>Here is a list of imports. I need it because this is pure lhs file that can be <a href="../posts/2013-09-08-pathfinding.lhs">downloaded</a> and executed in ghci, so you can skip it.</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span>           Data.List
+<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Monoid
+<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Map (Map)
+<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Map <span class="kw">as</span> Map
+<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Set (Set)
+<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Set <span class="kw">as</span> Set
+<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Function</code></pre>
+<p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them was introduced like types:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">History</span> <span class="fu">=</span> [<span class="dt">Loc</span>]                    <span class="co">-- History</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LMap</span>    <span class="fu">=</span> <span class="dt">Map</span> <span class="dt">Loc</span> [(<span class="dt">Loc</span>,<span class="dt">Dist</span>)]     <span class="co">-- map</span>
+<span class="ot">&gt;</span> <span class="co">-- here is example of the map</span>
+<span class="ot">&gt; testMap ::</span> <span class="dt">LMap</span>
+<span class="ot">&gt;</span> testMap <span class="fu">=</span> Map.fromList [(<span class="dv">1</span>,[(<span class="dv">2</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">40</span>),(<span class="dv">5</span>,<span class="dv">100</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">2</span>,[(<span class="dv">1</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">4</span>,<span class="dv">30</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">3</span>,[(<span class="dv">1</span>,<span class="dv">40</span>),(<span class="dv">2</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">10</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">4</span>,[(<span class="dv">2</span>,<span class="dv">30</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">5</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">5</span>,[(<span class="dv">1</span>,<span class="dv">100</span>),(<span class="dv">3</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">5</span>)])
+<span class="ot">&gt;</span>                        ]</code></pre>
+<br />
+</div><div class="span4">
+<img src="../images/posts/pathfinding/1.png" class="img-polaroid" />
+</div></div>
+
+<h3 id="basic-algorithm">Basic algorithm</h3>
+<p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial descrination sorted by distance’. You can this about this solution as we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
+<p>So algorithm will look like:</p>
+<ol start="0" style="list-style-type: decimal">
+<li>create frontier from the start position.</li>
+<li>take the first location from the frontier. It will be our next <code>current location</code>.</li>
+<li><code>p1</code> &lt;- get list of the locations reachage from the <code>current location</code>.</li>
+<li><code>p2</code> &lt;- add current distance to the distance from the <code>current location</code> to destination</li>
+<li>add <code>p2</code> to the frontier</li>
+<li>goto 1.</li>
+</ol>
+<p>This algorithm will create a list of the possible destinations from the current point. The key of the algorithm is that frontier should be sorted by distance, so every time we will take closest position. It will guarantee that our algorithm will not diverge.</p>
+<p>As you’ll see the solution will be a direct translation of literal description to the code. And that is a very nice property of haskell.</p>
+<p>Here is some images describing process:</p>
+<div class="row"><div class="span4">
+<img src="../images/posts/pathfinding/2.png" class="img-polaroid" />
+</div><div class="span8">
+<p>Here is an image of the current state after step 0.</p>
+<p>We added <code>5</code> to the frontier and then take it as a <code>current location</code>.</p>
+<p>Now we have 3 new locations reachable: <code>1</code>, <code>3</code> and <code>4</code> (marked with red).</p>
+And <code>4</code> with distance 5 will be moved to the result list (dashed). <br />
+</div></div>
+
+<div class="row"><div class="span4">
+<img src="../images/posts/pathfinding/3.png" class="img-polaroid" />
+</div><div class="span8">
+<p>Here is next step.</p>
+<p>We took <code>4</code> as a new current element.</p>
+<p>We found 2 new reachabe locations: <code>2</code> and <code>3</code>.</p>
+<p>We added current distance (5) to distances to the current locations and add them to the frontier.</p>
+<code>&lt;&gt;</code> is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines. <br />
+</div></div>
+
+<h3 id="additional-types.">Additional types.</h3>
+<p>Now we can review types that we will use.</p>
+<h4 id="candidate">Candidate</h4>
+<p>All elements in a resulting set and a frontier are possible canditas for a solution, so they need to contain all temporary information (Distance) and information that we will need when we’ll filter out this solution (History). So we need to introduce a newtype for a candate, we use newtype here because we will need to redefine some properties otherwise we could use a tuple <code>(,,)</code>:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Candidate</span> <span class="fu">=</span> <span class="dt">Candidate</span> (<span class="dt">Loc</span>,<span class="dt">Dist</span>,<span class="dt">History</span>) <span class="kw">deriving</span> <span class="dt">Eq</span>   <span class="co">-- possible solution</span></code></pre>
+<p>And helper functions:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; candidateLoc ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">Loc</span>
+<span class="ot">&gt;</span> candidateLoc (<span class="dt">Candidate</span> (x,_,_)) <span class="fu">=</span> x
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; candidateHist ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">History</span>
+<span class="ot">&gt;</span> candidateHist (<span class="dt">Candidate</span> (_,_,x)) <span class="fu">=</span> x</code></pre>
+<h4 id="ascending-list">Ascending list</h4>
+<p>As we have seen in the algorithm resulting list and frontier are ascending lists. So we may introduce special type that will preserve this property. This will help us to avoid additional mistakes, and can help with undestanding of our solution. This type is isomorphic to the List, however we can’t just use a newtype as we shouldn’t unpack pure list from the AscList:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">AscList</span> a <span class="fu">=</span> (<span class="fu">:&lt;</span>) a (<span class="dt">AscList</span> a) <span class="fu">|</span> <span class="dt">Nil</span></code></pre>
+<p>It’s easy to see that AscList forms a monoid with regard to <code>concat</code> operation, so we can use this information:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">AscList</span> a) <span class="kw">where</span>
+<span class="ot">&gt;</span>   mempty <span class="fu">=</span> <span class="dt">Nil</span>
+<span class="ot">&gt;</span>   mappend <span class="dt">Nil</span> b <span class="fu">=</span> b
+<span class="ot">&gt;</span>   mappend a <span class="dt">Nil</span> <span class="fu">=</span> a
+<span class="ot">&gt;</span>   mappend a'<span class="fu">@</span>(a <span class="fu">:&lt;</span> as) b'<span class="fu">@</span>(b <span class="fu">:&lt;</span> bs)
+<span class="ot">&gt;</span>      <span class="fu">|</span> a <span class="fu">&lt;</span> b <span class="fu">=</span> a <span class="fu">:&lt;</span> (as <span class="fu">&lt;&gt;</span> b')
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> b <span class="fu">:&lt;</span> (a' <span class="fu">&lt;&gt;</span> bs)</code></pre>
+<p>Introduce two helper functions:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- | create ascending list from arbitrary list</span>
+<span class="ot">&gt; fromList ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">AscList</span> a
+<span class="ot">&gt;</span> fromList <span class="fu">=</span> mconcat <span class="fu">.</span> map singleton 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="co">-- | convert value to Ascending List</span>
+<span class="ot">&gt; singleton ::</span> a <span class="ot">-&gt;</span> <span class="dt">AscList</span> a
+<span class="ot">&gt;</span> singleton x <span class="fu">=</span> x <span class="fu">:&lt;</span> <span class="dt">Nil</span></code></pre>
+<p>In order to use Candidates in an AscList we need to introduce ordering on the Candidates:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> <span class="dt">Candidate</span> <span class="kw">where</span>
+<span class="ot">&gt;</span>     compare (<span class="dt">Candidate</span> (_,d1,_)) (<span class="dt">Candidate</span> (_,d2,_)) <span class="fu">=</span> compare d1 d2</code></pre>
+<p>Now we can guarantee that lists are properly ordered.</p>
+<h4 id="builder-seed.">Builder seed.</h4>
+<p>In order to create list we will use <code>unfoldr :: (b -&gt; Maybe (a, b)) -&gt; b -&gt; [a]</code> combinator. On each step we will create one new element and return new seed. So we will need to store frontier in the seed. Additionaly we will use one optimization: we will store a list of visited locations (that exists in result array) and we will filter out locations that we have visited, so we need to store a set of location. So resulting type will look like:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Visited</span> <span class="fu">=</span> <span class="dt">Set</span> <span class="dt">Loc</span>                  <span class="co">-- visited locations</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Seed</span> <span class="fu">=</span> (<span class="dt">AscList</span> <span class="dt">Candidate</span>,<span class="dt">Visited</span>) <span class="co">-- seed of the algorithm</span></code></pre>
+<h3 id="solver">Solver</h3>
+<p>Now we are ready to introduce our solver:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; solve ::</span> <span class="dt">LMap</span>       <span class="co">-- ^ map</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ finish location</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ start location</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">History</span>
+<span class="ot">&gt;</span> solve mp finish <span class="fu">=</span> reverse
+<span class="ot">&gt;</span>                 <span class="fu">.</span> (finish<span class="fu">:</span>)     <span class="co">-- we need to add finish place to the list</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> candidateHist <span class="co">-- we are interested in history only</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> head          <span class="co">-- we need only first solution</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> filter ((<span class="fu">==</span>finish) <span class="fu">.</span> candidateLoc)  <span class="co">-- take last result</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> unfoldr go    <span class="co">-- generate list of candidates using frontier</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> initial       <span class="co">-- initialize frontier using starting point</span>
+<span class="ot">&gt;</span>  <span class="kw">where</span>
+<span class="ot">&gt;</span>     initial i <span class="fu">=</span> (singleton <span class="fu">$</span> <span class="dt">Candidate</span> (i,<span class="dv">0</span>,[]),Set.empty)</code></pre>
+<p>In go we need to guarantee that current seed in greater (using Candidate’s ordering) that any other element in list. We can guarantee it because:</p>
+<ol start="0" style="list-style-type: decimal">
+<li>when we have no elements in list we use first candidate with zero distance</li>
+<li>all elements in frontier has length &gt; than current location. because we use AscList.</li>
+<li>all possible locations from current location &gt; than current location as their distance is (current location distance + x, where x ≥ 0).</li>
+</ol>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;     go ::</span> <span class="dt">Seed</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Candidate</span>,<span class="dt">Seed</span>)
+<span class="ot">&gt;</span>     go (<span class="dt">Nil</span>,_) <span class="fu">=</span> <span class="dt">Nothing</span>
+<span class="ot">&gt;</span>     go ((<span class="dt">Candidate</span> (x,d,h) <span class="fu">:&lt;</span> xs),visited) <span class="fu">=</span>
+<span class="ot">&gt;</span>        <span class="kw">case</span> Map.lookup x mp <span class="kw">of</span>  <span class="co">-- read possible locations from map</span>
+<span class="ot">&gt;</span>          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> go (xs,visited)       <span class="co">-- if thre is no destinaction proceed with next element</span>
+<span class="ot">&gt;</span>          <span class="dt">Just</span> ls <span class="ot">-&gt;</span> <span class="kw">let</span> ls'   <span class="fu">=</span> fromList  <span class="co">-- generate AscList from current position</span>
+<span class="ot">&gt;</span>                               <span class="fu">.</span> map (\(yl,yd) <span class="ot">-&gt;</span> <span class="dt">Candidate</span> (yl,yd<span class="fu">+</span>d,x<span class="fu">:</span>h))  <span class="co">-- increment distance (see 2.)</span>
+<span class="ot">&gt;</span>                               <span class="fu">.</span> filter ((<span class="ot">`Set.notMember`</span> visited) <span class="fu">.</span> fst) <span class="fu">$</span> ls <span class="co">-- remove elements that we have visited</span>
+<span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="dt">Just</span> ( <span class="dt">Candidate</span> (x,d,h)
+<span class="ot">&gt;</span>                               , (ls' <span class="fu">&lt;&gt;</span> xs, Set.insert x visited))</code></pre>
+<p>Yachoo! we have a solver. However it will work badly on the big maps and we need to use more advanced methods, like A<up>*</up>. But we need to fix Candidate ordering function.</p>
+<p>I’ve heard that it is possible to use comonad approach to solve this problem however I couldn’t find any example of this approach.</p>
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2013-09-08-pathfinding.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2013-09-08-pathfinding.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2013-09-08-pathfinding.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    <a href="http://creativecommons.org/licenses/by-nc-sa/3.0"><img src="http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png" /></a>
+</div>
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+    <footer>
+    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
+    </footer>
+  </div>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
