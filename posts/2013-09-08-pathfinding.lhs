@@ -40,7 +40,7 @@ Most of them are just type synonyms:
 
 <br /></div><div class="span4"><img src="/images/posts/pathfinding/1.png" class="img-polaroid"/></div></div>
 
-## Basic algorithm
+\## Basic algorithm
 
 The basic idea of our solution is: 'we need to create a list of the locations that is reachable from initial
 location sorted by distance'.
@@ -95,11 +95,11 @@ We added current distance (5) to distances to the current locations and add them
 `<>` is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines.
 <br /></div></div>
 
-## Additional types.
+\## Additional types.
 
 Now we can review types that we will use.
 
-### Candidate
+\### Candidate
 
 All elements in a resulting set and a frontier are possible canditas for a solution,
 so they need to contain all temporary information (Distance) and information that
@@ -117,7 +117,7 @@ And helper functions:
 > candidateHist :: Candidate -> History
 > candidateHist (Candidate (_,_,x)) = x
 
-### Ascending list
+\### Ascending list
 
 As we have seen in the algorithm resulting list and frontier are ascending lists.
 So we may introduce special type that will preserve this property. This will help
@@ -156,7 +156,7 @@ Candidates:
 
 Now we can guarantee that lists are properly ordered.
 
-### Builder seed.
+\### Builder seed.
 
 In order to create list we will use `unfoldr :: (b -> Maybe (a, b)) -> b -> [a]` 
 combinator. On each step we will create one new element and return new seed. So
@@ -168,7 +168,7 @@ So resulting type will look like:
 > type Visited = Set Loc                  -- visited locations
 > type Seed = (AscList Candidate,Visited) -- seed of the algorithm
 
-## Solver
+\## Solver
 
 Now we are ready to introduce our solver:
 
@@ -212,3 +212,6 @@ more advanced methods, like A<up>*</up>. But we need to fix Candidate ordering f
 I've heard that it is possible to use comonad approach to solve this problem however I
 couldn't find any example of this approach.
  
+> test = solve testMap 5 1
+
+as a result we will have [5,4,3,2,1]. That is correct solution.

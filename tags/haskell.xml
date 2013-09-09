@@ -50,7 +50,7 @@
 <img src="/images/posts/pathfinding/1.png" class="img-polaroid"/>
 </div></div>
 
-<h2 id="basic-algorithm">Basic algorithm</h2>
+<p>## Basic algorithm</p>
 <p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial location sorted by distance’. You can this about this solution like we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
 <p>Terms: <code>frontier</code> - a list of possible locations with distance from the starting point, sorted by ascending distance.</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Frontier0</span> <span class="fu">=</span> [(<span class="dt">Loc</span>, <span class="dt">Dist</span>)]</code></pre>
@@ -85,9 +85,9 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <code>&lt;&gt;</code> is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines. <br />
 </div></div>
 
-<h2 id="additional-types.">Additional types.</h2>
+<p>## Additional types.</p>
 <p>Now we can review types that we will use.</p>
-<h3 id="candidate">Candidate</h3>
+<p>### Candidate</p>
 <p>All elements in a resulting set and a frontier are possible canditas for a solution, so they need to contain all temporary information (Distance) and information that we will need when we’ll filter out this solution (History). So we need to introduce a newtype for a candate, we use newtype here because we will need to redefine some properties otherwise we could use a tuple <code>(,,)</code>:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Candidate</span> <span class="fu">=</span> <span class="dt">Candidate</span> (<span class="dt">Loc</span>,<span class="dt">Dist</span>,<span class="dt">History</span>) <span class="kw">deriving</span> <span class="dt">Eq</span>   <span class="co">-- possible solution</span></code></pre>
 <p>And helper functions:</p>
@@ -96,7 +96,7 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <span class="ot">&gt;</span> 
 <span class="ot">&gt; candidateHist ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">History</span>
 <span class="ot">&gt;</span> candidateHist (<span class="dt">Candidate</span> (_,_,x)) <span class="fu">=</span> x</code></pre>
-<h3 id="ascending-list">Ascending list</h3>
+<p>### Ascending list</p>
 <p>As we have seen in the algorithm resulting list and frontier are ascending lists. So we may introduce special type that will preserve this property. This will help us to avoid additional mistakes, and can help with undestanding of our solution. This type is isomorphic to the List, however we can’t just use a newtype as we shouldn’t unpack pure list from the AscList:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">AscList</span> a <span class="fu">=</span> (<span class="fu">:&lt;</span>) a (<span class="dt">AscList</span> a) <span class="fu">|</span> <span class="dt">Nil</span></code></pre>
 <p>It’s easy to see that AscList forms a monoid with regard to <code>concat</code> operation, so we can use this information:</p>
@@ -119,11 +119,11 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> <span class="dt">Candidate</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>     compare (<span class="dt">Candidate</span> (_,d1,_)) (<span class="dt">Candidate</span> (_,d2,_)) <span class="fu">=</span> compare d1 d2</code></pre>
 <p>Now we can guarantee that lists are properly ordered.</p>
-<h3 id="builder-seed.">Builder seed.</h3>
+<p>### Builder seed.</p>
 <p>In order to create list we will use <code>unfoldr :: (b -&gt; Maybe (a, b)) -&gt; b -&gt; [a]</code> combinator. On each step we will create one new element and return new seed. So we will need to store frontier in the seed. Additionaly we will use one optimization: we will store a list of visited locations (that exists in result array) and we will filter out locations that we have visited, so we need to store a set of location. So resulting type will look like:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Visited</span> <span class="fu">=</span> <span class="dt">Set</span> <span class="dt">Loc</span>                  <span class="co">-- visited locations</span>
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Seed</span> <span class="fu">=</span> (<span class="dt">AscList</span> <span class="dt">Candidate</span>,<span class="dt">Visited</span>) <span class="co">-- seed of the algorithm</span></code></pre>
-<h2 id="solver">Solver</h2>
+<p>## Solver</p>
 <p>Now we are ready to introduce our solver:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; solve ::</span> <span class="dt">LMap</span>       <span class="co">-- ^ map</span>
 <span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ finish location</span>
@@ -155,7 +155,9 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="dt">Just</span> ( <span class="dt">Candidate</span> (x,d,h)
 <span class="ot">&gt;</span>                               , (ls&#39; <span class="fu">&lt;&gt;</span> xs, Set.insert x visited))</code></pre>
 <p>Yachoo! we have a solver. However it will work badly on the big maps and we need to use more advanced methods, like A<up>*</up>. But we need to fix Candidate ordering function.</p>
-<p>I’ve heard that it is possible to use comonad approach to solve this problem however I couldn’t find any example of this approach.</p>]]></summary>
+<p>I’ve heard that it is possible to use comonad approach to solve this problem however I couldn’t find any example of this approach.</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test <span class="fu">=</span> solve testMap <span class="dv">5</span> <span class="dv">1</span></code></pre>
+<p>as a result we will have [5,4,3,2,1]. That is correct solution.</p>]]></summary>
 </entry>
 <entry>
     <title>Сериализация структур данных в Haskell.<br/> Часть 1: типы данных</title>
