@@ -36,6 +36,10 @@
     <h1>Basic pathfinding <br /><small><strong>September  8, 2013</strong></small></h1>
 </div>
 
+<div style="float:right">
+<strong>Updates:</strong><br />2013-09-09: fixes by @qrilka
+</div>
+
 <p>In this post I’ll review basic approach to pathfinding using functional approach. It possible that this post doesn’t contain the best approach and all other solutions are welcome.</p>
 <div class="row">
 <div class="span8">
@@ -49,7 +53,7 @@
 <span class="ot">&gt;</span> <span class="kw">import</span>           Data.Set (Set)
 <span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Set <span class="kw">as</span> Set
 <span class="ot">&gt;</span> <span class="kw">import</span>           Data.Function</code></pre>
-<p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them was introduced like types:</p>
+<p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them are just type synonyms:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span>
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span>
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">History</span> <span class="fu">=</span> [<span class="dt">Loc</span>]                    <span class="co">-- History</span>
@@ -68,19 +72,21 @@
 </div></div>
 
 <h3 id="basic-algorithm">Basic algorithm</h3>
-<p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial descrination sorted by distance’. You can this about this solution as we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
-<p>So algorithm will look like:</p>
+<p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial location sorted by distance’. You can this about this solution like we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
+<p>Terms: <code>frontier</code> - a list of possible locations with distance from the starting point, sorted by ascending distance.</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Frontier0</span> <span class="fu">=</span> [(<span class="dt">Loc</span>, <span class="dt">Dist</span>)]</code></pre>
+<p>So algorithm of generating result list will look like:</p>
 <ol start="0" style="list-style-type: decimal">
-<li>create frontier from the start position.</li>
-<li>take the first location from the frontier. It will be our next <code>current location</code>.</li>
-<li><code>p1</code> &lt;- get list of the locations reachage from the <code>current location</code>.</li>
-<li><code>p2</code> &lt;- add current distance to the distance from the <code>current location</code> to destination</li>
-<li>add <code>p2</code> to the frontier</li>
+<li>Add starting point with zero distance to the <code>frontier</code>.</li>
+<li>Take the first location from the frontier. It will be our next <code>current location</code>.</li>
+<li><code>p1</code> &lt;- get list of the locations reachable from the <code>current location</code> in one step.</li>
+<li><code>p2</code> &lt;- sum distance to the current distance with the distance from the <code>current location</code> to each possible location from <code>p1</code>. Now we have a list of possible locations with distances from the starting point.</li>
+<li>Add list of the new possible locations (<code>p2</code>) to the <code>frontier</code>.</li>
 <li>goto 1.</li>
 </ol>
 <p>This algorithm will create a list of the possible destinations from the current point. The key of the algorithm is that frontier should be sorted by distance, so every time we will take closest position. It will guarantee that our algorithm will not diverge.</p>
 <p>As you’ll see the solution will be a direct translation of literal description to the code. And that is a very nice property of haskell.</p>
-<p>Here is some images describing process:</p>
+<p>Here are few images describing process:</p>
 <div class="row"><div class="span4">
 <img src="../images/posts/pathfinding/2.png" class="img-polaroid" />
 </div><div class="span8">
