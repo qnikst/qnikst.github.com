@@ -8,8 +8,65 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-09-08T00:00:00Z</updated>
+    <updated>2013-11-06T00:00:00Z</updated>
     <entry>
+    <title>Supervision inside OpenRC</title>
+    <link href="http://qnikst.github.com/posts/2013-11-06-openrc-supervision.html" />
+    <id>http://qnikst.github.com/posts/2013-11-06-openrc-supervision.html</id>
+    <published>2013-11-06T00:00:00Z</published>
+    <updated>2013-11-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>The role of the supervision in the init systems becomes crusial. And many administrators wants some kind of s-vision support from the scratch. Here are some thoughts about this problem and a way how things will be solved inside OpenRC.</p>
+<p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
+<h1 id="the-problem.">The problem.</h1>
+<p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
+<ol style="list-style-type: decimal">
+<li>Process exited (with non zero EXIT_CODE);</li>
+<li>Process fail to work as expected.</li>
+</ol>
+<p>In the most systems only first meaning is addressed, however it’s not very carefull and in systems where <em>reliance</em> is required we need to use additional tools to support 2.</p>
+<p>Another set of problem is about how we will decide if we want to restart service and run cleanup actions. And this problem is not easy at all, i.e. we may want to stop restarting service if it fails constantly, or increase timeout in restarts and so on.</p>
+<p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
+<p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
+<p>So the solution would be the following:</p>
+<ol style="list-style-type: decimal">
+<li>Let OpenRC know that user may want s-vision for some services and what module he want to use;</li>
+<li>Provide a set of existing modules;</li>
+<li>Give an ability to create new modules.</li>
+</ol>
+<h1 id="monit">Monit</h1>
+<p>I’ve started to work on ‘monit’ approach. Monit (http://mmonit.com/monit/) is a monitoring that allowes user to monitor services and give much possibilites for their control. This tool provides a special language that describes how each service should be monitored started and restarted.</p>
+<p>Currently it’s possible to run monit as a standalone daemon and then control supervision via monit itself by calling <code>monit foo start</code>/<code>monit foo stop</code>. However having OpenRC as a common point for services control is a good idea.</p>
+<p>All the code available on s-vision branch (https://github.com/qnikst/openrc/compare/s-vision) and will be merged to mainline after some discussion with other developers and administrators that have a good experience with running monit.</p>
+<p>In order to put service under monit control one need:</p>
+<ol style="list-style-type: decimal">
+<li><p>Run monit under inittab control (or other low level s-vision subsystem). This can be done by adding:</p>
+<pre><code>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</code></pre></li>
+</ol>
+<p>to inittab</p>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Add temporary config path under monit control (/etc/monitrc)</p>
+<pre><code>INCLUDE /run/openrc-monit/*</code></pre></li>
+<li><p>Create control file for service under <code>/etc/conf.d/monit-files/servicename</code></p></li>
+<li><p>Add s-vision module to conf.d file, i.e.</p>
+<pre><code>rc_supervise_module=&quot;monit&quot;
+rc_monit_type=&quot;file&quot;</code></pre></li>
+</ol>
+<p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
+<h1 id="future-work">Future work</h1>
+<p>There are a couple of work to be done before merging:</p>
+<ol style="list-style-type: decimal">
+<li><p>Introduce other <code>monit_types</code> like:</p>
+<ul>
+<li>simple - where basic control file generated automatically on the fly</li>
+<li>native - where existing configuration can be reused.</li>
+</ul></li>
+<li><p>Understand if it possible to run runscript only once</p></li>
+<li><p>Cleanup code</p></li>
+<li><p>Export general API that other s-vision subsystems can use</p></li>
+</ol>
+<p>All comments are welcome</p>]]></summary>
+</entry>
+<entry>
     <title>Basic pathfinding</title>
     <link href="http://qnikst.github.com/posts/2013-09-08-pathfinding.html" />
     <id>http://qnikst.github.com/posts/2013-09-08-pathfinding.html</id>
@@ -636,53 +693,6 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
 <li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
 <li>Read and writes should be exception safe</li>
 </ol>]]></summary>
-</entry>
-<entry>
-    <title>OpenRC Extended cgroups support</title>
-    <link href="http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html" />
-    <id>http://qnikst.github.com/posts/2013-02-20-openrc-cgroup.html</id>
-    <published>2013-02-20T00:00:00Z</published>
-    <updated>2013-02-20T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<h1 id="openrc-has-extended-cgroups-support">Openrc has extended cgroups support</h1>
-<p>Staring with openrc-0.12 (not released ATM) openrc supports cgroup limit configuration. The simpliest and most reasonable way to configure it is use a multiline per-process values:</p>
-<p>At first I should note that openrc has optional cgroup support to add it you need to set:</p>
-<pre><code>rc_controller_cgroups=&quot;YES&quot;</code></pre>
-<p>Otherwise one of the option will be applied and openrc “plugin” will not be loaded. As always settings can be set in rc.conf file and can be overloaded in ‘/etc/conf.d/foo’ file for service foo.</p>
-<p>Each option is specified by name of the limit and value. Each option may be a multivalue, e.g.</p>
-<pre><code># rc_cgroup_cpu=&quot;
-# cpu.shares 512
-# &quot;</code></pre>
-<p>For more information about the adjustments that can be made with cgroups, see <code>Documentation/cgroups/*</code> in the linux kernel source tree.</p>
-<p>Currently next controllers are supported:</p>
-<ul>
-<li>blkio – block io controller</li>
-<li>cpu – cpu controller</li>
-<li>cpuacct – cpu accounting information</li>
-<li>cpuset – extended cpu configuration</li>
-<li>devices – devices access control</li>
-<li>memory – memory management</li>
-<li>net_prio – network priority options</li>
-</ul>
-<h3 id="why-do-i-ever-need-cgroups">Why do I ever need cgroups?</h3>
-<p>You can check kernel documentation. But roughly speaking you can monitor service processes, and manage resources much better.</p>
-<h3 id="differences-with-other-system-managers">Differences with other system managers</h3>
-<p>There are some differences between how systemd works, systemd creates hierarchies for system daemons and users in each controller. Openrc uses it’s own cgroup to monitor daemons, and create a group called ‘openrc_<servicename>’ in controller that is configures.</p>
-<p>So you can easily use other cgroup daemons like libcgroup with openrc without any problem</p>
-<h2 id="future-work">Future work</h2>
-<p>There are some work that can be done to make cgroup support better:</p>
-<ul>
-<li>configure controller merging</li>
-<li>cgroup-cleanup, i.e. destroy all childs when stopping service (there are some pathes but they were not applied upstream). We will wait for the real use cases here</li>
-<li>cgroup-watchdog, we can monitor if service is dead either by notify_agent (will not require any resources but will not restart service with childs alive) or by inotify (will require a watchdog service running but will have no such problems)</li>
-<li>notify-agent callbacks, currently we use notify agent only on openrc cgroup and there is no callback, but it can be fixed</li>
-<li>there is an abitify to make an api for freezer, but we’d wait for the real use case before implementing it.</li>
-</ul>
-<p>Usefull links:</p>
-<ul>
-<li><a href="https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/ch01.html">Red Hat manual</a></li>
-<li><a href="http://www.kernel.org/doc/Documentation/cgroups/cgroups.txt">kernel documentation</a></li>
-<li><a href="http://en.wikipedia.org/wiki/Cgroups">wiki</a></li>
-</ul>]]></summary>
 </entry>
 
 </feed>

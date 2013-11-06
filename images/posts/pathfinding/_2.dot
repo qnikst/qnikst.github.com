@@ -1,0 +1,42 @@
+graph {
+    subgraph clusterM {
+        d1[label=1,color=red]
+        d2[label=2,]
+        d3[label=3,color=red]
+        d4[label=4,color=red]
+        d5[label=5,color=green]
+        edge[weight=95,label=5];
+        d1 -- d2;
+        edge[weight=60,label=40];
+        d1 -- d3;
+        edge[weight=1,label=100];
+        d1 -- d5;
+        edge[weight=90,label=10];
+        d2 -- d3;
+        edge[weight=70,label=30];
+        d2 -- d4;
+        edge[weight=90,label=10];
+        d3 -- d4;
+        edge[weight=80,label=20];
+        d3 -- d5;
+        edge[weight=95,label=5];
+        d4 -- d5;
+    }
+    subgraph cluster0 {
+        label="frontier"
+        n[label="Nil"];
+    }
+    subgraph cluster0 {
+        label="go";
+        subgraph cluster01 {
+            label="visited";
+        }
+        subgraph closter02 {
+            label="current location"
+            f1[label="5 (0)",color=red];
+        }
+    }
+    subgraph cluster1 {
+        label="result";
+    }
+}
