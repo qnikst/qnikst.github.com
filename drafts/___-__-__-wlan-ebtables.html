@@ -4,36 +4,37 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Using ebtables to use internet connection in guest OS</title>
     <!-- Bootstrap -->
-    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
     
 </head>
 <body>
-  <div class="navbar navbar-fixed-top navbar-inverse">
-      <div class="navbar-inner">
-       <a class="brand" href="../">Qnikst blog</a>
-       <ul class="nav ">
-           <li class="active"><a href="../">Home</a></li>
-           <li><a href="../posts.html">Blog</a></li>
-           <li><a href="../projects.html">Projects</a></li>
-           <li><a href="../contact.html">Contacts</a></li>
-           <li><a href="../rss.xml">RSS</a></li>
-       </ul>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
       </div>
   </div>
-  <div class="container">
+
+  <div id="content">
     <meta name="keywords" content="linux, gentoo, networking">
 
 
 <div class="page-header">
-    <h1>Using ebtables to use internet connection in guest OS <br /><small><strong>August 12, 2013</strong></small></h1>
+    <div class="right">
+      <strong>August 12, 2013</strong>
+    </div>
+    <h1>Using ebtables to use internet connection in guest OS</h1>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/linux.html">linux</a>, <a href="../tags/gentoo.html">gentoo</a></div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
 </div>
 
 <h1 id="abstract">Abstract</h1>
@@ -95,6 +96,7 @@ config_wlan0=&quot;dhcp&quot;
 wpa_supplicant_wlan0=&quot;-Dwext&quot;</code></pre>
 <h1 id="links">Links</h1>
 <p>[TODO] ebtables docs [TODO] nat docs [TODO] openrc page http://forums.gentoo.org/viewtopic-t-430571-start-0.html https://wiki.debian.org/BridgeNetworkConnections</p>
+
 <hr />
 <div id="sociallinks" class="pull-left">
     <strong>Share on:</strong>
@@ -126,10 +128,11 @@ wpa_supplicant_wlan0=&quot;-Dwext&quot;</code></pre>
   <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                                                                                            
 
-    <footer>
-    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
-    </footer>
   </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

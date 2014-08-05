@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Hashmaps usage</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
+      </div>
+  </div>
+
+  <div id="content">
+    
+
+<div class="page-header">
+    <div class="right">
+      <strong>February 10, 2013</strong>
+    </div>
+    <h1>Hashmaps usage</h1>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
+</div>
+
+<p>Recently I’ve registered on the (exercism.io)[http://exercism.io] site and solved haskell tasks there. I’m recommending that site for both beginers and advanced users, as beginers may learn from the community review and advanced users may review and comment themselve. This post is not very interesting as it doesn’t contain any deep analisys or interesting notes.</p>
+<p>There were to interesting tasks that may be solved with or without hashtables and I wanted to benchmark how hashtables may impact performance of that tasks. If you are going to participate in exercism here will be spoilers</p>
+<p>The first task is Anagram:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TupleSections #-}</span>
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.HashMap.Strict</span> <span class="kw">as</span> <span class="dt">HM</span>
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Map.Strict</span> <span class="kw">as</span> <span class="dt">M</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Data.Char</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Data.List</span> ( sort )
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Criterion.Main</span></code></pre>
+<p>Simple version</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- by me</span>
+<span class="ot">&gt; anagramsFor ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]
+<span class="ot">&gt;</span> anagramsFor x <span class="fu">=</span> filter ((<span class="fu">==</span> xn) <span class="fu">.</span> normalize) <span class="fu">.</span> filter (<span class="fu">/=</span>x)
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;</span>      normalize <span class="fu">=</span> sort <span class="fu">.</span> map toLower
+<span class="ot">&gt;</span>      xn <span class="fu">=</span> normalize x</code></pre>
+<p>HashMap version:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- by (@ethercrow)[http://exercism.io/ethercrow]</span>
+<span class="ot">&gt; anagramsFor1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]
+<span class="ot">&gt;</span> anagramsFor1 term
+<span class="ot">&gt;</span>    <span class="fu">=</span> filter (\candidate <span class="ot">-&gt;</span> candidate <span class="fu">/=</span> term
+<span class="ot">&gt;</span>                <span class="fu">&amp;&amp;</span> letterCount candidate <span class="fu">==</span> termLetterCount)
+<span class="ot">&gt;</span>  <span class="kw">where</span> termLetterCount <span class="fu">=</span> letterCount term
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; letterCount ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> letterCount <span class="fu">=</span> HM.fromListWith (<span class="fu">+</span>) <span class="fu">.</span> fmap ((, <span class="dv">1</span>) <span class="fu">.</span> toLower)</code></pre>
+<p>And anagrams:</p>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; scoresM ::</span> <span class="dt">M.Map</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoresM <span class="fu">=</span> M.fromList scores
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoresH ::</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoresH <span class="fu">=</span> HM.fromList scores
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scores ::</span> [(<span class="dt">Char</span>,<span class="dt">Int</span>)]
+<span class="ot">&gt;</span> scores <span class="fu">=</span>  [ (l,c) <span class="fu">|</span>
+<span class="ot">&gt;</span>     (ls,c) <span class="ot">&lt;-</span> [ (<span class="st">&quot;AEIOULNRST&quot;</span>,<span class="dv">1</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;DG&quot;</span>,<span class="dv">2</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;BCMP&quot;</span>,<span class="dv">3</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;FHVWY&quot;</span>,<span class="dv">4</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;K&quot;</span>,<span class="dv">5</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;JX&quot;</span>,<span class="dv">8</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;QZ&quot;</span>,<span class="dv">10</span>)],
+<span class="ot">&gt;</span>     l <span class="ot">&lt;-</span> ls
+<span class="ot">&gt;</span>   ]
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoreWord ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoreWord <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span>     scoreLetter <span class="fu">=</span> flip (M.findWithDefault <span class="dv">0</span>) scoresM <span class="fu">.</span> toUpper
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoreWord1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoreWord1 <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter
+<span class="ot">&gt;</span>    <span class="kw">where</span>
+<span class="ot">&gt;       scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span>       scoreLetter <span class="fu">=</span> flip (findWithDefault <span class="dv">0</span>) scoresH <span class="fu">.</span> toUpper
+<span class="ot">&gt;</span>       findWithDefault v k m <span class="fu">=</span> <span class="kw">case</span> k <span class="ot">`HM.lookup`</span> m <span class="kw">of</span>
+<span class="ot">&gt;</span>         <span class="dt">Nothing</span> <span class="ot">-&gt;</span> v
+<span class="ot">&gt;</span>         <span class="dt">Just</span> x  <span class="ot">-&gt;</span> x</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> main <span class="fu">=</span> defaultMain
+<span class="ot">&gt;</span>  [ bgroup <span class="st">&quot;anagram&quot;</span>
+<span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf (anagramsFor <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]
+<span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf (anagramsFor1 <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]
+<span class="ot">&gt;</span>     ]
+<span class="ot">&gt;</span>  , bgroup <span class="st">&quot;scrabble&quot;</span> 
+<span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf scoreWord <span class="st">&quot;cashregister&quot;</span>
+<span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf scoreWord1 <span class="st">&quot;cashregister&quot;</span>
+<span class="ot">&gt;</span>     ]
+<span class="ot">&gt;</span>  ]</code></pre>
+<p>Results:</p>
+<pre><code>warming up
+estimating clock resolution...
+mean is 1.892643 us (320001 iterations)
+found 58769 outliers among 319999 samples (18.4%)
+  54086 (16.9%) low severe
+  4683 (1.5%) high severe
+estimating cost of a clock call...
+mean is 50.56212 ns (12 iterations)
+found 1 outliers among 12 samples (8.3%)
+  1 (8.3%) high mild
+
+benchmarking anagram/simple
+mean: 5.985313 us, lb 5.973008 us, ub 6.000866 us, ci 0.950
+std dev: 70.55760 ns, lb 57.56464 ns, ub 89.65218 ns, ci 0.950
+
+benchmarking anagram/hashmap
+mean: 8.926868 us, lb 8.689560 us, ub 9.300685 us, ci 0.950
+std dev: 1.494973 us, lb 1.058908 us, ub 1.992894 us, ci 0.950
+found 15 outliers among 100 samples (15.0%)
+  3 (3.0%) high mild
+  12 (12.0%) high severe
+variance introduced by outliers: 91.528%
+variance is severely inflated by outliers
+
+benchmarking scrabble/simple
+mean: 1.323841 us, lb 1.321476 us, ub 1.326522 us, ci 0.950
+std dev: 12.91355 ns, lb 11.27313 ns, ub 15.02281 ns, ci 0.950
+
+benchmarking scrabble/hashmap
+mean: 1.276473 us, lb 1.254422 us, ub 1.320440 us, ci 0.950
+std dev: 151.2879 ns, lb 81.85053 ns, ub 237.6315 ns, ci 0.950
+found 11 outliers among 100 samples (11.0%)
+  11 (11.0%) high severe
+variance introduced by outliers: 84.196%
+variance is severely inflated by outliers</code></pre>
+<p>Interesing enough that ghc-7.8 results are code slighly worse.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2013-02-10-hashmaps.md.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2013-02-10-hashmaps.md.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2013-02-10-hashmaps.md.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    
+</div>
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

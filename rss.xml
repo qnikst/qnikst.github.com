@@ -8,14 +8,132 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-11-06T00:00:00Z</updated>
+    <updated>2013-12-30T00:00:00Z</updated>
     <entry>
+    <title>О stockdb-hs</title>
+    <link href="http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html" />
+    <id>http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html</id>
+    <published>2013-12-30T00:00:00Z</published>
+    <updated>2013-12-30T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
+<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
+<p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
+<p>Что позволяет ленивость:</p>
+<ol style="list-style-type: decimal">
+<li><p>Возможность не вычислять значения, которые не используются</p></li>
+<li><p>Возможность создания эффективных персистентных структур данных (см. Окасаки)</p></li>
+<li><p>Возможность создания итеративных вычислений</p></li>
+</ol>
+<p>Естественно, все это дается не бесплатно:</p>
+<ol style="list-style-type: decimal">
+<li><p>Ленивость приводит к оверхеду по памяти, т.к. нужно хранить больше информации</p></li>
+<li><p>Ленивость может приводить к повторным вычислениям в многопоточных программах</p></li>
+<li><p>Ленивость может приводить к “утечкам”, т.е. случаям, когда вместо результато создаются структуры описывающие отложенные вычисления “thunk” и их накапливается очень большое количество. Часто этот эффект называют memory leak, хотя лично мне не нравится данный термин, поскольку обычно он используется для описания неиспользуемой, но не освобожденной памяти.</p></li>
+</ol>
+<p>Особенно неприятной является третья проблема, как но её решение, в очень многих случаях, заключается в применении следующего правила:</p>
+<blockquote>
+<p>Не использовать ленивые поля в стуктурах данных, если это специально не требуется.</p>
+</blockquote>
+<h2 id="строгость-структур-данных">Строгость структур данных</h2>
+<p>В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать <code>{-# UNPACK #-}</code> это снимет один уровень индирекции.</p>
+<p>Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.</p>
+<p>Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.</p>
+<h2 id="неправильные-библиотеки">“Неправильные” библиотеки</h2>
+<p>В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.</p>
+<p>Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора <code>diff</code> записей. Поэтому четкое разделение <code>runBitGet</code> и <code>runGet</code> сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.</p>
+<p>Следующй шаг это выделение всего что можно в <code>Applicative</code> синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код.</p>
+<h2 id="итеративный-подход">Итеративный подход</h2>
+<p>Следующий момент в использовании <code>reverse/snoc</code> подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо <code>reverse/snoc</code>, можно использовать <code>go/snoc</code>, где <code>go</code> создает хвост списка.</p>
+<p>Поэтому код</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
+parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span>
+  stock <span class="ot">&lt;-</span> readRow previous
+  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre>
+<p>можно переписать как:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []
+parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span>
+  l <span class="ot">&lt;-</span> readRow
+  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)
+  return <span class="fu">$!</span> l<span class="fu">:</span>ls</code></pre>
+<p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список <code>O(N)</code> по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде <code>Get</code> это не относится).</p>
+<p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода <code>runGetOrFail</code>.</p>
+<p>На самом деле нужно идти дальше и делать <code>composable</code> операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>
+<h2 id="код-и-результаты">Код и результаты:</h2>
+<p>Код можно найти на <a href="https://github.com/maxlapshin/stockdb-hs">github</a>, ветку с изменениями примерно <a href="https://github.com/maxlapshin/stockdb-hs/tree/qn-improvements">там же</a>.</p>
+<p>В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">diff <span class="co">--git a/stockdb.hs b/stockdb.hs</span>
+index 75fa7da<span class="fu">..</span>8ecf2e1 <span class="dv">100644</span>
+<span class="fu">---</span> a<span class="fu">/</span>stockdb<span class="fu">.</span>hs
+<span class="fu">+++</span> b<span class="fu">/</span>stockdb<span class="fu">.</span>hs
+<span class="fu">@@</span> <span class="fu">-</span><span class="dv">81</span>,<span class="dv">7</span> <span class="fu">+</span><span class="dv">81</span>,<span class="dv">7</span> <span class="fu">@@</span> runEither (<span class="dt">Left</span> e)  <span class="fu">=</span> fail e
+<span class="ot"> readStocks ::</span> <span class="dt">BS.ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> [<span class="dt">Stock</span>]
+ readStocks <span class="fu">=</span> parsePayload <span class="fu">.</span> BS.drop (<span class="dv">289</span> <span class="fu">*</span> <span class="dv">4</span>) <span class="fu">.</span> skipHeaders <span class="kw">where</span>
+     parsePayload payload <span class="fu">=</span> BG.runBitGet payload <span class="fu">$</span>
+<span class="fu">-</span>        parsePayload&#39; <span class="dv">10000</span> (fail <span class="st">&quot;First row must be full&quot;</span>) []
+<span class="fu">+</span>        parsePayload&#39; <span class="dv">167544</span> (fail <span class="st">&quot;First row must be full&quot;</span>) []
+     parsePayload&#39; <span class="dv">0</span> previous acc <span class="fu">=</span> return (reverse acc)
+     parsePayload&#39; count previous acc <span class="fu">=</span> <span class="kw">do</span>
+         stock <span class="ot">&lt;-</span> readRow previous</code></pre>
+<p>Время работы оригинальной программы:</p>
+<pre><code>qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
+167544
+     Command being timed: &quot;./stockdb out.stock-2&quot;
+     User time (seconds): 13.96
+     System time (seconds): 1.00
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.98
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 15146224
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 945203
+     Voluntary context switches: 1
+     Involuntary context switches: 1550
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0</code></pre>
+<p>Время работы обновленной программы</p>
+<pre><code>167544
+     Command being timed: &quot;./stockdb out.stock-2&quot;
+     User time (seconds): 5.11
+     System time (seconds): 0.27
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.39
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 783664
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 233956
+     Voluntary context switches: 1
+     Involuntary context switches: 542
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0</code></pre>
+<p>Итого ускорение посчти в 3 раза по скорости и 20 раз по памяти.</p>]]></summary>
+</entry>
+<entry>
     <title>Supervision inside OpenRC</title>
     <link href="http://qnikst.github.com/posts/2013-11-06-openrc-supervision.html" />
     <id>http://qnikst.github.com/posts/2013-11-06-openrc-supervision.html</id>
     <published>2013-11-06T00:00:00Z</published>
     <updated>2013-11-06T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>The role of the supervision in the init systems becomes crusial. And many administrators wants some kind of s-vision support from the scratch. Here are some thoughts about this problem and a way how things will be solved inside OpenRC.</p>
+    <summary type="html"><![CDATA[<p>The role of the supervision in the init systems becomes crucial. And many administrators wants some kind of s-vision support from the scratch. Here are some thoughts about this problem and a way how things will be solved inside OpenRC.</p>
 <p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
 <h1 id="the-problem.">The problem.</h1>
 <p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
@@ -52,6 +170,7 @@
 rc_monit_type=&quot;file&quot;</code></pre></li>
 </ol>
 <p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
+<p><span class="label label-warning"> Update: </span> the idea is just to hook up into <code>start_post</code> all call <code>monit restart</code> and <code>monit monitor</code> from there.</p>
 <h1 id="future-work">Future work</h1>
 <p>There are a couple of work to be done before merging:</p>
 <ol style="list-style-type: decimal">
@@ -73,22 +192,20 @@ rc_monit_type=&quot;file&quot;</code></pre></li>
     <published>2013-09-08T00:00:00Z</published>
     <updated>2013-09-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right">
-<strong>Updates:</strong><br />2013-09-09: fixes by @qrilka
+<strong>Updates:</strong><br />2013-09-09: fixes by <span class="citation">@qrilka</span>
 </div>
-
 <p>In this post I’ll review basic approach to pathfinding using functional approach. It possible that this post doesn’t contain the best approach and all other solutions are welcome.</p>
 <div class="row">
 <div class="span8">
-
 <p>On the right you can see example of a simple map.</p>
 <p>Here is a list of imports. I need it because this is pure lhs file that can be <a href="/posts/2013-09-08-pathfinding.lhs">downloaded</a> and executed in ghci, so you can skip it.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span>           Data.List
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Monoid
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Map (Map)
-<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Map <span class="kw">as</span> Map
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Set (Set)
-<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Set <span class="kw">as</span> Set
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Function</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.List</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Monoid</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Map</span> (<span class="dt">Map</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">Map</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Set</span> (<span class="dt">Set</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">Set</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Function</span></code></pre>
 <p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them are just type synonyms:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span>
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span>
@@ -103,10 +220,11 @@ rc_monit_type=&quot;file&quot;</code></pre></li>
 <span class="ot">&gt;</span>                        ,(<span class="dv">5</span>,[(<span class="dv">1</span>,<span class="dv">100</span>),(<span class="dv">3</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">5</span>)])
 <span class="ot">&gt;</span>                        ]</code></pre>
 <br />
-</div><div class="span4">
+</div>
+<div class="span4">
 <img src="/images/posts/pathfinding/1.png" class="img-polaroid"/>
-</div></div>
-
+</div>
+</div>
 <p>## Basic algorithm</p>
 <p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial location sorted by distance’. You can this about this solution like we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
 <p>Terms: <code>frontier</code> - a list of possible locations with distance from the starting point, sorted by ascending distance.</p>
@@ -123,25 +241,29 @@ rc_monit_type=&quot;file&quot;</code></pre></li>
 <p>This algorithm will create a list of the possible destinations from the current point. The key of the algorithm is that frontier should be sorted by distance, so every time we will take closest position. It will guarantee that our algorithm will not diverge.</p>
 <p>As you’ll see the solution will be a direct translation of literal description to the code. And that is a very nice property of haskell.</p>
 <p>Here are few images describing process:</p>
-<div class="row"><div class="span4">
+<div class="row">
+<div class="span4">
 <img src="/images/posts/pathfinding/2.png" class="img-polaroid"/>
-</div><div class="span8">
+</div>
+<div class="span8">
 <p>Here is an image of the current state after step 0.</p>
 <p>We added <code>5</code> to the frontier and then take it as a <code>current location</code>.</p>
 <p>Now we have 3 new locations reachable: <code>1</code>, <code>3</code> and <code>4</code> (marked with red).</p>
 And <code>4</code> with distance 5 will be moved to the result list (dashed). <br />
-</div></div>
-
-<div class="row"><div class="span4">
+</div>
+</div>
+<div class="row">
+<div class="span4">
 <img src="/images/posts/pathfinding/3.png" class="img-polaroid"/>
-</div><div class="span8">
+</div>
+<div class="span8">
 <p>Here is next step.</p>
 <p>We took <code>4</code> as a new current element.</p>
 <p>We found 2 new reachabe locations: <code>2</code> and <code>3</code>.</p>
 <p>We added current distance (5) to distances to the current locations and add them to the frontier.</p>
 <code>&lt;&gt;</code> is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines. <br />
-</div></div>
-
+</div>
+</div>
 <p>## Additional types.</p>
 <p>Now we can review types that we will use.</p>
 <p>### Candidate</p>
@@ -225,7 +347,6 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
     <summary type="html"><![CDATA[<div style="float:right; width:200px">
 <strong>Updates:</strong><br /> 2013-09-06: исправлены ошибки в тексте (спасибо qrilka)
 </div>
-
 <p><em>У меня тут в черновиках завалялась старый пост про сериализацию стуктур данных в haskell, доводить её до ума и продолжать мне немного лень, но если будет интересно то могу продолжать. Изначально серия статей предполагалась одновременно с доведением до ума пакета <a href="https://github.com/qnikst/strictput">strictput</a></em></p>
 <p>Этим постом я хочу начать небольшую серию статей про сериализацию данных в Haskell. и описание библиотек их реализующих.</p>
 <h1 id="типы-данных">Типы данных</h1>
@@ -247,11 +368,11 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <h4 id="addr">Addr#</h4>
 <p>Addr# - unlifted unpacked тип данных являющийся указателем. Стоит напомнить, что данный тип является строгим по построению. С помощью данного типа можно обращаться напрямую к данным внутри примитивных частей программы. Функции для работы с этим типом есть в GHC.Prim (пакет ghc-prim) и Control.Primitive (пакет primitive). Обычно использовние Addr# не нужно, поскольку компилятор умеет приводить приводить работу к данному типу (за это отвечает анализатор строгости).</p>
 <h4 id="ptr">Ptr</h4>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="fu">#</span>)</code></pre>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="st">#)</span></code></pre>
 <p>Типизированная обертка над Addr (lifted, unpacked по умолчанию (изменится в ghc 7.8)), с помощью данного типа данных можно работать с указателями в “обычном” haskell коде. В подавляющем большинстве случаев ленивость и boxing убираются компилятором. Данный тип не “держит” содержимое на которое указывает и не защищает его от сборки GC.</p>
 <p>Функции для работы с указателями предоставляются модулем ‘Foreign.Ptr’</p>
 <h4 id="foreignptr">ForeignPtr</h4>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="fu">#</span> <span class="dt">ForeignPtrConents</span></code></pre>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="st"># ForeignPtrConents</span></code></pre>
 <p>Указатель, к которому можно привязывать финализаторы: действие которое должно быть выполнено как только не осталось ссылок на ForeignPtr из кода.</p>
 <h2 id="общее-описание-структур-данных">Общее описание структур данных</h2>
 <h3 id="cstringcstring-len">CString/CString Len</h3>
@@ -320,7 +441,7 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <li>безопасность операции.</li>
 </ol>
 <p>С первым пунктом все важно, второй тоже важен, так как агрессивное использование памяти существенно может изменить поведение программы относительно ожидаемого. То же относится и к ленивости, в этом случае нужно понимать, какие плюсы идут от ленивости, и не может ли произойти каскадное “форсирование” вычислений в тот момент, когда этого допускать нельзя.</p>
-<p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры, так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её копия ‘useAs*’. В этом случае нужно понимать, что данный подход приводит к увеличению сложности алгоритма и дополнительной нагрузке на память.</p>
+<p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры, так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её копия ’useAs*’. В этом случае нужно понимать, что данный подход приводит к увеличению сложности алгоритма и дополнительной нагрузке на память.</p>
 <p>Картинка кликабельна: <a href="/images/posts/parser-1/1.png" target="_blank"><img src="/images/posts/parser-1/1.png"/></a></p>]]></summary>
 </entry>
 <entry>
@@ -332,7 +453,6 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
 <strong>Updates:</strong><br />2013-09-05: add link to dotfile
 </div>
-
 <p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
 <h2 id="pointfree">Pointfree</h2>
 <p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to have <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> installed in order to use this function (in case of Gentoo run <code>emerge dev-haskell/pointfree</code>).</p>
@@ -409,7 +529,6 @@ licenses = m.fromlist
     <published>2013-08-08T00:00:00Z</published>
     <updated>2013-08-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
-  
 Updates:
 <ul>
       <li> 
@@ -427,7 +546,6 @@ Openrc 0.12
 </li>
     </ul>
 </div>
-
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
 <p>This post describes OpenRC-0.11/0.12_beta and some things may change in later versions. Please notify me to post updates here if you find such changes.</p>
@@ -608,91 +726,6 @@ Openrc 0.12
 <p>[1] Страница на gentoo wiki: <a href="">http://wiki.gentoo.org/wiki/Haskell</a></p>
 <p>[2] Тематический блог: <a href="">http://gentoohaskell.wordpress.com/</a></p>
 <p>[3] Haskell wiki: <a href="">http://www.haskell.org/haskellwiki/Gentoo</a></p>]]></summary>
-</entry>
-<entry>
-    <title>Resourcet usage</title>
-    <link href="http://qnikst.github.com/posts/2013-02-28-resourcet-usage.html" />
-    <id>http://qnikst.github.com/posts/2013-02-28-resourcet-usage.html</id>
-    <published>2013-02-28T00:00:00Z</published>
-    <updated>2013-02-28T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>This post describes an interesting resourcet usecase that may be usefull due to the lack of liner-types support in haskell.</p>
-<p>Lets look at the next problem. Assuming we have got a some sort of transaction mechanism that receives data and then perform transaction, but sometimes it may call callback to users code (originally it’s about <a href="http://github.com/qnikst/2pc">2pc</a> library).</p>
-<p>So we have method:</p>
-<pre><code>withWH0 :: (Binary b) -&gt; ByteString -&gt; (b -&gt; IO Bool) -&gt; IO ()
-withWH0 = undefined</code></pre>
-<p>Where Bool is result of transaction i.e. either we accept or decline transaction.</p>
-<p>This variant is not good as callback is synchronous, we will not be able to run next transaction untill callback is finished. And it will be a bottleneck for the code.</p>
-<p>There can be an interesting solution:</p>
-<blockquote>
-<p>one can provide an trasaction handler, i.e. a resource that for communication of the user code and library, this resource should be either accepted or declined. If that resource is ‘alive’ it means that user is working on transaction. If resource is not touched by user code a default action should be run, before resource will be cleared.</p>
-</blockquote>
-<p>The problem that we should somehow guarantee that user will free resource. One solution use linear types, but we don’t have them (or at least it’s too difficult for me and I don’t know how to do it). Another option is to use some kind of region library: one option is <a href="http://hackage.haskell.org/package/regions">regions</a> originaly proposed by <a href="http://okmij.org/ftp/Haskell/regions.html#light-weight">Oleg</a> but this package doesn’t work in recent ghc`s due some unsolved bugs, another option is <a href="http://hackage.haskell.org/package/resourcet">resourcet</a> package written by Michael Snoyman, this package doesn’t give so much guarantees as regions but at least it works. Resourcet package introduce ResourceT monad that forms a block where all resources that were registered in that blog will be closed as soon as compulation would left a block (there is an api for an early close but will not look at it now).</p>
-<p>So we can guarantee that:</p>
-<ol style="list-style-type: decimal">
-<li>every resource registered in the block will be freed</li>
-<li>resources freeing will be determinated in time/</li>
-<li>resource will be freed only once (second call to release is noop)</li>
-</ol>
-<p>Here are minimal definition for what we need:</p>
-<pre><code>data TH = TH -- ^ transaction handler
-
--- | accept transaction (send message via network)
-accept = undefined  
--- | decline transaction (send message via network)
-decline = undefined
--- | real release (synonym for decline)
-thRelease = undefined
-
-withWH1 d cb = runResourceT $ do
-  let d&#39; = decode d
-  th &lt;- accure create thRelease
-  cb th d&#39;</code></pre>
-<p>Now we create a ResourceT region, register resource there and then call user code, our code is not as safe as resourcet release as user can call accept more that once, so we need to check if it was called.</p>
-<p>The best thing that now client can use <code>resourceForkIO</code> to make withWH1 asynchronous.</p>
-<p>But there is another issue: how user can queue some part of the messages?</p>
-<p>TBD make nice picture</p>
-<p>There is a solution: <code>unprotect</code> function. This function allowes you to degerister resource in the current resourcet block and then register it in another block, or register new release action.</p>
-<p>Currently resourcet package lacks helpers that allowes to move resource to some other place, so one need to create that functions himself. Here are some advices how one can do it safely.</p>
-<p>You need a structure that has the following interface:</p>
-<ul>
-<li>put :: s -&gt; (a, IO ()) -&gt; m () – put resource into storage</li>
-<li>get :: s -&gt; m (ReleaseKey a) – get resource and register it in current process</li>
-</ul>
-<p>Put and get should be atomic and mask exceptions, moreover if you can’t guarantee that message will be immidiatelly read by another process you should register datastructure in some higher level ResourceT block, this way you’ll guarantee that no resources will be left in store unfreed.</p>
-<p>Here are some basic examples of such datastructures:</p>
-<p>(this code is not well tested as I’ve used more complicated datastructure for such purpose, that have an additional API, but its not usefull for common case)</p>
-<p>At first let’s write an <code>InstantMVar</code>, this structure allow you to send message into other process, where it will be immideatelly read, so we don’t need to store that structure in ‘global’ resource block</p>
-<pre><code>data InstanceMVar a = InstanceMVar (MVar (a,IO ())) (MVar ())
-
-newMVar = InstanceMVar &lt;$&gt; newEmptyMVar &lt;*&gt; newEmptyMVar
-
-put (InstanceMVar a b) (key, x) = mask_ $ unprotect key &gt;&gt;= putMVar a . ((,) x) &gt;&gt; takeMVar b
-
-get (InstanceMVar a b) = mask_ $ takeMVar a &gt;&gt;= \(x, r) -&gt; register r &gt;&gt; putMVar b () &gt;&gt; return x</code></pre>
-<p>This code will guarantee that resource will be read, however it may lock.</p>
-<p>Let’s write a <code>DelayedMVar</code> this structure will not block on write, but should be registered in global resourcet block</p>
-<pre><code>newtype DelayedMVar a = DelayedMVar (MVar (a,IO ()))
-
-newDelayedMVar = allocate (DelayedMVar &lt;$&gt; newEmptyMVar) (releaseDelayedMVar)
-
-releaseDelayedMVar (DelayedMVar v) = maybe (return ()) (snd) =&lt;&lt; tryReadMVar v
-
-put (DelayedMVar v) (key, x) = mask_ $ unprotect key &gt;&gt;= putMVar a . ((,) x)
-
-get (DelayedMVar v) = mask_ $ takeMVar a &gt;&gt;= \(x, r) -&gt; register r &gt;&gt; return x</code></pre>
-<p>Same way one can write Channel or STM Channel, however channel is not fully safe unless chan is closable.</p>
-<pre><code>newtype SChan a = SChan (SChan (a,IO ()))
-
-newSChan = allocate (SChan &lt;$&gt; newChan) releaseChan
-
-releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
-  where go Nothing = return ()
-        go (Just (x,a)) = a &gt;&gt; tryReadChan v {- we have a possible race condition here -} &gt;&gt;= go</code></pre>
-<p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs his task. But the next things should hold:</p>
-<ol style="list-style-type: decimal">
-<li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
-<li>Read and writes should be exception safe</li>
-</ol>]]></summary>
 </entry>
 
 </feed>

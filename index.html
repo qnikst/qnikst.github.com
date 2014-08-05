@@ -4,106 +4,84 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - index</title>
     <!-- Bootstrap -->
-    <link href="./css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="./css/additional.css" rel="stylesheet" media="screen">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <link href="./css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="./js/bootstrap.min.js"></script>
     
 </head>
 <body>
-  <div class="navbar navbar-fixed-top navbar-inverse">
-      <div class="navbar-inner">
-       <a class="brand" href="./">Qnikst blog</a>
-       <ul class="nav ">
-           <li class="active"><a href="./">Home</a></li>
-           <li><a href="./posts.html">Blog</a></li>
-           <li><a href="./projects.html">Projects</a></li>
-           <li><a href="./contact.html">Contacts</a></li>
-           <li><a href="./rss.xml">RSS</a></li>
-       </ul>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="./">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="./posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="./projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="./rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
       </div>
   </div>
-  <div class="container">
+
+  <div id="content">
     <div class="container-fluid">
     <div class="span8">
         <div id="posts">
-            <h1>Recent posts</h1>
-            <ul>
+	    <font color="blue">recentPosts</font> <font color="red">=</font>
+            <ul class="haskell-list">
                 <li>
-   <a href="./posts/2013-11-06-openrc-supervision.html">Supervision inside OpenRC</a> [November  6, 2013]
+   (<a href="./posts/2013-12-30-haskell-laziness.html">О stockdb-hs</a>, December 30, 2013)
 </li>
 <li>
-   <a href="./posts/2013-09-08-pathfinding.html">Basic pathfinding</a> [September  8, 2013]
+   (<a href="./posts/2013-11-06-openrc-supervision.html">Supervision inside OpenRC</a>, November  6, 2013)
 </li>
 <li>
-   <a href="./posts/2013-09-06-serialization-p1.html">Сериализация структур данных в Haskell.<br /> Часть 1: типы данных</a> [September  6, 2013]
+   (<a href="./posts/2013-09-08-pathfinding.html">Basic pathfinding</a>, September  8, 2013)
 </li>
 <li>
-   <a href="./posts/2013-09-04-my-ghci.html">My ghci</a> [September  4, 2013]
+   (<a href="./posts/2013-09-06-serialization-p1.html">Сериализация структур данных в Haskell.<br /> Часть 1: типы данных</a>, September  6, 2013)
 </li>
 <li>
-   <a href="./posts/2013-08-23-licenses-notes-in-hakyll.html">Adding license notes to blog pages.</a> [August 23, 2013]
+   (<a href="./posts/2013-09-04-my-ghci.html">My ghci</a>, September  4, 2013)
 </li>
 <li>
-   <a href="./posts/2013-08-08-openrc-supervision-using-cgroups.html">Supervision in pure OpenRC using cgroup subsystem.</a> [August  8, 2013]
+   (<a href="./posts/2013-08-23-licenses-notes-in-hakyll.html">Adding license notes to blog pages.</a>, August 23, 2013)
 </li>
 <li>
-   <a href="./posts/2013-04-11-using-tqueues-in-conduit.html">Using queues in conduits</a> [April 11, 2013]
+   (<a href="./posts/2013-08-08-openrc-supervision-using-cgroups.html">Supervision in pure OpenRC using cgroup subsystem.</a>, August  8, 2013)
 </li>
 <li>
-   <a href="./posts/2013-04-07-announcing-binary-conduit.html">Anouncing binary conduit</a> [April  7, 2013]
+   (<a href="./posts/2013-04-11-using-tqueues-in-conduit.html">Using queues in conduits</a>, April 11, 2013)
 </li>
 <li>
-   <a href="./posts/2013-03-31-gentoo-haskell.html">Немного о gentoo-haskell</a> [March 31, 2013]
+   (<a href="./posts/2013-04-07-announcing-binary-conduit.html">Anouncing binary conduit</a>, April  7, 2013)
 </li>
 <li>
-   <a href="./posts/2013-02-28-resourcet-usage.html">Resourcet usage</a> [February 28, 2013]
+   (<a href="./posts/2013-03-31-gentoo-haskell.html">Немного о gentoo-haskell</a>, March 31, 2013)
 </li>
 
-            </ul>
-            <a href="./posts.html">All posts…</a>
+            </ul> ++ <a href="./posts.html">archive</a>
         </div>
 
-        <div class="about">
-            <h1>About</h1>
-            <p>
-                This is a sample blog for educational purposes.
-            </p>
-        </div>
     </div>
     <div class="span3">
-        <p><strong>Browse Tags:</strong><br /> <a href="./tags/OpenRC.html">OpenRC (1)</a>, <a href="./tags/cgroups.html">cgroups (1)</a>, <a href="./tags/gentoo.html">gentoo (3)</a>, <a href="./tags/ghci.html">ghci (1)</a>, <a href="./tags/hakyll.html">hakyll (2)</a>, <a href="./tags/haskell.html">haskell (11)</a>, <a href="./tags/latex.html">latex (1)</a>, <a href="./tags/linux.html">linux (2)</a>, <a href="./tags/pam.html">pam (1)</a>, <a href="./tags/phys.html">phys (1)</a>, <a href="./tags/programming.html">programming (1)</a>, <a href="./tags/projects.html">projects (1)</a>, <a href="./tags/resourcet.html">resourcet (1)</a>, <a href="./tags/supervision.html">supervision (1)</a>, <a href="./tags/univ.html">univ (1)</a>, <a href="./tags/web.html">web (1)</a></p>
+        <p>
+        <font color="blue">tags</font> <font color="red">=</font> <font color="cyan">[</font> <a href="./tags/OpenRC.html">OpenRC (1)</a>, <a href="./tags/cgroups.html">cgroups (1)</a>, <a href="./tags/gentoo.html">gentoo (3)</a>, <a href="./tags/ghci.html">ghci (1)</a>, <a href="./tags/hakyll.html">hakyll (2)</a>, <a href="./tags/haskell.html">haskell (11)</a>, <a href="./tags/latex.html">latex (1)</a>, <a href="./tags/linux.html">linux (2)</a>, <a href="./tags/pam.html">pam (1)</a>, <a href="./tags/phys.html">phys (1)</a>, <a href="./tags/programming.html">programming (1)</a>, <a href="./tags/projects.html">projects (1)</a>, <a href="./tags/resourcet.html">resourcet (1)</a>, <a href="./tags/supervision.html">supervision (1)</a>, <a href="./tags/univ.html">univ (1)</a>, <a href="./tags/web.html">web (1)</a> <font color="cyan">]</font>
+	 </p>
         <p><strong>Links:</strong><br />
         <ul>
             <li><a href="http://gentoo.org">Gentoo Linux</a></li>
             <li><a href="http://gentoohaskell.wordpress.com/">Gentoo haskell blog</a></li>
         </ul>
         </p>
-        <p><strong>What I have learned today:</strong><br /> <li>
-   <a href="./wihlt/2013-09-08.html">2013-09-08</a>
-</li>
-<li>
-   <a href="./wihlt/2013-09-06.html">2013-09-06</a>
-</li>
-<li>
-   <a href="./wihlt/2013-09-05.html">2013-09-05</a>
-</li>
-<li>
-   <a href="./wihlt/2013-09-04.html">2013-09-03</a>
-</li>
-</p>
     </div>
 </div>
 
-    <footer>
-    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
-    </footer>
   </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

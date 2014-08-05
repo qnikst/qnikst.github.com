@@ -4,42 +4,42 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Сериализация структур данных в Haskell.<br /> Часть 1: типы данных</title>
     <!-- Bootstrap -->
-    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
     
 </head>
 <body>
-  <div class="navbar navbar-fixed-top navbar-inverse">
-      <div class="navbar-inner">
-       <a class="brand" href="../">Qnikst blog</a>
-       <ul class="nav ">
-           <li class="active"><a href="../">Home</a></li>
-           <li><a href="../posts.html">Blog</a></li>
-           <li><a href="../projects.html">Projects</a></li>
-           <li><a href="../contact.html">Contacts</a></li>
-           <li><a href="../rss.xml">RSS</a></li>
-       </ul>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
       </div>
   </div>
-  <div class="container">
+
+  <div id="content">
     <meta name="keywords" content="haskell">
 
 
 <div class="page-header">
-    <h1>Сериализация структур данных в Haskell.<br /> Часть 1: типы данных <br /><small><strong>September  6, 2013</strong></small></h1>
+    <div class="right">
+      <strong>September  6, 2013</strong>
+    </div>
+    <h1>Сериализация структур данных в Haskell.<br /> Часть 1: типы данных</h1>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a></div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
 </div>
 
 <div style="float:right; width:200px">
 <strong>Updates:</strong><br /> 2013-09-06: исправлены ошибки в тексте (спасибо qrilka)
 </div>
-
 <p><em>У меня тут в черновиках завалялась старый пост про сериализацию стуктур данных в haskell, доводить её до ума и продолжать мне немного лень, но если будет интересно то могу продолжать. Изначально серия статей предполагалась одновременно с доведением до ума пакета <a href="https://github.com/qnikst/strictput">strictput</a></em></p>
 <p>Этим постом я хочу начать небольшую серию статей про сериализацию данных в Haskell. и описание библиотек их реализующих.</p>
 <h2 id="типы-данных">Типы данных</h2>
@@ -61,11 +61,11 @@
 <h5 id="addr">Addr#</h5>
 <p>Addr# - unlifted unpacked тип данных являющийся указателем. Стоит напомнить, что данный тип является строгим по построению. С помощью данного типа можно обращаться напрямую к данным внутри примитивных частей программы. Функции для работы с этим типом есть в GHC.Prim (пакет ghc-prim) и Control.Primitive (пакет primitive). Обычно использовние Addr# не нужно, поскольку компилятор умеет приводить приводить работу к данному типу (за это отвечает анализатор строгости).</p>
 <h5 id="ptr">Ptr</h5>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="fu">#</span>)</code></pre>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="st">#)</span></code></pre>
 <p>Типизированная обертка над Addr (lifted, unpacked по умолчанию (изменится в ghc 7.8)), с помощью данного типа данных можно работать с указателями в “обычном” haskell коде. В подавляющем большинстве случаев ленивость и boxing убираются компилятором. Данный тип не “держит” содержимое на которое указывает и не защищает его от сборки GC.</p>
 <p>Функции для работы с указателями предоставляются модулем ‘Foreign.Ptr’</p>
 <h5 id="foreignptr">ForeignPtr</h5>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="fu">#</span> <span class="dt">ForeignPtrConents</span></code></pre>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="st"># ForeignPtrConents</span></code></pre>
 <p>Указатель, к которому можно привязывать финализаторы: действие которое должно быть выполнено как только не осталось ссылок на ForeignPtr из кода.</p>
 <h3 id="общее-описание-структур-данных">Общее описание структур данных</h3>
 <h4 id="cstringcstring-len">CString/CString Len</h4>
@@ -134,8 +134,9 @@
 <li>безопасность операции.</li>
 </ol>
 <p>С первым пунктом все важно, второй тоже важен, так как агрессивное использование памяти существенно может изменить поведение программы относительно ожидаемого. То же относится и к ленивости, в этом случае нужно понимать, какие плюсы идут от ленивости, и не может ли произойти каскадное “форсирование” вычислений в тот момент, когда этого допускать нельзя.</p>
-<p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры, так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её копия ‘useAs*’. В этом случае нужно понимать, что данный подход приводит к увеличению сложности алгоритма и дополнительной нагрузке на память.</p>
+<p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры, так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её копия ’useAs*’. В этом случае нужно понимать, что данный подход приводит к увеличению сложности алгоритма и дополнительной нагрузке на память.</p>
 <p>Картинка кликабельна: <a href="../images/posts/parser-1/1.png" target="_blank"><img src="../images/posts/parser-1/1.png" /></a></p>
+
 <hr />
 <div id="sociallinks" class="pull-left">
     <strong>Share on:</strong>
@@ -167,10 +168,11 @@
   <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                                                                                            
 
-    <footer>
-    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
-    </footer>
   </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

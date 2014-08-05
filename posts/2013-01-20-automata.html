@@ -4,35 +4,36 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - 2013-01-20-automata</title>
     <!-- Bootstrap -->
-    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
     
 </head>
 <body>
-  <div class="navbar navbar-fixed-top navbar-inverse">
-      <div class="navbar-inner">
-       <a class="brand" href="../">Qnikst blog</a>
-       <ul class="nav ">
-           <li class="active"><a href="../">Home</a></li>
-           <li><a href="../posts.html">Blog</a></li>
-           <li><a href="../projects.html">Projects</a></li>
-           <li><a href="../contact.html">Contacts</a></li>
-           <li><a href="../rss.xml">RSS</a></li>
-       </ul>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
       </div>
   </div>
-  <div class="container">
+
+  <div id="content">
     
 
 <div class="page-header">
-    <h1>2013-01-20-automata <br /><small><strong>January 20, 2013</strong></small></h1>
+    <div class="right">
+      <strong>January 20, 2013</strong>
+    </div>
+    <h1>2013-01-20-automata</h1>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
 </div>
 
 <p>About a half year ago I had a next task: I should run a list of event listeners on a wire and on each handled event that event listener can change (i.e. start listening another event, produce new event listeners, and send requests to the wire). Yes, sound like a FRP task, and once you are familar to FRP this article is not interested for you, except you may try to help me to generalize all logic.</p>
@@ -41,14 +42,14 @@
 <p>We will need it at the very end to show arrow notation</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE Arrows #-}</span></code></pre>
 <p>We need this for defining new arrow instance.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span> Prelude <span class="kw">hiding</span> ((.), id)
-<span class="ot">&gt;</span> <span class="kw">import</span> Control.Arrow
-<span class="ot">&gt;</span> <span class="kw">import</span> Control.Category</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Prelude</span> <span class="kw">hiding</span> ((.), id)
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Arrow</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Category</span></code></pre>
 <p>We need this for describing outer world</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span> Control.Monad
-<span class="ot">&gt;</span> <span class="kw">import</span> Control.Concurrent.STM
-<span class="ot">&gt;</span> <span class="kw">import</span> Control.Concurrent
-<span class="ot">&gt;</span> <span class="kw">import</span> Control.Exception</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Monad</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Concurrent.STM</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Concurrent</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Exception</span></code></pre>
 <p>Let’s prepare to solve our problem. At first we need to define an outer world bus i.e. an computation that can recieve requests, and sends responce. We define 2 channels for this purpose: input - requests, output - responce. This will not break generalization as you always can insert a channel based proxy between your computation and real-world bus.</p>
 <p>So our realworld wrapper will look like:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; run ::</span> <span class="dt">FIO</span> a b c <span class="ot">-&gt;</span> <span class="dt">Generator</span> b c <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">IO</span> a
@@ -219,6 +220,7 @@
 <li><p>if you see any mistake feel free to correct me</p></li>
 <li><p>I don’t know how to correctly show a executed code blocks it lhs, if you know</p></li>
 </ul>
+
 <hr />
 <div id="sociallinks" class="pull-left">
     <strong>Share on:</strong>
@@ -250,10 +252,11 @@
   <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                                                                                            
 
-    <footer>
-    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
-    </footer>
   </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

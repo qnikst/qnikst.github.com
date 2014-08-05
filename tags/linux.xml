@@ -16,7 +16,6 @@
     <published>2013-08-08T00:00:00Z</published>
     <updated>2013-08-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
-  
 Updates:
 <ul>
       <li> 
@@ -34,7 +33,6 @@ Openrc 0.12
 </li>
     </ul>
 </div>
-
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
 <p>This post describes OpenRC-0.11/0.12_beta and some things may change in later versions. Please notify me to post updates here if you find such changes.</p>

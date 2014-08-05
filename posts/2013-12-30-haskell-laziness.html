@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - О stockdb-hs</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
+    <script src="../js/bootstrap.min.js"></script>
+    
+</head>
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
+      </div>
+  </div>
+
+  <div id="content">
+    
+
+<div class="page-header">
+    <div class="right">
+      <strong>December 30, 2013</strong>
+    </div>
+    <h1>О stockdb-hs</h1>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
+</div>
+
+<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
+<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
+<p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
+<p>Что позволяет ленивость:</p>
+<ol style="list-style-type: decimal">
+<li><p>Возможность не вычислять значения, которые не используются</p></li>
+<li><p>Возможность создания эффективных персистентных структур данных (см. Окасаки)</p></li>
+<li><p>Возможность создания итеративных вычислений</p></li>
+</ol>
+<p>Естественно, все это дается не бесплатно:</p>
+<ol style="list-style-type: decimal">
+<li><p>Ленивость приводит к оверхеду по памяти, т.к. нужно хранить больше информации</p></li>
+<li><p>Ленивость может приводить к повторным вычислениям в многопоточных программах</p></li>
+<li><p>Ленивость может приводить к “утечкам”, т.е. случаям, когда вместо результато создаются структуры описывающие отложенные вычисления “thunk” и их накапливается очень большое количество. Часто этот эффект называют memory leak, хотя лично мне не нравится данный термин, поскольку обычно он используется для описания неиспользуемой, но не освобожденной памяти.</p></li>
+</ol>
+<p>Особенно неприятной является третья проблема, как но её решение, в очень многих случаях, заключается в применении следующего правила:</p>
+<blockquote>
+<p>Не использовать ленивые поля в стуктурах данных, если это специально не требуется.</p>
+</blockquote>
+<h3 id="строгость-структур-данных">Строгость структур данных</h3>
+<p>В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать <code>{-# UNPACK #-}</code> это снимет один уровень индирекции.</p>
+<p>Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.</p>
+<p>Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.</p>
+<h3 id="неправильные-библиотеки">“Неправильные” библиотеки</h3>
+<p>В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.</p>
+<p>Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора <code>diff</code> записей. Поэтому четкое разделение <code>runBitGet</code> и <code>runGet</code> сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.</p>
+<p>Следующй шаг это выделение всего что можно в <code>Applicative</code> синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код.</p>
+<h3 id="итеративный-подход">Итеративный подход</h3>
+<p>Следующий момент в использовании <code>reverse/snoc</code> подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо <code>reverse/snoc</code>, можно использовать <code>go/snoc</code>, где <code>go</code> создает хвост списка.</p>
+<p>Поэтому код</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload' <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
+parsePayload' count acc <span class="fu">=</span> <span class="kw">do</span>
+  stock <span class="ot">&lt;-</span> readRow previous
+  parsePayload' (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre>
+<p>можно переписать как:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload' <span class="dv">0</span> <span class="fu">=</span> return []
+parsePayload' count <span class="fu">=</span> <span class="kw">do</span>
+  l <span class="ot">&lt;-</span> readRow
+  ls <span class="ot">&lt;-</span> parsePayload' (count<span class="fu">-</span><span class="dv">1</span>)
+  return <span class="fu">$!</span> l<span class="fu">:</span>ls</code></pre>
+<p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список <code>O(N)</code> по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде <code>Get</code> это не относится).</p>
+<p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода <code>runGetOrFail</code>.</p>
+<p>На самом деле нужно идти дальше и делать <code>composable</code> операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>
+<h3 id="код-и-результаты">Код и результаты:</h3>
+<p>Код можно найти на <a href="https://github.com/maxlapshin/stockdb-hs">github</a>, ветку с изменениями примерно <a href="https://github.com/maxlapshin/stockdb-hs/tree/qn-improvements">там же</a>.</p>
+<p>В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">diff <span class="co">--git a/stockdb.hs b/stockdb.hs</span>
+index 75fa7da<span class="fu">..</span>8ecf2e1 <span class="dv">100644</span>
+<span class="fu">---</span> a<span class="fu">/</span>stockdb<span class="fu">.</span>hs
+<span class="fu">+++</span> b<span class="fu">/</span>stockdb<span class="fu">.</span>hs
+<span class="fu">@@</span> <span class="fu">-</span><span class="dv">81</span>,<span class="dv">7</span> <span class="fu">+</span><span class="dv">81</span>,<span class="dv">7</span> <span class="fu">@@</span> runEither (<span class="dt">Left</span> e)  <span class="fu">=</span> fail e
+<span class="ot"> readStocks ::</span> <span class="dt">BS.ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> [<span class="dt">Stock</span>]
+ readStocks <span class="fu">=</span> parsePayload <span class="fu">.</span> BS.drop (<span class="dv">289</span> <span class="fu">*</span> <span class="dv">4</span>) <span class="fu">.</span> skipHeaders <span class="kw">where</span>
+     parsePayload payload <span class="fu">=</span> BG.runBitGet payload <span class="fu">$</span>
+<span class="fu">-</span>        parsePayload' <span class="dv">10000</span> (fail <span class="st">&quot;First row must be full&quot;</span>) []
+<span class="fu">+</span>        parsePayload' <span class="dv">167544</span> (fail <span class="st">&quot;First row must be full&quot;</span>) []
+     parsePayload' <span class="dv">0</span> previous acc <span class="fu">=</span> return (reverse acc)
+     parsePayload' count previous acc <span class="fu">=</span> <span class="kw">do</span>
+         stock <span class="ot">&lt;-</span> readRow previous</code></pre>
+<p>Время работы оригинальной программы:</p>
+<pre><code>qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
+167544
+     Command being timed: &quot;./stockdb out.stock-2&quot;
+     User time (seconds): 13.96
+     System time (seconds): 1.00
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.98
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 15146224
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 945203
+     Voluntary context switches: 1
+     Involuntary context switches: 1550
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0</code></pre>
+<p>Время работы обновленной программы</p>
+<pre><code>167544
+     Command being timed: &quot;./stockdb out.stock-2&quot;
+     User time (seconds): 5.11
+     System time (seconds): 0.27
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.39
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 783664
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 233956
+     Voluntary context switches: 1
+     Involuntary context switches: 542
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0</code></pre>
+<p>Итого ускорение посчти в 3 раза по скорости и 20 раз по памяти.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<div class="pull-right">
+    <em>Alexander Vershilov</em>
+    
+</div>
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

@@ -18,7 +18,6 @@
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
 <strong>Updates:</strong><br />2013-09-05: add link to dotfile
 </div>
-
 <p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
 <h2 id="pointfree">Pointfree</h2>
 <p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to have <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> installed in order to use this function (in case of Gentoo run <code>emerge dev-haskell/pointfree</code>).</p>
@@ -52,7 +51,6 @@
     <published>2013-08-08T00:00:00Z</published>
     <updated>2013-08-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
-  
 Updates:
 <ul>
       <li> 
@@ -70,7 +68,6 @@ Openrc 0.12
 </li>
     </ul>
 </div>
-
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
 <p>This post describes OpenRC-0.11/0.12_beta and some things may change in later versions. Please notify me to post updates here if you find such changes.</p>

@@ -4,55 +4,54 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Basic pathfinding</title>
     <!-- Bootstrap -->
-    <link href="../css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
     <script src="../js/bootstrap.min.js"></script>
     
 </head>
 <body>
-  <div class="navbar navbar-fixed-top navbar-inverse">
-      <div class="navbar-inner">
-       <a class="brand" href="../">Qnikst blog</a>
-       <ul class="nav ">
-           <li class="active"><a href="../">Home</a></li>
-           <li><a href="../posts.html">Blog</a></li>
-           <li><a href="../projects.html">Projects</a></li>
-           <li><a href="../contact.html">Contacts</a></li>
-           <li><a href="../rss.xml">RSS</a></li>
-       </ul>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
       </div>
   </div>
-  <div class="container">
+
+  <div id="content">
     <meta name="keywords" content="haskell">
 
 
 <div class="page-header">
-    <h1>Basic pathfinding <br /><small><strong>September  8, 2013</strong></small></h1>
+    <div class="right">
+      <strong>September  8, 2013</strong>
+    </div>
+    <h1>Basic pathfinding</h1>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a></div>
+    <div class="abstract"><strong>Abstract</strong><br>
+    </div>
 </div>
 
 <div style="float:right">
-<strong>Updates:</strong><br />2013-09-09: fixes by @qrilka
+<strong>Updates:</strong><br />2013-09-09: fixes by <span class="citation">@qrilka</span>
 </div>
-
 <p>In this post I’ll review basic approach to pathfinding using functional approach. It possible that this post doesn’t contain the best approach and all other solutions are welcome.</p>
 <div class="row">
 <div class="span8">
-
 <p>On the right you can see example of a simple map.</p>
 <p>Here is a list of imports. I need it because this is pure lhs file that can be <a href="../posts/2013-09-08-pathfinding.lhs">downloaded</a> and executed in ghci, so you can skip it.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import</span>           Data.List
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Monoid
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Map (Map)
-<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Map <span class="kw">as</span> Map
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Set (Set)
-<span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> Data.Set <span class="kw">as</span> Set
-<span class="ot">&gt;</span> <span class="kw">import</span>           Data.Function</code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.List</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Monoid</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Map</span> (<span class="dt">Map</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">Map</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Set</span> (<span class="dt">Set</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">Set</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Function</span></code></pre>
 <p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them are just type synonyms:</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span>
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span>
@@ -67,10 +66,11 @@
 <span class="ot">&gt;</span>                        ,(<span class="dv">5</span>,[(<span class="dv">1</span>,<span class="dv">100</span>),(<span class="dv">3</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">5</span>)])
 <span class="ot">&gt;</span>                        ]</code></pre>
 <br />
-</div><div class="span4">
+</div>
+<div class="span4">
 <img src="../images/posts/pathfinding/1.png" class="img-polaroid" />
-</div></div>
-
+</div>
+</div>
 <p>## Basic algorithm</p>
 <p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial location sorted by distance’. You can this about this solution like we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
 <p>Terms: <code>frontier</code> - a list of possible locations with distance from the starting point, sorted by ascending distance.</p>
@@ -87,25 +87,29 @@
 <p>This algorithm will create a list of the possible destinations from the current point. The key of the algorithm is that frontier should be sorted by distance, so every time we will take closest position. It will guarantee that our algorithm will not diverge.</p>
 <p>As you’ll see the solution will be a direct translation of literal description to the code. And that is a very nice property of haskell.</p>
 <p>Here are few images describing process:</p>
-<div class="row"><div class="span4">
+<div class="row">
+<div class="span4">
 <img src="../images/posts/pathfinding/2.png" class="img-polaroid" />
-</div><div class="span8">
+</div>
+<div class="span8">
 <p>Here is an image of the current state after step 0.</p>
 <p>We added <code>5</code> to the frontier and then take it as a <code>current location</code>.</p>
 <p>Now we have 3 new locations reachable: <code>1</code>, <code>3</code> and <code>4</code> (marked with red).</p>
 And <code>4</code> with distance 5 will be moved to the result list (dashed). <br />
-</div></div>
-
-<div class="row"><div class="span4">
+</div>
+</div>
+<div class="row">
+<div class="span4">
 <img src="../images/posts/pathfinding/3.png" class="img-polaroid" />
-</div><div class="span8">
+</div>
+<div class="span8">
 <p>Here is next step.</p>
 <p>We took <code>4</code> as a new current element.</p>
 <p>We found 2 new reachabe locations: <code>2</code> and <code>3</code>.</p>
 <p>We added current distance (5) to distances to the current locations and add them to the frontier.</p>
 <code>&lt;&gt;</code> is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines. <br />
-</div></div>
-
+</div>
+</div>
 <p>## Additional types.</p>
 <p>Now we can review types that we will use.</p>
 <p>### Candidate</p>
@@ -179,6 +183,7 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <p>I’ve heard that it is possible to use comonad approach to solve this problem however I couldn’t find any example of this approach.</p>
 <pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test <span class="fu">=</span> solve testMap <span class="dv">5</span> <span class="dv">1</span></code></pre>
 <p>as a result we will have [5,4,3,2,1]. That is correct solution.</p>
+
 <hr />
 <div id="sociallinks" class="pull-left">
     <strong>Share on:</strong>
@@ -210,10 +215,11 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
   <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                                                                                            
 
-    <footer>
-    Site generated using <a href="http://jaspervdj.be/hakyll">Hakyll</a> using <a href="http://johnmacfarlane.net/pandoc/">pandoc</a>
-    </footer>
   </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];
