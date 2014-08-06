@@ -6,6 +6,8 @@ license: by-nc-sa
 tags: haskell
 ---
 
+<div style="float:right"><strong>Updates:</strong><br />2013-09-09: fixes by @qrilka</div>
+
 In this post I'll review basic approach to pathfinding using functional 
 approach. It possible that this post doesn't contain the best approach
 and all other solutions are welcome.
@@ -29,7 +31,7 @@ so you can skip it.
 
 We will solve simple task of finding the shortest path from one location
 to another (from 5 to 1). As a first step lets introduce some basic types. 
-Most of them was introduced like types:
+Most of them are just type synonyms:
 
 > type Loc     = Int                      -- Location
 > type Dist    = Int                      -- Distance
@@ -46,20 +48,28 @@ Most of them was introduced like types:
 
 <br /></div><div class="span4"><img src="/images/posts/pathfinding/1.png" class="img-polaroid"/></div></div>
 
-## Basic algorithm
+\## Basic algorithm
 
-The basic idea of our solution is: 'we need to create a list of the locations that is reachable from initial descrination sorted by distance'.
-You can this about this solution as we move in all possible 
+The basic idea of our solution is: 'we need to create a list of the locations that is reachable from initial
+location sorted by distance'.
+You can this about this solution like we move in all possible 
 directions at the same time. Then we can filter out final destination 
 and find history related to the correct solution. 
 
-So algorithm will look like:
+Terms: `frontier` - a list of possible locations with distance from the starting point, sorted by
+ascending distance.
 
-  0. create frontier from the start position.
-  1. take the first location from the frontier. It will be our next `current location`.
-  2. `p1` <- get list of the locations reachage from the `current location`.
-  3. `p2` <- add current distance to the distance from the `current location` to destination
-  4. add `p2` to the frontier
+> type Frontier0 = [(Loc, Dist)]
+
+So algorithm of generating result list will look like:
+
+  0. Add starting point with zero distance to the `frontier`.
+  1. Take the first location from the frontier. It will be our next `current location`.
+  2. `p1` <- get list of the locations reachable from the `current location` in one step.
+  3. `p2` <- sum distance to the current distance with the distance from the `current location` to each
+             possible location from `p1`. Now we have a list of possible locations with distances from
+             the starting point.
+  4. Add list of the new possible locations (`p2`) to the `frontier`.
   5. goto 1.
 
 This algorithm will create a list of the possible destinations from the current point.
@@ -69,7 +79,7 @@ we will take closest position. It will guarantee that our algorithm will not div
 As you'll see the solution will be a direct translation of literal description
 to the code. And that is a very nice property of haskell.
 
-Here is some images describing process:
+Here are few images describing process:
 
 <div class="row"><div class="span4"><img src="/images/posts/pathfinding/2.png" class="img-polaroid"/></div><div class="span8">
 Here is an image of the current state after step 0. 
@@ -93,11 +103,11 @@ We added current distance (5) to distances to the current locations and add them
 `<>` is a function that will merge and sort 2 lists. You can see result of the merge shown with dashed lines.
 <br /></div></div>
 
-## Additional types.
+\## Additional types.
 
 Now we can review types that we will use.
 
-### Candidate
+\### Candidate
 
 All elements in a resulting set and a frontier are possible canditas for a solution,
 so they need to contain all temporary information (Distance) and information that
@@ -115,7 +125,7 @@ And helper functions:
 > candidateHist :: Candidate -> History
 > candidateHist (Candidate (_,_,x)) = x
 
-### Ascending list
+\### Ascending list
 
 As we have seen in the algorithm resulting list and frontier are ascending lists.
 So we may introduce special type that will preserve this property. This will help
@@ -154,7 +164,7 @@ Candidates:
 
 Now we can guarantee that lists are properly ordered.
 
-### Builder seed.
+\### Builder seed.
 
 In order to create list we will use `unfoldr :: (b -> Maybe (a, b)) -> b -> [a]` 
 combinator. On each step we will create one new element and return new seed. So
@@ -166,7 +176,7 @@ So resulting type will look like:
 > type Visited = Set Loc                  -- visited locations
 > type Seed = (AscList Candidate,Visited) -- seed of the algorithm
 
-## Solver
+\## Solver
 
 Now we are ready to introduce our solver:
 
@@ -210,3 +220,6 @@ more advanced methods, like A<up>*</up>. But we need to fix Candidate ordering f
 I've heard that it is possible to use comonad approach to solve this problem however I
 couldn't find any example of this approach.
  
+> test = solve testMap 5 1
+
+as a result we will have [5,4,3,2,1]. That is correct solution.
