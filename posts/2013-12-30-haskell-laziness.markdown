@@ -1,26 +1,162 @@
 ----
-title: Playing with types: type level numbers
+title: О stockdb 
 author: Alexander Vershilov
-tags: haskell typefun typenats
+tags: haskell, performance  
 data: 2013-12-30
 ----
+(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)
 
+Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (@maxlapshin). Программу говорят,
+что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.
 
-> As always I'm terribly sorry for my bad english, but writing
-> the posts and having a feedback is the only reasonable way 
-> to improve it.
+Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.
 
-This post describes an easy exercise that gives a feeling of 
-using typelevel numbers.
+Что позволяет ленивость:
 
-If you want to know more about typelevel literals and friends
-you can take a look at the [following post](http://ponies.io/posts/2014-07-30-typelits.html)
-it describes the theory much better than I can.
+    1. Возможность не вычислять значения, которые не используются
 
-Intead of using type level Strings we will address a numbers.
-In this post I want to create a datatype that will contain a 
-number that is known statically (at compilation time) and that
-have a way to use that number in runtime.
+    2. Возможность создания эффективных персистентных структур данных (см. Окасаки)
 
-The first part of the problem (having a number) in a type may
-be interesting if you want to distiguish between different types.
+    3. Возможность создания итеративных вычислений
+
+Естественно, все это дается не бесплатно:
+
+    1. Ленивость приводит к оверхеду по памяти, т.к. нужно хранить больше информации
+
+    2. Ленивость может приводить к повторным вычислениям в многопоточных программах
+
+    3. Ленивость может приводить к “утечкам”, т.е. случаям, когда вместо результато
+       создаются структуры описывающие отложенные вычисления “thunk” и их накапливается
+       очень большое количество. Часто этот эффект называют memory leak, хотя лично
+       мне не нравится данный термин, поскольку обычно он используется для описания
+       неиспользуемой, но не освобожденной памяти.
+
+Особенно неприятной является третья проблема, как но её решение, в очень многих случаях, заключается в применении следующего правила:
+
+>    Не использовать ленивые поля в стуктурах данных, если это специально не требуется.
+
+## Строгость структур данных
+
+В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать {-# UNPACK #-} это снимет один уровень индирекции.
+
+Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.
+
+Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.
+
+## “Неправильные” библиотеки
+
+В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.
+
+Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора diff записей. Поэтому четкое разделение runBitGet и runGet сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.
+
+Следующй шаг это выделение всего что можно в Applicative синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код.
+Итеративный подход
+
+Следующий момент в использовании reverse/snoc подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо reverse/snoc, можно использовать go/snoc, где go создает хвост списка.
+
+Поэтому код
+
+`````{.haskell}
+parsePayload' 0 acc = return (reverse acc)
+parsePayload' count acc = do
+  stock <- readRow previous
+  parsePayload' (count - 1) (stock : acc)
+``````````````````````````````````````````
+
+можно переписать как:
+
+`````{.haskell}
+parsePayload' 0 = return []
+parsePayload' count = do
+  l <- readRow
+  ls <- parsePayload' (count-1)
+  return $! l:ls
+`````````````````````````````````````````
+
+На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список O(N) по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде Get это не относится).
+
+Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода runGetOrFail.
+
+На самом деле нужно идти дальше и делать composable операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.
+
+## Код и результаты:
+
+Код можно найти на [github](https://github.com/maxlapshin/stockdb-hs), ветку с изменениями примерно там же.
+
+В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:
+
+`````````````
+diff --git a/stockdb.hs b/stockdb.hs
+index 75fa7da..8ecf2e1 100644
+--- a/stockdb.hs
++++ b/stockdb.hs
+@@ -81,7 +81,7 @@ runEither (Left e)  = fail e
+ readStocks :: BS.ByteString -> Either String [Stock]
+ readStocks = parsePayload . BS.drop (289 * 4) . skipHeaders where
+     parsePayload payload = BG.runBitGet payload $
+-        parsePayload' 10000 (fail "First row must be full") []
++        parsePayload' 167544 (fail "First row must be full") []
+     parsePayload' 0 previous acc = return (reverse acc)
+     parsePayload' count previous acc = do
+         stock <- readRow previous
+````````````````````````````````````
+
+Время работы оригинальной программы:
+
+```````````````````````
+qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
+167544
+     Command being timed: "./stockdb out.stock-2"
+     User time (seconds): 13.96
+     System time (seconds): 1.00
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.98
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 15146224
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 945203
+     Voluntary context switches: 1
+     Involuntary context switches: 1550
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0
+``````````````````````````````````````````````````
+Время работы обновленной программы
+
+````````````````````
+167544
+     Command being timed: "./stockdb out.stock-2"
+     User time (seconds): 5.11
+     System time (seconds): 0.27
+     Percent of CPU this job got: 99%
+     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.39
+     Average shared text size (kbytes): 0
+     Average unshared data size (kbytes): 0
+     Average stack size (kbytes): 0
+     Average total size (kbytes): 0
+     Maximum resident set size (kbytes): 783664
+     Average resident set size (kbytes): 0
+     Major (requiring I/O) page faults: 0
+     Minor (reclaiming a frame) page faults: 233956
+     Voluntary context switches: 1
+     Involuntary context switches: 542
+     Swaps: 0
+     File system inputs: 0
+     File system outputs: 0
+     Socket messages sent: 0
+     Socket messages received: 0
+     Signals delivered: 0
+     Page size (bytes): 4096
+     Exit status: 0
+```````````````````````````````````````````````````````````
+
+Итого ускорение посчти в 3 раза по скорости, а потребление мапяти уменьшилось в 20 раз.

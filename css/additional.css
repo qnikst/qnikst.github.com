@@ -1,3 +1,36 @@
+body {
+  width: 80%;
+  margin: 0px auto;
+  padding-top: 7px;
+}
+
+#caption {
+  font-size: 2em;
+}
+
+#navigaion {
+  font-size: 1.3em;
+  margin-left: 40px;
+}
+
+#content {
+  margin-top: 25px;
+}
+
+code.sourceCode {
+  border: solid black;
+  border-width: 1px 1px 1px 5px;
+  display: block;
+  border-color: black black black green;
+  padding: 2px;
+}
+
+
+footer {
+  border-top: 1px solid black;
+  text-align: right;
+}
+
 @font-face {
   font-family: 'social';
   src: url("/fonts/social.eot?#iefix") format("embedded-opentype"),
@@ -11,4 +44,22 @@
 .social {
   font-family: social;
   font-size: 2em;
+}
+
+
+ul.haskell-list {
+  list-style: none;padding: 0;margin: 0 0 0 2em;
+}
+ul.haskell-list li:before {
+  content: ","
+}
+ul.haskell-list li:first-child:before {
+  content: "["
+}
+ul.haskell-list li:last-child:after {
+  content: "]"
+}
+
+
+#header . a {
 }
