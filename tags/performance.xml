@@ -1,44 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - О stockdb</title>
-    <!-- Bootstrap -->
-    <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
-    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
-<!--    <script src="http://code.jquery.com/jquery-latest.js"></script> -->
-    <script src="../js/bootstrap.min.js"></script>
-    
-</head>
-<body>
-  <div id="header">
-      <div id="caption">
-      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
-      </div>
-      <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Blog</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green"><u>where</u></font>
-      </div>
-  </div>
-
-  <div id="content">
-    <meta name="keywords" content="haskell, performance">
-
-
-<div class="page-header">
-    <div class="right">
-      <strong>December 30, 2013</strong>
-    </div>
-    <h1>О stockdb</h1>
-    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a>, <a href="../tags/performance.html">performance</a></div>
-    <div class="abstract"><strong>Abstract</strong><br>
-    </div>
-</div>
-
-<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Qnikst blog RSS feed - Post tagged performance</title>
+    <link href="http://qnikst.github.com/tags/performance.xml" rel="self" />
+    <link href="http://qnikst.github.com" />
+    <id>http://qnikst.github.com/tags/performance.xml</id>
+    <author>
+        <name>Alexander Vershilov</name>
+        <email>alexander.vershilov@gmail.com</email>
+    </author>
+    <updated>2013-12-30T00:00:00Z</updated>
+    <entry>
+    <title>О stockdb</title>
+    <link href="http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html" />
+    <id>http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html</id>
+    <published>2013-12-30T00:00:00Z</published>
+    <updated>2013-12-30T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
 <p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
 <p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
 <p>Что позволяет ленивость:</p>
@@ -61,30 +38,30 @@
 <blockquote>
 <p>Не использовать ленивые поля в стуктурах данных, если это специально не требуется.</p>
 </blockquote>
-<h3 id="строгость-структур-данных">Строгость структур данных</h3>
+<h2 id="строгость-структур-данных">Строгость структур данных</h2>
 <p>В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать {-# UNPACK #-} это снимет один уровень индирекции.</p>
 <p>Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.</p>
 <p>Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.</p>
-<h3 id="неправильные-библиотеки">“Неправильные” библиотеки</h3>
+<h2 id="неправильные-библиотеки">“Неправильные” библиотеки</h2>
 <p>В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.</p>
 <p>Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора diff записей. Поэтому четкое разделение runBitGet и runGet сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.</p>
 <p>Следующй шаг это выделение всего что можно в Applicative синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код. Итеративный подход</p>
 <p>Следующий момент в использовании reverse/snoc подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо reverse/snoc, можно использовать go/snoc, где go создает хвост списка.</p>
 <p>Поэтому код</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload' <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
-parsePayload' count acc <span class="fu">=</span> <span class="kw">do</span>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
+parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span>
   stock <span class="ot">&lt;-</span> readRow previous
-  parsePayload' (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre>
+  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre>
 <p>можно переписать как:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload' <span class="dv">0</span> <span class="fu">=</span> return []
-parsePayload' count <span class="fu">=</span> <span class="kw">do</span>
+<pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []
+parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span>
   l <span class="ot">&lt;-</span> readRow
-  ls <span class="ot">&lt;-</span> parsePayload' (count<span class="fu">-</span><span class="dv">1</span>)
+  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)
   return <span class="fu">$!</span> l<span class="fu">:</span>ls</code></pre>
 <p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список O(N) по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде Get это не относится).</p>
 <p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода runGetOrFail.</p>
 <p>На самом деле нужно идти дальше и делать composable операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>
-<h3 id="код-и-результаты">Код и результаты:</h3>
+<h2 id="код-и-результаты">Код и результаты:</h2>
 <p>Код можно найти на <a href="https://github.com/maxlapshin/stockdb-hs">github</a>, ветку с изменениями примерно там же.</p>
 <p>В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:</p>
 <pre><code>diff --git a/stockdb.hs b/stockdb.hs
@@ -95,10 +72,10 @@ index 75fa7da..8ecf2e1 100644
  readStocks :: BS.ByteString -&gt; Either String [Stock]
  readStocks = parsePayload . BS.drop (289 * 4) . skipHeaders where
      parsePayload payload = BG.runBitGet payload $
--        parsePayload' 10000 (fail &quot;First row must be full&quot;) []
-+        parsePayload' 167544 (fail &quot;First row must be full&quot;) []
-     parsePayload' 0 previous acc = return (reverse acc)
-     parsePayload' count previous acc = do
+-        parsePayload&#39; 10000 (fail &quot;First row must be full&quot;) []
++        parsePayload&#39; 167544 (fail &quot;First row must be full&quot;) []
+     parsePayload&#39; 0 previous acc = return (reverse acc)
+     parsePayload&#39; count previous acc = do
          stock &lt;- readRow previous</code></pre>
 <p>Время работы оригинальной программы:</p>
 <pre><code>qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
@@ -151,55 +128,7 @@ index 75fa7da..8ecf2e1 100644
      Signals delivered: 0
      Page size (bytes): 4096
      Exit status: 0</code></pre>
-<p>Итого ускорение посчти в 3 раза по скорости, а потребление мапяти уменьшилось в 20 раз.</p>
+<p>Итого ускорение посчти в 3 раза по скорости, а потребление мапяти уменьшилось в 20 раз.</p>]]></summary>
+</entry>
 
-<hr />
-<div id="sociallinks" class="pull-left">
-    <strong>Share on:</strong>
-  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="twit it">t</a>  
-  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="share on facebook">F</a> 
-  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" target="_blank" class="social" title="share on g+">g</a>
-</div>
-
-<div class="pull-right">
-    <em>Alexander Vershilov</em>
-    
-</div>
-<br class="clearfix" />
-<hr />
-
-
-<div id="disqus_thread"></div>
-  <script type="text/javascript">
-  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
-  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
-
-  (function() {
-     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
-     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-  })();
-  </script>
-  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
-                                                                                                           
-
-  </div>
-
-  <footer>
-    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
-  </footer>
-<script type="text/javascript">
-    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
-var _gaq = _gaq || [];
-_gaq.push(['_setAccount', 'UA-38941774-1']);
-_gaq.push(['_trackPageview']);
-
-(function() {
-  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-})();
-</script>
-</body>
-</html>
+</feed>
