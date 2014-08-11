@@ -11,7 +11,7 @@ import Data.Monoid (mempty, mconcat, mappend, (<>))
 import qualified Data.Map as M
 
 import Hakyll
-import Hakyll.Web.Pandoc
+--import Hakyll.Web.Pandoc
 import Data.Char
 
 import Debug.Trace
@@ -58,15 +58,6 @@ main = hakyllWith config $ do
   match "posts/*.lhs" $ version "raw" $ do
     route idRoute
     compile getResourceBody
-
-  -- Render whilt
-  match "wihlt/*" $ do
-      route $ setExtension ".html"
-      compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions
-        >>= saveSnapshot "content"
-        >>= loadAndApplyTemplate "templates/wihlt.html" defaultContext
-        >>= loadAndApplyTemplate "templates/default.html" (mathCtx <> defaultContext)
-        >>= relativizeUrls
 
   match "drafts/*" $ do
     route $ setExtension ".html"
@@ -189,7 +180,7 @@ mathCtx :: Context a
 mathCtx = field "mathjax" $ \item -> do
     metadata <- getMetadata $ itemIdentifier item
     return $ if "mathjax" `M.member` metadata
-                then "<script type=\"text/javascript\" src=\"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+                then "<script type=\"text/javascript\" src=\"https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
                 else ""
 
 keywordCtx :: Context String
@@ -220,16 +211,16 @@ licenseCtx = field "license" $ \item -> do
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 --licenses :: String -> String
 licenses = M.fromList 
-    [ ("by",       ( "http://creativecommons.org/licenses/by/3.0"
-                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
-    , ("by-sa",    ( "http://creativecommons.org/licenses/by-sa/3.0"
-                   , "http://i.creativecommons.org/l/by-sa/3.0/88x31.png"))
-    , ("by-nd",    ( "http://creativecommons.org/licenses/by/3.0"
-                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
-    , ("by-nc",    ( "http://creativecommons.org/licenses/by/3.0"
-                   , "http://i.creativecommons.org/l/by/3.0/88x31.png"))
-    , ("by-nc-sa", ( "http://creativecommons.org/licenses/by-nc-sa/3.0"
-                   , "http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png"))
-    , ("by-nc-nd", ( "http://creativecommons.org/licenses/by-nc-nd/3.0"
-                   , "http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png"))]
+    [ ("by",       ( "https://creativecommons.org/licenses/by/3.0"
+                   , "https://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-sa",    ( "https://creativecommons.org/licenses/by-sa/3.0"
+                   , "https://i.creativecommons.org/l/by-sa/3.0/88x31.png"))
+    , ("by-nd",    ( "https://creativecommons.org/licenses/by/3.0"
+                   , "https://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-nc",    ( "https://creativecommons.org/licenses/by/3.0"
+                   , "https://i.creativecommons.org/l/by/3.0/88x31.png"))
+    , ("by-nc-sa", ( "https://creativecommons.org/licenses/by-nc-sa/3.0"
+                   , "https://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png"))
+    , ("by-nc-nd", ( "https://creativecommons.org/licenses/by-nc-nd/3.0"
+                   , "https://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png"))]
 
