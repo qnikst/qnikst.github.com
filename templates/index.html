@@ -1,9 +1,11 @@
 <div class="container-fluid">
     <div class="span8">
         <div id="posts">
-	    &gt;&gt;&gt; <font color="blue">recentPosts</font> <font color="red">=</font>
+	    <font color="blue">recentPosts</font> <font color="red">=</font>
             <ul class="haskell-list">
-                $posts$
+	       $for(posts)$
+	       <li>(<a href="$url$">$title$</a>, $date$)</li>
+	       $endfor$
             </ul> ++ <a href="/posts.html">archive</a>
         </div>
 

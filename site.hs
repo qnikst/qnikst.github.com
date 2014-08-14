@@ -69,7 +69,6 @@ main = hakyllWith config $ do
   create ["posts.html"] $ do 
        route idRoute
        compile $ do
-          list <- postList tags "posts/*" recentFirst
           let ctx =  constField "title" "Posts"
                   <> listField "posts" defaultContext (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
                   <> field "tags" (\_ -> renderTagList tags)
@@ -85,7 +84,6 @@ main = hakyllWith config $ do
 
     route idRoute
     compile $ do
-      -- list <- postList tags pattern recentFirst
       let ctx = 
                (constField "title" "Posts" `mappend`
 	       listField "posts" defaultContext (recentFirst =<< loadAll (pattern .&&. hasNoVersion)) `mappend`
@@ -105,16 +103,14 @@ main = hakyllWith config $ do
           >>= renderAtom (feedConfiguration title) feedCtx
 
     -- Index
-  match "index.html" $ do
+  create ["index.html"] $ do
       route idRoute
       compile $ do
-        list <- postList tags "posts/*" $ fmap (take 10) . recentFirst
-        let indexContext =  constField "posts" list 
+        let indexContext =  listField "posts" defaultContext (fmap (take 10) . recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
                          <> defaultContext
-        getResourceBody
-            >>= applyAsTemplate indexContext
+	makeItem ""
             >>= loadAndApplyTemplate "templates/index.html" indexContext
             >>= loadAndApplyTemplate "templates/default.html" indexContext
             >>= relativizeUrls
@@ -152,12 +148,6 @@ feedCtx = mconcat
     [ bodyField "description"
     , defaultContext
     ]
-
-postList :: Tags -> Pattern -> ([Item String] -> Compiler [Item String]) -> Compiler String
-postList tags pattern preprocess' = do
-    postItemTpl <- loadBody "templates/postitem.html"
-    posts <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
-    applyTemplateList postItemTpl (postCtx tags) posts
 
 config :: Configuration
 config = defaultConfiguration
