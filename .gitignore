@@ -1,5 +1,7 @@
-/_site/
-/_cache/
+_rss
+_site
+_cache
+dist
 site.hi
 site.o
 site
