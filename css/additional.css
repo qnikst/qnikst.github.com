@@ -63,3 +63,9 @@ ul.haskell-list li:last-child:after {
 
 #header . a {
 }
+
+.post-author {
+  padding-left: 30px;
+  padding-bottom: 5px;
+  margin: 0 10px;
+}
