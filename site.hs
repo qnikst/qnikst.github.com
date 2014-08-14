@@ -2,7 +2,6 @@
 module Main 
   where
 
-
 import Prelude hiding (id)
 import Control.Category (id)
 import Control.Applicative
@@ -72,7 +71,7 @@ main = hakyllWith config $ do
        compile $ do
           list <- postList tags "posts/*" recentFirst
           let ctx =  constField "title" "Posts"
-                  <> constField "posts" list
+                  <> listField "posts" defaultContext (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
                   <> field "tags" (\_ -> renderTagList tags)
                   <> defaultContext
           makeItem ""
@@ -86,10 +85,10 @@ main = hakyllWith config $ do
 
     route idRoute
     compile $ do
-      list <- postList tags pattern recentFirst
+      -- list <- postList tags pattern recentFirst
       let ctx = 
                (constField "title" "Posts" `mappend`
-               constField "posts" list    `mappend`
+	       listField "posts" defaultContext (recentFirst =<< loadAll (pattern .&&. hasNoVersion)) `mappend`
                field "tags" (\_ -> renderTagList tags) `mappend`
                mathCtx                    `mappend`
                licenseCtx                 `mappend`
@@ -110,9 +109,7 @@ main = hakyllWith config $ do
       route idRoute
       compile $ do
         list <- postList tags "posts/*" $ fmap (take 10) . recentFirst
-        wihlt <- wihltList "wihlt/*" $ fmap (take 10) . recentFirst
         let indexContext =  constField "posts" list 
-                         <> constField "wihlt" wihlt
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
                          <> defaultContext
@@ -162,12 +159,6 @@ postList tags pattern preprocess' = do
     posts <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
     applyTemplateList postItemTpl (postCtx tags) posts
 
-wihltList :: Pattern -> ([Item String] -> Compiler [Item String]) -> Compiler String
-wihltList pattern preprocess' = do
-    wihltItemTpl <- loadBody "templates/wihltitem.html"
-    items <- preprocess' =<< loadAll (pattern .&&. hasNoVersion)
-    applyTemplateList wihltItemTpl defaultContext items
-
 config :: Configuration
 config = defaultConfiguration
     { deployCommand = "rsync --checksum -ave _site/* ../qnikst.github.com"
@@ -196,7 +187,7 @@ feedConfiguration title = FeedConfiguration
     , feedDescription = "qnikst blog: gentoo, haskell, etc."
     , feedAuthorName  = "Alexander Vershilov"
     , feedAuthorEmail = "alexander.vershilov@gmail.com"
-    , feedRoot        = "http://qnikst.github.com"
+    , feedRoot        = "https://qnikst.github.io"
     }
 
 licenseCtx :: Context a
