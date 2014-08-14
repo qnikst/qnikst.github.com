@@ -1,6 +1,6 @@
 ---
 author: Alexander Vershilov
-data: 2013-08-26
+date: 2013-08-26
 title: Adding license notes to blog pages.
 license: by-nc-sa
 tags: hakyll, haskell
