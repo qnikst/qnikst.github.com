@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged ghci</title>
-    <link href="http://qnikst.github.com/tags/ghci.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/ghci.xml</id>
+    <link href="https://qnikst.github.io/tags/ghci.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/ghci.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2013-09-04T00:00:00Z</updated>
     <entry>
     <title>My ghci</title>
-    <link href="http://qnikst.github.com/posts/2013-09-04-my-ghci.html" />
-    <id>http://qnikst.github.com/posts/2013-09-04-my-ghci.html</id>
+    <link href="https://qnikst.github.io/posts/2013-09-04-my-ghci.html" />
+    <id>https://qnikst.github.io/posts/2013-09-04-my-ghci.html</id>
     <published>2013-09-04T00:00:00Z</published>
     <updated>2013-09-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">

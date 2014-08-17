@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged gentoo</title>
-    <link href="http://qnikst.github.com/tags/gentoo.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/gentoo.xml</id>
+    <link href="https://qnikst.github.io/tags/gentoo.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/gentoo.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2013-09-04T00:00:00Z</updated>
     <entry>
     <title>My ghci</title>
-    <link href="http://qnikst.github.com/posts/2013-09-04-my-ghci.html" />
-    <id>http://qnikst.github.com/posts/2013-09-04-my-ghci.html</id>
+    <link href="https://qnikst.github.io/posts/2013-09-04-my-ghci.html" />
+    <id>https://qnikst.github.io/posts/2013-09-04-my-ghci.html</id>
     <published>2013-09-04T00:00:00Z</published>
     <updated>2013-09-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
@@ -46,8 +46,8 @@
 </entry>
 <entry>
     <title>Supervision in pure OpenRC using cgroup subsystem.</title>
-    <link href="http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
-    <id>http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
+    <link href="https://qnikst.github.io/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
+    <id>https://qnikst.github.io/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
     <published>2013-08-08T00:00:00Z</published>
     <updated>2013-08-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
@@ -187,8 +187,8 @@ Openrc 0.12
 </entry>
 <entry>
     <title>Немного о gentoo-haskell</title>
-    <link href="http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html" />
-    <id>http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html</id>
+    <link href="https://qnikst.github.io/posts/2013-03-31-gentoo-haskell.html" />
+    <id>https://qnikst.github.io/posts/2013-03-31-gentoo-haskell.html</id>
     <published>2013-03-31T00:00:00Z</published>
     <updated>2013-03-31T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Как всем известно у haskell пакетов существует прекрасная система с сборки с центральным репозиторием, в котором хранятся пакеты, однако у этой проблемы существует ряд минусов:</p>

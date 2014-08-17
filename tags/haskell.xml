@@ -1,18 +1,167 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged haskell</title>
-    <link href="http://qnikst.github.com/tags/haskell.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/haskell.xml</id>
+    <link href="https://qnikst.github.io/tags/haskell.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/haskell.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2014-08-12T00:00:00Z</updated>
+    <updated>2014-08-18T00:00:00Z</updated>
     <entry>
+    <title>Compositional methods for numerical ODE integrators</title>
+    <link href="https://qnikst.github.io/posts/2014-08-18-compositional-methods.html" />
+    <id>https://qnikst.github.io/posts/2014-08-18-compositional-methods.html</id>
+    <published>2014-08-18T00:00:00Z</published>
+    <updated>2014-08-18T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>This post is based on the work of the Ernst Harrier [1] and doesn’t contain any additional research work.</p>
+<p>Here we want to solve a system of equations that can we written as:</p>
+<p><span class="math">\[ \dot{y} = f(y). \]</span></p>
+<p>In order to solve it we are introducing a mapping from an old state at <span class="math">\(t0\)</span> to a new one at <span class="math">\(t_1 = t_0 + dt\)</span>:</p>
+<p><span class="math">\[\Phi_h: y_{n} \rightarrow  y_{n+1}\]</span></p>
+<p>In order to increase the order of the solution while preserving some desirable properties of the base method we may prepare a compositional method:</p>
+<p><span class="math">\[\Psi_h = \Phi_{\gamma_1h} \circ \ldots \circ \Phi_{\gamma_nh},\]</span></p>
+<p>where <span class="math">\(\gamma_i\)</span> is a coefficient from <span class="math">\(\mathbb R\)</span>. This approach was studied by Suzuki, Yoshina, McLackcan in 1990th. Here we compose a base method at a different points in time.</p>
+<p>We have a theorem about this approach to compositional methods.</p>
+<p><em>Theorem</em></p>
+<blockquote>
+<p>Let <span class="math">\(\Phi_h\)</span> be a one-step method of order <span class="math">\(p\)</span>. If</p>
+<p><span class="math">\[
+\begin{eqnarray}
+   \gamma_1 + \ldots + \gamma_s = 1 \\
+   \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
+\end{eqnarray}
+\]</span> then the compositional method <span class="math">\(\Psi_h\)</span> is at least of the order <span class="math">\(p+1\)</span>.</p>
+</blockquote>
+<p>This gives theorem gives us a nice way to improve properties of the existing method. The question now is how to find a good coefficients <span class="math">\(\gamma_i\)</span>.</p>
+<p>The first notice is that equations does not have a real solution for the odd <span class="math">\(p\)</span>, so we can improve only solutions with even <span class="math">\(p\)</span>.</p>
+<p>The smallest number <span class="math">\(s\)</span> where a solution in reals exists is <span class="math">\(3\)</span>. And coefficients are defined as:</p>
+<p><span class="math">\[ \gamma_1 = \gamma_3 = \frac{1}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p><span class="math">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p>This method is called tripple jump. Lets check how does it work.</p>
+<p>At first we will introduce a coefficients</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g2 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g3 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g3 <span class="fu">=</span> g1</code></pre>
+<p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math">\(\gamma_i\)</span> with <span class="math">\(p=2\)</span>. Let step be a <span class="math">\(dt = 1\)</span> for simplicity.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<span class="fu">&gt;</span> t p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 p, g2 p, g3 p]
+
+<span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> t <span class="dv">2</span> <span class="dv">1</span>
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">7024143839193153</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>]</code></pre>
+<p>We have 3 points. If we will take a compositional method <span class="math">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<span class="fu">&gt;</span> ut p xs <span class="fu">=</span> xs <span class="fu">&gt;&gt;=</span> (\x <span class="ot">-&gt;</span> t (p<span class="fu">+</span><span class="dv">2</span>) x)
+
+<span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">097997398066439</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>]</code></pre>
+<p>This is a coefficients for a compositional method of order <span class="math">\(5\)</span>, (<span class="math">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">4631626832202618</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>]</code></pre>
+<p>this is a compositional method of order 8.</p>
+<p>To see a places where function will be evaluated we can use:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> scanl (<span class="fu">+</span>) <span class="dv">0</span> <span class="fu">$</span> ut <span class="dv">6</span> <span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">0</span><span class="fu">.</span><span class="dv">0</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">131253795687869</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">508194415159132</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">30190316264833483</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">6531103546079933</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">15698722319947356</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">4824609876475274</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">28824101888734255</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596584</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7143681190989661</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5165766120254056</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">548998699033219</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">7315813416101316</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7315813416101302</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5489986990332203</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5165766120254043</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">7143681190989675</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">3512071919596571</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">2882410188873439</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">4824609876475261</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">156987223199475</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6531103546079919</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3019031626483362</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5081944151591307</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">1312537956878703</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6394482108469997</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">0000000000000013</span>]</code></pre>
+<p>This way we may obtain a method of any order by the price of a terrible zig-zag of the step points.</p>
+<p>Another approach to a compositional method is using Suzuki`s Fractals.</p>
+<p>The same schema exists for Suzuki`s Fractals, however how we have a diffierent coefficients:</p>
+<p><span class="math">\[
+\begin{eqnarray}
+  \gamma_1 = \gamma_2 = \gamma_4 = \gamma_5 = \frac{1}{4-4^{\frac{1}{p+1}}} \\
+  \gamma_3 = - \frac{4^{\frac{1}{p+1}}}{4-4^{\frac{1}{p+1}}}
+\end{eqnarray}
+\]</span></p>
+<p>However <span class="math">\(t\)</span> and <span class="math">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE DataKinds #-}</span>
+<span class="ot">{-# LANGUAGE KindSignatures #-}</span>
+<span class="ot">{-# LANGUAGE TypeFamilies #-}</span>
+<span class="ot">{-# LANGUAGE FlexibleContexts #-}</span>
+<span class="ot">{-# LANGUAGE TypeOperators #-}</span>
+<span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span>
+<span class="ot">{-# LANGUAGE FlexibleInstances #-}</span>
+<span class="ot">{-# LANGUAGE ConstraintKinds #-}</span>
+<span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span>
+<span class="ot">{-# LANGUAGE UndecidableInstances #-}</span>
+
+<span class="kw">import </span><span class="dt">GHC.TypeLits</span>
+<span class="kw">import </span><span class="dt">GHC.Exts</span> (<span class="dt">Constraint</span>)
+<span class="kw">import </span><span class="dt">Data.Proxy</span>
+
+<span class="co">-- Coefficients</span>
+<span class="ot">g1 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g2 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g3 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g3 <span class="fu">=</span> g1
+
+<span class="co">-- Description of the method</span>
+<span class="kw">data</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dt">RK2</span>
+
+<span class="co">-- Description of the method order</span>
+<span class="kw">type</span> family <span class="dt">Order</span><span class="ot"> a ::</span> <span class="dt">Nat</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Order</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dv">2</span>
+
+<span class="co">-- Description of symmetric properties of the method</span>
+<span class="kw">type</span> family <span class="dt">IsSymmetric</span><span class="ot"> a ::</span> <span class="dt">Constraint</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">IsSymmetric</span> <span class="dt">RK2</span> <span class="fu">=</span> ()
+
+<span class="co">-- One level composition</span>
+<span class="ot">buildComposePoints ::</span> forall p <span class="fu">.</span> <span class="dt">KnownNat</span> (<span class="dt">Order</span> p)
+                   <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+buildComposePoints p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 o, g2 o, g3 o]
+  <span class="kw">where</span>
+    o <span class="fu">=</span> natVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Order</span> p))
+
+<span class="co">-- Composition for the symmetric method</span>
+<span class="ot">buildComposePointsSym ::</span> forall p n <span class="fu">.</span> (<span class="dt">UpdateCompose</span> (<span class="dt">Order</span> p <span class="fu">+</span> <span class="dv">2</span>) n, <span class="dt">IsSymmetric</span> p, <span class="dt">KnownNat</span> (<span class="dt">Order</span> p), <span class="dt">KnownNat</span> n)
+                      <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> ((<span class="dt">Order</span> p) <span class="fu">+</span> <span class="dv">2</span>)) pn (buildComposePoints p dt)
+
+<span class="kw">class</span> <span class="dt">UpdateCompose</span> (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v::</span><span class="dt">Nat</span>) <span class="kw">where</span>
+<span class="ot">  update ::</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+
+<span class="kw">class</span> <span class="dt">UpdateComposeCase</span> (<span class="ot">leq ::</span> <span class="dt">Bool</span>) (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v ::</span> <span class="dt">Nat</span>) <span class="kw">where</span>
+<span class="ot">  updateCase ::</span> <span class="dt">Proxy</span> leq <span class="ot">-&gt;</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+
+<span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> (k <span class="fu">&lt;=?</span> v) k v <span class="ot">=&gt;</span> <span class="dt">UpdateCompose</span> k v <span class="kw">where</span>
+  update <span class="fu">=</span> updateCase (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (k <span class="fu">&lt;=?</span> v))
+
+<span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> <span class="dt">False</span> k v <span class="kw">where</span>
+  updateCase _ _ _ <span class="fu">=</span> id
+  
+<span class="kw">instance</span> (<span class="dt">KnownNat</span> k, <span class="dt">UpdateCompose</span> (k<span class="fu">+</span><span class="dv">2</span>) v) <span class="ot">=&gt;</span> <span class="dt">UpdateComposeCase</span> <span class="dt">True</span> k v <span class="kw">where</span>
+  updateCase _ k v ds <span class="fu">=</span> update (plus2 k) v (ds <span class="fu">&gt;&gt;=</span> \x <span class="ot">-&gt;</span> map (<span class="fu">*</span>x) [g1 o, g2 o, g3 o])
+    <span class="kw">where</span>
+      o <span class="fu">=</span> natVal k
+<span class="ot">      plus2 ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (n<span class="fu">+</span><span class="dv">2</span>)
+      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre>]]></summary>
+</entry>
+<entry>
     <title>Formal Power series in haskell</title>
-    <link href="http://qnikst.github.com/posts/2014-08-11-series.markdown.html" />
-    <id>http://qnikst.github.com/posts/2014-08-11-series.markdown.html</id>
+    <link href="https://qnikst.github.io/posts/2014-08-11-series.markdown.html" />
+    <id>https://qnikst.github.io/posts/2014-08-11-series.markdown.html</id>
     <published>2014-08-12T00:00:00Z</published>
     <updated>2014-08-12T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Code and math in this post is done with the great help of Korolyov V. This post is written as a literate haskell file so it’s possible to copy it in a text file and run it in ghci. All sources can be found in <a href="https://github.com/qnikst/haskell-fun/tree/master/series">haskell-fun</a> repository.</p>
@@ -308,16 +457,16 @@
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
 <span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre>
 <h2 id="todo">TODO</h2>
-<p>Some thing were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math">\(0\)</span>.</p>
+<p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>
-<p>It’s possible to generalize <span class="math">\(asin/sin\)</span> approach for wider class of functions, but it was not done yet.</p>]]></summary>
+<p>It’s possible to generalize <span class="math">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>]]></summary>
 </entry>
 <entry>
     <title>Playing with types: type level numbers</title>
-    <link href="http://qnikst.github.com/posts/2014-08-07-playing-with-types.html" />
-    <id>http://qnikst.github.com/posts/2014-08-07-playing-with-types.html</id>
-    <published>2014-08-07T00:00:00Z</published>
-    <updated>2014-08-07T00:00:00Z</updated>
+    <link href="https://qnikst.github.io/posts/2014-08-07-playing-with-types.html" />
+    <id>https://qnikst.github.io/posts/2014-08-07-playing-with-types.html</id>
+    <published>2013-12-30T00:00:00Z</published>
+    <updated>2013-12-30T00:00:00Z</updated>
     <summary type="html"><![CDATA[<blockquote>
 <p>As always I’m terribly sorry for my bad english, but writing the posts and having a feedback is the only reasonable way to improve it.</p>
 </blockquote>
@@ -394,8 +543,8 @@ mkFloatProxy x <span class="fu">=</span> [<span class="fu">|</span> <span class=
 </entry>
 <entry>
     <title>О stockdb</title>
-    <link href="http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html" />
-    <id>http://qnikst.github.com/posts/2013-12-30-haskell-laziness.html</id>
+    <link href="https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" />
+    <id>https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html</id>
     <published>2013-12-30T00:00:00Z</published>
     <updated>2013-12-30T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
@@ -515,8 +664,8 @@ index 75fa7da..8ecf2e1 100644
 </entry>
 <entry>
     <title>Basic pathfinding</title>
-    <link href="http://qnikst.github.com/posts/2013-09-08-pathfinding.html" />
-    <id>http://qnikst.github.com/posts/2013-09-08-pathfinding.html</id>
+    <link href="https://qnikst.github.io/posts/2013-09-08-pathfinding.html" />
+    <id>https://qnikst.github.io/posts/2013-09-08-pathfinding.html</id>
     <published>2013-09-08T00:00:00Z</published>
     <updated>2013-09-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right">
@@ -668,8 +817,8 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 </entry>
 <entry>
     <title>Сериализация структур данных в Haskell.<br/> Часть 1: типы данных</title>
-    <link href="http://qnikst.github.com/posts/2013-09-06-serialization-p1.html" />
-    <id>http://qnikst.github.com/posts/2013-09-06-serialization-p1.html</id>
+    <link href="https://qnikst.github.io/posts/2013-09-06-serialization-p1.html" />
+    <id>https://qnikst.github.io/posts/2013-09-06-serialization-p1.html</id>
     <published>2013-09-06T00:00:00Z</published>
     <updated>2013-09-06T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right; width:200px">
@@ -774,8 +923,8 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 </entry>
 <entry>
     <title>My ghci</title>
-    <link href="http://qnikst.github.com/posts/2013-09-04-my-ghci.html" />
-    <id>http://qnikst.github.com/posts/2013-09-04-my-ghci.html</id>
+    <link href="https://qnikst.github.io/posts/2013-09-04-my-ghci.html" />
+    <id>https://qnikst.github.io/posts/2013-09-04-my-ghci.html</id>
     <published>2013-09-04T00:00:00Z</published>
     <updated>2013-09-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
@@ -809,10 +958,10 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 </entry>
 <entry>
     <title>Adding license notes to blog pages.</title>
-    <link href="http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html" />
-    <id>http://qnikst.github.com/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
-    <published>2013-08-23T00:00:00Z</published>
-    <updated>2013-08-23T00:00:00Z</updated>
+    <link href="https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html" />
+    <id>https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
+    <published>2013-08-26T00:00:00Z</published>
+    <updated>2013-08-26T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>I’ve finally manged to create configurable license notes for each article:</p>
 <p>To do it you need to add additional context:</p>
 <pre><code>licenseCtx :: Context a
@@ -852,8 +1001,8 @@ licenses = m.fromlist
 </entry>
 <entry>
     <title>Using queues in conduits</title>
-    <link href="http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html" />
-    <id>http://qnikst.github.com/posts/2013-04-11-using-tqueues-in-conduit.html</id>
+    <link href="https://qnikst.github.io/posts/2013-04-11-using-tqueues-in-conduit.html" />
+    <id>https://qnikst.github.io/posts/2013-04-11-using-tqueues-in-conduit.html</id>
     <published>2013-04-11T00:00:00Z</published>
     <updated>2013-04-11T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Sometime when you use conduit you need to split processes for example when you have CPU bound and IO bound tasks thus you will have better workload. Also you may need to get events from different sources concurrently, and for such purposes you may want to use <a href="http://hackage.haskell.org/package/stm-conduit">stm-conduit</a> library.</p>
@@ -871,48 +1020,11 @@ licenses = m.fromlist
 </entry>
 <entry>
     <title>Anouncing binary conduit</title>
-    <link href="http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html" />
-    <id>http://qnikst.github.com/posts/2013-04-07-announcing-binary-conduit.html</id>
+    <link href="https://qnikst.github.io/posts/2013-04-07-announcing-binary-conduit.html" />
+    <id>https://qnikst.github.io/posts/2013-04-07-announcing-binary-conduit.html</id>
     <published>2013-04-07T00:00:00Z</published>
     <updated>2013-04-07T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>I’m happy to announce <a href="http://hackage.haskell.org/package/binary-conduit">binary-conduit</a> an library for <a href="http://hackage.haskell.org/package/conduit">conduit</a> streaming data library using <a href="http://hackage.haskell.org/package/binary">binary</a> package.</p>]]></summary>
-</entry>
-<entry>
-    <title>Немного о gentoo-haskell</title>
-    <link href="http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html" />
-    <id>http://qnikst.github.com/posts/2013-03-31-gentoo-haskell.html</id>
-    <published>2013-03-31T00:00:00Z</published>
-    <updated>2013-03-31T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Как всем известно у haskell пакетов существует прекрасная система с сборки с центральным репозиторием, в котором хранятся пакеты, однако у этой проблемы существует ряд минусов:</p>
-<ul>
-<li>далеко не все пакеты собираются друг с другом даже если эти версии разрешены в cabal файле.</li>
-<li>далеко не все пакеты протестированы</li>
-<li>часть пакетов нацелены на работу под конкретной платформой и обновлять их до выхода следующей платформы не собираются</li>
-<li>при обновлении пакета нужно пересобирать все обратные зависимости</li>
-<li>в случае если нужны профилировочные библиотеки, то нужно пересобирать все зависимости с опциями профилировки.</li>
-<li>полное отстуствие верификации исходников, которые вы качаете.</li>
-</ul>
-<p>Все эти пункты делают использование haskell не очень приятным, так же проблема усугубляется тем, что во многих дистрибутивах представлены устаревшие версии пакетов, за которыми не успевают следить (не верите, то можете посмотреть результаты <a href="https://docs.google.com/forms/d/1y5WtrCB7O9-jb-2Mzo1MtkToh4O6oY2oBXGkc_Q-cy0/viewanalytics">haskell survey</a> Обычным решением является использование cabal на пользовательном уровне, или сборка в песочницах. Но иногда бывают способы и лучше.</p>
-<p>Естественно, каждый дистрибутив пытается по своему предложить решение проблем. В посте описана краткая инфрастурктура gentoo-linux и дополнительные пакеты сильно упрощающие работу с haskell, в целом пост может быть интересен, как пользователям Gentoo, так интересующимся пользователям других дистрибутивов, даже в том случае если не они не планируют переход или использование Gentoo Linux.</p>
-<ol style="list-style-type: decimal">
-<li><p>Gentoo работает под многими платформами: (alpha amd64 ia64 ppc ppc64 sparc x86) и под каждую есть поставка ghc и пакетов. Сам пакет ghc можно поставить в бинарном виде, в том случае, если его сборка слишком тяжела для хоста.</p></li>
-<li><p>Для исправления зависимостей существует программа haskell-updater, которая находит все “поломанные” зависимости и пересобирает нужные пакеты. Не так давно для улучшения ситуации добавлен механизм подслотов (subslots) специальная форма зависимостей позволяющая указать, то что программа должна быть обновлена в случае обновления зависимости. В текущий момент этот метод не может решить все проблемы (и даже приводит к некоторым новым), то уже в скором времени подслоты будут <a href="https://bugs.gentoo.org/show_bug.cgi?id=449094">рекурсивными</a> и полностью решат проблему автоматического обновления зависимостей</p></li>
-<li><p>Большая часть пакетов доступных на Hackage может быть установлена из оверлея gentoo-haskell. Это надет дополнительный слой, в котором можно провести дополнительные исправления, такие как фиксация зависимостей и добавление патчей, плюс с каждым пакетом ассоциирована хэш сумма, которая ползволяет автоматически проверять валидность скачанных исходников.</p></li>
-</ol>
-<p>В нашем проекте проводятся следующие политики:</p>
-<ol style="list-style-type: decimal">
-<li>в оверлее держится последняя версия пакета, и она патчится таким образом, чтобы она могла работать с последними версиями других пакетов. Для некоторых пакетов есть исключения по запросам от пользователей или в случае серьезного изменеия апи.</li>
-<li>Во всех пакетах проверяется то, что тесты проходятся (если они есть).</li>
-<li>сделаны утилиты для простого создания новых пакетов <em>действительно простого</em></li>
-</ol>
-<p>Таким образом в gentoo можно спокойно использовать haskell на системном уровне используя песочницы только в исключительных ситуациях.</p>
-<p>Так же в дистрибутив входят допонительные полезные утилиты такие как hoogle с поддержкой локальной базы (т.е. всех установленных пакетов).</p>
-<p>Если кому-то интересны подробности, шаги по быстрой установке или хочется рассказать, как в вашем дистрибутиве решаются подобные проблемы, то добро пожаловать в комментарии.</p>
-<p>P.S. и важно, что gentoo можно поставить под любой вашей осью, данных механизм называется gentoo prefix, и подробности можно найти <a href="http://www.gentoo.org/proj/en/gentoo-alt/prefix/">тут</a>.</p>
-<p>Полезные ссылки:</p>
-<p>[1] Страница на gentoo wiki: <a href="">http://wiki.gentoo.org/wiki/Haskell</a></p>
-<p>[2] Тематический блог: <a href="">http://gentoohaskell.wordpress.com/</a></p>
-<p>[3] Haskell wiki: <a href="">http://www.haskell.org/haskellwiki/Gentoo</a></p>]]></summary>
 </entry>
 
 </feed>

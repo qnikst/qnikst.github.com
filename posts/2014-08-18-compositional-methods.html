@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Compositional methods for numerical ODE integrators</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green"><u>where</u></font>
+      </div>
+  </div>
+
+  <div id="content">
+    <meta name="keywords" content="haskell, math">
+
+
+<div class="page-header">
+    <div class="right">
+      <strong>August 18, 2014</strong>
+    </div>
+    <h1>Compositional methods for numerical ODE integrators</h1>
+    <div class="post-author">by <em>Vershilov A.V.</em> <a href="https://creativecommons.org/licenses/by/3.0"><img src="https://i.creativecommons.org/l/by/3.0/88x31.png" /></a> </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a>, <a href="../tags/math.html">math</a></div>
+    </div>
+</div>
+
+<p>This post is based on the work of the Ernst Harrier [1] and doesn’t contain any additional research work.</p>
+<p>Here we want to solve a system of equations that can we written as:</p>
+<p><span class="math">\[ \dot{y} = f(y). \]</span></p>
+<p>In order to solve it we are introducing a mapping from an old state at <span class="math">\(t0\)</span> to a new one at <span class="math">\(t_1 = t_0 + dt\)</span>:</p>
+<p><span class="math">\[\Phi_h: y_{n} \rightarrow  y_{n+1}\]</span></p>
+<p>In order to increase the order of the solution while preserving some desirable properties of the base method we may prepare a compositional method:</p>
+<p><span class="math">\[\Psi_h = \Phi_{\gamma_1h} \circ \ldots \circ \Phi_{\gamma_nh},\]</span></p>
+<p>where <span class="math">\(\gamma_i\)</span> is a coefficient from <span class="math">\(\mathbb R\)</span>. This approach was studied by Suzuki, Yoshina, McLackcan in 1990th. Here we compose a base method at a different points in time.</p>
+<p>We have a theorem about this approach to compositional methods.</p>
+<p><em>Theorem</em></p>
+<blockquote>
+<p>Let <span class="math">\(\Phi_h\)</span> be a one-step method of order <span class="math">\(p\)</span>. If</p>
+<p><span class="math">\[
+\begin{eqnarray}
+   \gamma_1 + \ldots + \gamma_s = 1 \\
+   \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
+\end{eqnarray}
+\]</span> then the compositional method <span class="math">\(\Psi_h\)</span> is at least of the order <span class="math">\(p+1\)</span>.</p>
+</blockquote>
+<p>This gives theorem gives us a nice way to improve properties of the existing method. The question now is how to find a good coefficients <span class="math">\(\gamma_i\)</span>.</p>
+<p>The first notice is that equations does not have a real solution for the odd <span class="math">\(p\)</span>, so we can improve only solutions with even <span class="math">\(p\)</span>.</p>
+<p>The smallest number <span class="math">\(s\)</span> where a solution in reals exists is <span class="math">\(3\)</span>. And coefficients are defined as:</p>
+<p><span class="math">\[ \gamma_1 = \gamma_3 = \frac{1}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p><span class="math">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p>This method is called tripple jump. Lets check how does it work.</p>
+<p>At first we will introduce a coefficients</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g2 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g3 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g3 <span class="fu">=</span> g1</code></pre>
+<p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math">\(\gamma_i\)</span> with <span class="math">\(p=2\)</span>. Let step be a <span class="math">\(dt = 1\)</span> for simplicity.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<span class="fu">&gt;</span> t p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 p, g2 p, g3 p]
+
+<span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> t <span class="dv">2</span> <span class="dv">1</span>
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">7024143839193153</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>]</code></pre>
+<p>We have 3 points. If we will take a compositional method <span class="math">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<span class="fu">&gt;</span> ut p xs <span class="fu">=</span> xs <span class="fu">&gt;&gt;=</span> (\x <span class="ot">-&gt;</span> t (p<span class="fu">+</span><span class="dv">2</span>) x)
+
+<span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">097997398066439</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>]</code></pre>
+<p>This is a coefficients for a compositional method of order <span class="math">\(5\)</span>, (<span class="math">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">4631626832202618</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
+,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>]</code></pre>
+<p>this is a compositional method of order 8.</p>
+<p>To see a places where function will be evaluated we can use:</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> scanl (<span class="fu">+</span>) <span class="dv">0</span> <span class="fu">$</span> ut <span class="dv">6</span> <span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="dv">0</span><span class="fu">.</span><span class="dv">0</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">131253795687869</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">508194415159132</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">30190316264833483</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">6531103546079933</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">15698722319947356</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">4824609876475274</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">28824101888734255</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596584</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7143681190989661</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5165766120254056</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">548998699033219</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">7315813416101316</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7315813416101302</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5489986990332203</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5165766120254043</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">7143681190989675</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">3512071919596571</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">2882410188873439</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">4824609876475261</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">156987223199475</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6531103546079919</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3019031626483362</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5081944151591307</span>
+,<span class="dv">1</span><span class="fu">.</span><span class="dv">1312537956878703</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6394482108469997</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">0000000000000013</span>]</code></pre>
+<p>This way we may obtain a method of any order by the price of a terrible zig-zag of the step points.</p>
+<p>Another approach to a compositional method is using Suzuki`s Fractals.</p>
+<p>The same schema exists for Suzuki`s Fractals, however how we have a diffierent coefficients:</p>
+<p><span class="math">\[
+\begin{eqnarray}
+  \gamma_1 = \gamma_2 = \gamma_4 = \gamma_5 = \frac{1}{4-4^{\frac{1}{p+1}}} \\
+  \gamma_3 = - \frac{4^{\frac{1}{p+1}}}{4-4^{\frac{1}{p+1}}}
+\end{eqnarray}
+\]</span></p>
+<p>However <span class="math">\(t\)</span> and <span class="math">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE DataKinds #-}</span>
+<span class="ot">{-# LANGUAGE KindSignatures #-}</span>
+<span class="ot">{-# LANGUAGE TypeFamilies #-}</span>
+<span class="ot">{-# LANGUAGE FlexibleContexts #-}</span>
+<span class="ot">{-# LANGUAGE TypeOperators #-}</span>
+<span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span>
+<span class="ot">{-# LANGUAGE FlexibleInstances #-}</span>
+<span class="ot">{-# LANGUAGE ConstraintKinds #-}</span>
+<span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span>
+<span class="ot">{-# LANGUAGE UndecidableInstances #-}</span>
+
+<span class="kw">import </span><span class="dt">GHC.TypeLits</span>
+<span class="kw">import </span><span class="dt">GHC.Exts</span> (<span class="dt">Constraint</span>)
+<span class="kw">import </span><span class="dt">Data.Proxy</span>
+
+<span class="co">-- Coefficients</span>
+<span class="ot">g1 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g2 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
+
+<span class="ot">g3 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+g3 <span class="fu">=</span> g1
+
+<span class="co">-- Description of the method</span>
+<span class="kw">data</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dt">RK2</span>
+
+<span class="co">-- Description of the method order</span>
+<span class="kw">type</span> family <span class="dt">Order</span><span class="ot"> a ::</span> <span class="dt">Nat</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Order</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dv">2</span>
+
+<span class="co">-- Description of symmetric properties of the method</span>
+<span class="kw">type</span> family <span class="dt">IsSymmetric</span><span class="ot"> a ::</span> <span class="dt">Constraint</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">IsSymmetric</span> <span class="dt">RK2</span> <span class="fu">=</span> ()
+
+<span class="co">-- One level composition</span>
+<span class="ot">buildComposePoints ::</span> forall p <span class="fu">.</span> <span class="dt">KnownNat</span> (<span class="dt">Order</span> p)
+                   <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+buildComposePoints p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 o, g2 o, g3 o]
+  <span class="kw">where</span>
+    o <span class="fu">=</span> natVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Order</span> p))
+
+<span class="co">-- Composition for the symmetric method</span>
+<span class="ot">buildComposePointsSym ::</span> forall p n <span class="fu">.</span> (<span class="dt">UpdateCompose</span> (<span class="dt">Order</span> p <span class="fu">+</span> <span class="dv">2</span>) n, <span class="dt">IsSymmetric</span> p, <span class="dt">KnownNat</span> (<span class="dt">Order</span> p), <span class="dt">KnownNat</span> n)
+                      <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> ((<span class="dt">Order</span> p) <span class="fu">+</span> <span class="dv">2</span>)) pn (buildComposePoints p dt)
+
+<span class="kw">class</span> <span class="dt">UpdateCompose</span> (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v::</span><span class="dt">Nat</span>) <span class="kw">where</span>
+<span class="ot">  update ::</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+
+<span class="kw">class</span> <span class="dt">UpdateComposeCase</span> (<span class="ot">leq ::</span> <span class="dt">Bool</span>) (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v ::</span> <span class="dt">Nat</span>) <span class="kw">where</span>
+<span class="ot">  updateCase ::</span> <span class="dt">Proxy</span> leq <span class="ot">-&gt;</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+
+<span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> (k <span class="fu">&lt;=?</span> v) k v <span class="ot">=&gt;</span> <span class="dt">UpdateCompose</span> k v <span class="kw">where</span>
+  update <span class="fu">=</span> updateCase (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (k <span class="fu">&lt;=?</span> v))
+
+<span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> <span class="dt">False</span> k v <span class="kw">where</span>
+  updateCase _ _ _ <span class="fu">=</span> id
+  
+<span class="kw">instance</span> (<span class="dt">KnownNat</span> k, <span class="dt">UpdateCompose</span> (k<span class="fu">+</span><span class="dv">2</span>) v) <span class="ot">=&gt;</span> <span class="dt">UpdateComposeCase</span> <span class="dt">True</span> k v <span class="kw">where</span>
+  updateCase _ k v ds <span class="fu">=</span> update (plus2 k) v (ds <span class="fu">&gt;&gt;=</span> \x <span class="ot">-&gt;</span> map (<span class="fu">*</span>x) [g1 o, g2 o, g3 o])
+    <span class="kw">where</span>
+      o <span class="fu">=</span> natVal k
+<span class="ot">      plus2 ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (n<span class="fu">+</span><span class="dv">2</span>)
+      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2014-08-18-compositional-methods.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2014-08-18-compositional-methods.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2014-08-18-compositional-methods.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

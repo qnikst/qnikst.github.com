@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged pam</title>
-    <link href="http://qnikst.github.com/tags/pam.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/pam.xml</id>
+    <link href="https://qnikst.github.io/tags/pam.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/pam.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2013-02-04T00:00:00Z</updated>
     <entry>
     <title>Сохранение всех задач su- в свою cgroup.</title>
-    <link href="http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html" />
-    <id>http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html</id>
+    <link href="https://qnikst.github.io/posts/2013-02-04-su-pam-cgroup-log.html" />
+    <id>https://qnikst.github.io/posts/2013-02-04-su-pam-cgroup-log.html</id>
     <published>2013-02-04T00:00:00Z</published>
     <updated>2013-02-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Стоит задача: необходимо все программы запущенные через ‘su’ определить в собственные cgroups. Это можно сделать за три простые шага.</p>

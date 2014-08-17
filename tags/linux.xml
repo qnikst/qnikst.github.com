@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged linux</title>
-    <link href="http://qnikst.github.com/tags/linux.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/linux.xml</id>
+    <link href="https://qnikst.github.io/tags/linux.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/linux.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2013-08-08T00:00:00Z</updated>
     <entry>
     <title>Supervision in pure OpenRC using cgroup subsystem.</title>
-    <link href="http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
-    <id>http://qnikst.github.com/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
+    <link href="https://qnikst.github.io/posts/2013-08-08-openrc-supervision-using-cgroups.html" />
+    <id>https://qnikst.github.io/posts/2013-08-08-openrc-supervision-using-cgroups.html</id>
     <published>2013-08-08T00:00:00Z</published>
     <updated>2013-08-08T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
@@ -152,8 +152,8 @@ Openrc 0.12
 </entry>
 <entry>
     <title>Сохранение всех задач su- в свою cgroup.</title>
-    <link href="http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html" />
-    <id>http://qnikst.github.com/posts/2013-02-04-su-pam-cgroup-log.html</id>
+    <link href="https://qnikst.github.io/posts/2013-02-04-su-pam-cgroup-log.html" />
+    <id>https://qnikst.github.io/posts/2013-02-04-su-pam-cgroup-log.html</id>
     <published>2013-02-04T00:00:00Z</published>
     <updated>2013-02-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Стоит задача: необходимо все программы запущенные через ‘su’ определить в собственные cgroups. Это можно сделать за три простые шага.</p>

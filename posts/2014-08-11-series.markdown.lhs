@@ -449,13 +449,13 @@ series at 0.
 
 ## TODO
 
-Some thing were not covered in this file, taylor series were not 
+Some things were not covered in this file, taylor series were not 
 statically protected agains calling actions on the series build
 at the different points, so we assume that every Taylor serie is
 built at $0$.
 
 Not all functions from the Floating instance were implemented.
 
-It's possible to generalize $asin/sin$ approach for wider class
+It's possible to generalize $asin/sin$ approach for a wider class
 of functions, but it was not done yet.
 

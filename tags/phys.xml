@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged phys</title>
-    <link href="http://qnikst.github.com/tags/phys.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/phys.xml</id>
+    <link href="https://qnikst.github.io/tags/phys.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/phys.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2013-02-01T00:00:00Z</updated>
     <entry>
     <title>Формулы которые нужно знать</title>
-    <link href="http://qnikst.github.com/posts/2013-02-01-phys-formulae.html" />
-    <id>http://qnikst.github.com/posts/2013-02-01-phys-formulae.html</id>
+    <link href="https://qnikst.github.io/posts/2013-02-01-phys-formulae.html" />
+    <id>https://qnikst.github.io/posts/2013-02-01-phys-formulae.html</id>
     <published>2013-02-01T00:00:00Z</published>
     <updated>2013-02-01T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>

@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Qnikst blog RSS feed - Post tagged typefun</title>
-    <link href="http://qnikst.github.com/tags/typefun.xml" rel="self" />
-    <link href="http://qnikst.github.com" />
-    <id>http://qnikst.github.com/tags/typefun.xml</id>
+    <link href="https://qnikst.github.io/tags/typefun.xml" rel="self" />
+    <link href="https://qnikst.github.io" />
+    <id>https://qnikst.github.io/tags/typefun.xml</id>
     <author>
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2014-08-07T00:00:00Z</updated>
+    <updated>2013-12-30T00:00:00Z</updated>
     <entry>
     <title>Playing with types: type level numbers</title>
-    <link href="http://qnikst.github.com/posts/2014-08-07-playing-with-types.html" />
-    <id>http://qnikst.github.com/posts/2014-08-07-playing-with-types.html</id>
-    <published>2014-08-07T00:00:00Z</published>
-    <updated>2014-08-07T00:00:00Z</updated>
+    <link href="https://qnikst.github.io/posts/2014-08-07-playing-with-types.html" />
+    <id>https://qnikst.github.io/posts/2014-08-07-playing-with-types.html</id>
+    <published>2013-12-30T00:00:00Z</published>
+    <updated>2013-12-30T00:00:00Z</updated>
     <summary type="html"><![CDATA[<blockquote>
 <p>As always I’m terribly sorry for my bad english, but writing the posts and having a feedback is the only reasonable way to improve it.</p>
 </blockquote>
