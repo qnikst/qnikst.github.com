@@ -17,12 +17,13 @@ body {
   margin-top: 25px;
 }
 
-code.sourceCode {
+div.sourceCode, code.sourceCode {
   border: solid black;
   border-width: 1px 1px 1px 5px;
   display: block;
   border-color: black black black green;
   padding: 2px;
+  margin: 15px;
 }
 
 

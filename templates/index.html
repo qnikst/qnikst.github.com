@@ -1,24 +1,36 @@
-<div class="container-fluid">
-    <div class="span8">
-        <div id="posts">
-	    <font color="blue">recentPosts</font> <font color="red">=</font>
+<div style="max-width:600px">
+    <h2>Posts</h2>
+    <div class="sourceCode">
+        <div style="padding: 10px">
+	    recentPosts =
             <ul class="haskell-list">
 	       $for(posts)$
-	       <li>(<a href="$url$">$title$</a>, $date$)</li>
+	       <li> (<a href="$url$">$title$</a>, $date$)
+	       $if(teaser)$
+	       <blockquote>$teaser$</blockquote>
+	       $endif$
+	       </li>
 	       $endfor$
-            </ul> ++ <a href="/posts.html">archive</a>
+            </ul>
+	    ++ <a href="/posts.html">archive</a>
         </div>
-
     </div>
-    <div class="span3">
-        <p>
-        <font color="blue">tags</font> <font color="red">=</font> <font color="cyan">[</font> $tags$ <font color="cyan">]</font>
-	 </p>
-        <p><strong>Links:</strong><br />
-        <ul>
-            <li><a href="http://gentoo.org">Gentoo Linux</a></li>
-            <li><a href="http://gentoohaskell.wordpress.com/">Gentoo haskell blog</a></li>
+
+    <h2> Tags </h2>
+    <div class="sourceCode">
+        <div style="padding: 10px">
+        tags = <p>[ $tags$ ]</p>
+	</div>
+    </div>
+
+    <h2>Usefull links:</h2>
+    <div class="sourceCode">
+        linkList = 
+        <ul class="haskell-list">
+            <li><a href="http://gentoo.org">Gentoo Linux Project</a></li>
+            <li><a href="http://gentoohaskell.wordpress.com/">Gentoo Haskell Blog</a></li>
         </ul>
         </p>
     </div>
+
 </div>

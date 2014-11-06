@@ -4,7 +4,11 @@
             <h1>All posts</h1>
             <ul>
 	       $for(posts)$
-	       <li>(<a href="$url$">$title$</a>, $date$)</li>
+	       <li>(<a href="$url$">$title$</a>, $date$)
+	       $if(teaser)$
+	       $teaser$
+	       $endif$
+	       </li>
 	       $endfor$
             </ul>
         </div>

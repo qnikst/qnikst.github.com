@@ -37,10 +37,6 @@ main = hakyllWith config $ do
     route idRoute
     compile copyFileCompiler
 
-  match "tmp/index.html" $ do
-    route idRoute
-    compile $ getResourceBody  >>= relativizeUrls
-
   -- Build tags
   tags <- buildTags "posts/*" (fromCapture "tags/*.html")
 
@@ -70,7 +66,9 @@ main = hakyllWith config $ do
        route idRoute
        compile $ do
           let ctx =  constField "title" "Posts"
-                  <> listField "posts" defaultContext (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
+                  <> listField "posts" -- defaultContext
+		                       (teaserField "teaser" "content" <> defaultContext)
+				       (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
                   <> field "tags" (\_ -> renderTagList tags)
                   <> defaultContext
           makeItem ""
@@ -86,7 +84,8 @@ main = hakyllWith config $ do
     compile $ do
       let ctx = 
                (constField "title" "Posts" `mappend`
-	       listField "posts" defaultContext (recentFirst =<< loadAll (pattern .&&. hasNoVersion)) `mappend`
+	       listField "posts" (teaserField "teaser" "content" <> defaultContext)
+		                 (recentFirst =<< loadAll (pattern .&&. hasNoVersion))  `mappend`
                field "tags" (\_ -> renderTagList tags) `mappend`
                mathCtx                    `mappend`
                licenseCtx                 `mappend`
@@ -190,6 +189,7 @@ licenseCtx = field "license" $ \item -> do
                                       Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
   where
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
 --licenses :: String -> String
 licenses = M.fromList 
     [ ("by",       ( "https://creativecommons.org/licenses/by/3.0"
