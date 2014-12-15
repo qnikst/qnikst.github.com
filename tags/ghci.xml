@@ -16,7 +16,7 @@
     <published>2013-09-04T00:00:00Z</published>
     <updated>2013-09-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
-<strong>Updates:</strong><br />2013-09-05: add link to dotfile
+<p><strong>Updates:</strong><br />2013-09-05: add link to dotfile</p>
 </div>
 <p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
 <h2 id="pointfree">Pointfree</h2>

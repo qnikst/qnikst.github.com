@@ -18,20 +18,13 @@
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
 Updates:
 <ul>
-      <li> 
-2008.08.09 - small corrections, acknowledgement section added
-</li>
-    </ul>
-  
+<pre><code>  &lt;li&gt; 2008.08.09 - small corrections, acknowledgement section added &lt;/li&gt;
+&lt;/ul&gt;</code></pre>
 Versions:
 <ul>
-      <li> 
-Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10
-</li>
-      <li> 
-Openrc 0.12
-</li>
-    </ul>
+<pre><code>  &lt;li&gt; Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10 &lt;/li&gt;
+  &lt;li&gt; Openrc 0.12 &lt;/li&gt;
+&lt;/ul&gt;</code></pre>
 </div>
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
@@ -74,7 +67,7 @@ Openrc 0.12
 </code></pre>
 <p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will not be deleted after a hook.</p>
 <p>Here is a script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
-<pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
 <span class="ot">cgroup=</span>/sys/fs/cgroup/openrc
 <span class="ot">cgroup_rmdir=</span>1
 <span class="ot">RC_SVCNAME=$1</span>
@@ -94,9 +87,9 @@ Openrc 0.12
     <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">${c}</span><span class="st">&quot;</span>
   <span class="kw">done</span>;
   <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">$cgroup</span><span class="st">/</span><span class="ot">${1}</span><span class="st">&quot;</span>
-<span class="kw">fi</span></code></pre>
+<span class="kw">fi</span></code></pre></div>
 <p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
-<pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
 <span class="co"># This script is run for service that need to be restarted</span>
 <span class="co"># if it&#39;s last process leaves cgroup.</span>
 
@@ -114,7 +107,7 @@ Openrc 0.12
         *<span class="kw">)</span> 
             <span class="kw">return</span> 0<span class="kw">;;</span>
     <span class="kw">esac</span>
-<span class="kw">fi</span></code></pre>
+<span class="kw">fi</span></code></pre></div>
 <h2 id="other-solutions">Other solutions</h2>
 <p>Generic supervision is quite a complicated problem as there are many conditions when we may suppose that our service failed, like:</p>
 <ul>

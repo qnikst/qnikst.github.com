@@ -10,31 +10,30 @@
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     
+    
 </head>
+
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
       <div id="navigaion">
       <font color="cyan">(</font> <a href="../posts.html">Archive</a>
       <font color="cyan">,</font> <a href="../projects.html">Projects</a>
       <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green"><u>where</u></font>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
   </div>
 
   <div id="content">
-    
-
-<div class="page-header">
+    <div class="page-header">
     <div class="right">
       <strong>May 29, 2012</strong>
     </div>
     <h1>2012-05-29-creating-yesod-site</h1>
     <div class="post-author">by <em>qnikst</em> none </div>
     <div class="keywords"><strong>Keywords:</strong> </div>
-    </div>
 </div>
 
 <p>Создание сайта на Yesod/Haskell</p>
@@ -46,7 +45,7 @@
 <p><script type="text/javascript">
 <!--
 h='&#x71;&#x77;&#x6f;&#114;&#x6b;';a='&#64;';n='&#x71;&#110;&#x69;&#x6b;&#x73;&#116;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+e+'<\/'+'a'+'>');
 // -->
 </script><noscript>qnikst at qwork</noscript> ~/workspace/myself $ yesod init Welcome to the Yesod scaffolder. …</p>
 <p>Будет задано несколько вопросов о названии проета, авторе, лицензии и типе используемого движка базы данных. На основе этой информации будет создана заготовка</p>
@@ -57,7 +56,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 </blockquote>
 <p>Естественно для маленького проекта это очень сильное переусложнение структуры и можно сделать гораздо более простое yesod приложение состоящее из одного файла, но поскольку хочется разобраться в том, как проект должен выглядеть в сложном варианте, то мы рассматриваем всю структуру.</p>
 <p>Далее (если используется gentoo) удалим лишние зависимости в cabal файле это yesod-platform, которая лишь для того, чтобы спасать от dependency-hell, но поскольку в gentoo он уже решён, то этой проблемы нет. Так же я временно убрал зависимость от yesod-test поскольку в этом проекте тесты пока не используются. Настраиваем пути</p>
-<p>Официальный мануал: <a href="http://www.yesodweb.com/book/routing-and-handlers">http://www.yesodweb.com/book/routing-and-handlers</a></p>
+<p>Официальный мануал: <a href="http://www.yesodweb.com/book/routing-and-handlers" class="uri">http://www.yesodweb.com/book/routing-and-handlers</a></p>
 <p>Следующем шагом будет создание путей. Yesod позиционируется как REST фреймворк поэтому он спроектирован для использования соотвествующей раскладки, но для чистого html сайта это не очень удобно, поэтому мы сделаем более простою структуру: модель-действие-параметры</p>
 <p>Для того, чтобы определиться со структурой выделим основной фунционал сайта:</p>
 <ol style="list-style-type: decimal">
@@ -80,7 +79,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 <p>Теперь в файл Application.hs добавим импорт созданного обработчика Handler.Quote:</p>
 <p>import Handler.Quote</p>
 <p>Создание моделей</p>
-<p>Официальная документация: <a href="http://www.yesodweb.com/book/persistent">http://www.yesodweb.com/book/persistent</a></p>
+<p>Официальная документация: <a href="http://www.yesodweb.com/book/persistent" class="uri">http://www.yesodweb.com/book/persistent</a></p>
 <p>Теперь в файле ‘config/model’ создаём модели для сайта. Добавляем туда модель для цитаты, с полями автор цитаты, отправитель, источник, подтверждающая ссылка, текст цитаты, время отправления цитаты, является ли цитата подтвержденной.</p>
 <blockquote>
 <dl>
@@ -91,7 +90,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 </blockquote>
 <p>Для того, чтобы это дело собралось необходимо в файл моделей добавить импорт модуля Data.Time в файле Model.hs и в cabal файл нужно добавить зависимость от пакета time. Проверка</p>
 <p>Теперь проект можно собирать. .. $ cabal-dev configure &amp;&amp; yesod –dev devel</p>
-<p>После сборки проект можно посмотреть по адресу <a href="http://localhost:3000/">http://localhost:3000/</a>. Непосредственное создание сайта Вывод списка цитат</p>
+<p>После сборки проект можно посмотреть по адресу <a href="http://localhost:3000/" class="uri">http://localhost:3000/</a>. Непосредственное создание сайта Вывод списка цитат</p>
 <p>Обработаем QuotesListR для вывода всех принятых цитат. Для этого мы должны загрузить все цитаты удовлетворяющие требованию и показать их.</p>
 <p>Поскольку цитаты нужно показывать в нескольких местах, то логично для их представления сделать шаблон (showQuote), который на вход получает цитату, которую нужно показать и возвращает виджет, которы может быть включен в вёрстку.</p>
 <p>– file: Handler/Quote.hs</p>
@@ -111,25 +110,25 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 <p>quoteAForm :: UTCTime -&gt; Maybe Quote -&gt; AForm App App Quote quoteAForm time mquote = Quote &lt;$&gt; aopt textField “Автор” (quoteAuthor &lt;$&gt; mquote) &lt;<em>&gt; aopt textField “Отправитель” (quoteSender &lt;$&gt; mquote) &lt;</em>&gt; areq (selectFieldList sources) “Место” (quoteSource &lt;$&gt; mquote) &lt;<em>&gt; areq urlField “Ссылка” (quoteProoflink &lt;$&gt; mquote) &lt;</em>&gt; areq textareaField “Текст” (quoteText &lt;$&gt; mquote) &lt;<em>&gt; pure time &lt;</em>&gt; pure False where sources :: [(Text,LinkSource)] sources = [(“gentoo.ru”,Gru) ,(<script type="text/javascript">
 <!--
 h='&#x63;&#x6f;&#110;&#102;&#x65;&#114;&#x65;&#110;&#x63;&#x65;&#46;&#x67;&#x65;&#110;&#116;&#x6f;&#x6f;&#46;&#114;&#x75;&#34;';a='&#64;';n='&#34;&#x67;&#x65;&#110;&#116;&#x6f;&#x6f;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+'&quot;gentoo@conference.gentoo.ru&quot;'+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+'&quot;gentoo@conference.gentoo.ru&quot;'+'<\/'+'a'+'>');
 // -->
-</script><noscript>&quot;gentoo@conference.gentoo.ru&quot; (&quot;gentoo at conference dot gentoo dot ru&quot;)</noscript>,GruConf) ,(<script type="text/javascript">
+</script><noscript>"gentoo@conference.gentoo.ru" ("gentoo at conference dot gentoo dot ru")</noscript>,GruConf) ,(<script type="text/javascript">
 <!--
 h='&#x63;&#x6f;&#110;&#102;&#x65;&#114;&#x65;&#110;&#x63;&#x65;&#46;&#106;&#x61;&#98;&#98;&#x65;&#114;&#46;&#114;&#x75;&#34;';a='&#64;';n='&#34;&#x67;&#x65;&#110;&#116;&#x6f;&#x6f;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+'&quot;gentoo@conference.jabber.ru&quot;'+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+'&quot;gentoo@conference.jabber.ru&quot;'+'<\/'+'a'+'>');
 // -->
-</script><noscript>&quot;gentoo@conference.jabber.ru&quot; (&quot;gentoo at conference dot jabber dot ru&quot;)</noscript>,JRuConf) ,(<script type="text/javascript">
+</script><noscript>"gentoo@conference.jabber.ru" ("gentoo at conference dot jabber dot ru")</noscript>,JRuConf) ,(<script type="text/javascript">
 <!--
 h='&#108;&#x69;&#x73;&#116;&#x73;&#46;&#x67;&#x65;&#110;&#116;&#x6f;&#x6f;&#46;&#x6f;&#114;&#x67;&#34;';a='&#64;';n='&#34;&#x67;&#x65;&#110;&#116;&#x6f;&#x6f;&#x2d;&#x75;&#x73;&#x65;&#114;&#x2d;&#114;&#x75;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+'&quot;gentoo-user-ru@lists.gentoo.org&quot;'+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+'&quot;gentoo-user-ru@lists.gentoo.org&quot;'+'<\/'+'a'+'>');
 // -->
-</script><noscript>&quot;gentoo-user-ru@lists.gentoo.org&quot; (&quot;gentoo-user-ru at lists dot gentoo dot org&quot;)</noscript>,RuMail) ,(“ru.gentoo-wiki.com”,RuWiki) ,(“Другое”,OtherSource)]</p>
+</script><noscript>"gentoo-user-ru@lists.gentoo.org" ("gentoo-user-ru at lists dot gentoo dot org")</noscript>,RuMail) ,(“ru.gentoo-wiki.com”,RuWiki) ,(“Другое”,OtherSource)]</p>
 <p>Шаблон формы. Важно, что мы создаёт два варинта отправки формы только для просмотра и для добавления и это должно быть обработано.</p>
 <dl>
 <dt>&lt;form method=post <script type="text/javascript">
 <!--
 h='&#x7b;&#x51;&#x75;&#x6f;&#116;&#x65;&#x43;&#114;&#x65;&#x61;&#116;&#x65;&#82;';a='&#64;';n='&#x61;&#x63;&#116;&#x69;&#x6f;&#110;&#x3d;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+e+'<\/'+'a'+'>');
 // -->
 </script><noscript>action= at {QuoteCreateR</noscript>} enctype=#{enctype}&gt;</dt>
 <dd><dl>
@@ -166,7 +165,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 <p>^{pager} $maybe _ &lt;- maid &lt;form <script type="text/javascript">
 <!--
 h='&#x7b;&#x51;&#x75;&#x6f;&#116;&#x65;&#x41;&#98;&#x79;&#x73;&#x73;&#80;&#114;&#x6f;&#x63;&#x65;&#x73;&#x73;&#82;';a='&#64;';n='&#x61;&#x63;&#116;&#x69;&#x6f;&#110;&#x3d;';e=n+a+h;
-document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
+document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'" clas'+'s="em' + 'ail">'+e+'<\/'+'a'+'>');
 // -->
 </script><noscript>action= at {QuoteAbyssProcessR</noscript>} method=post&gt; $forall Entity quoteId quote &lt;- quotes &lt;input type=checkbox name=abyss value=#{show $ unKey quoteId}&gt; ^{showQuote quote} &lt;div&gt; &lt;input type=submit name=delete value=Удалить&gt; &lt;input type=submit name=approve value=Опубликовать&gt; $nothing 
  $forall Entity quoteId quote &lt;- quotes ^{showQuote quote}</p>
@@ -201,6 +200,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
 </ul>
 <div class="figure">
 <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAG0AAAAwCAYAAAAb6PR/AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNSBNYWNpbnRvc2giIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6NjdCQkMxMDhEQjI4MTFFMDk4REM4M0Q4MjE0NzE1RkUiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NjdCQkMxMDlEQjI4MTFFMDk4REM4M0Q4MjE0NzE1RkUiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDoyMjMxMjA2QkRCMjYxMUUwOThEQzgzRDgyMTQ3MTVGRSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDoyMjMxMjA2Q0RCMjYxMUUwOThEQzgzRDgyMTQ3MTVGRSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PhqQs8QAAArlSURBVHja7FwJY9q4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" />
+
 </div>
 
 <hr />
@@ -235,6 +235,7 @@ document.write('<a h'+'ref'+'="ma'+'ilto'+':'+e+'">'+e+'<\/'+'a'+'>');
   <footer>
     powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
   </footer>
+
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

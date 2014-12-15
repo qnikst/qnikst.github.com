@@ -15,7 +15,9 @@
     <id>https://qnikst.github.io/posts/2014-08-18-compositional-methods.html</id>
     <published>2014-08-18T00:00:00Z</published>
     <updated>2014-08-18T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>This post is based on the work of the Ernst Harrier [1] and doesn’t contain any additional research work.</p>
+    <summary type="html"><![CDATA[<p>We show a way to improve properties of a ODE integrators, by introducing a composition of the methods with a different steps.</p>
+<!--more-->
+<p>This post is based on the work of the Ernst Harrier [<a href="http://www.springer.com/mathematics/computational+science+%26+engineering/book/978-3-540-30663-4">1</a>] and doesn’t contain any additional research work.</p>
 <p>Here we want to solve a system of equations that can we written as:</p>
 <p><span class="math">\[ \dot{y} = f(y). \]</span></p>
 <p>In order to solve it we are introducing a mapping from an old state at <span class="math">\(t0\)</span> to a new one at <span class="math">\(t_1 = t_0 + dt\)</span>:</p>
@@ -41,46 +43,46 @@
 <p><span class="math">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
 <p>This method is called tripple jump. Lets check how does it work.</p>
 <p>At first we will introduce a coefficients</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
 g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
 
 <span class="ot">g2 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
 g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))
 
 <span class="ot">g3 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
-g3 <span class="fu">=</span> g1</code></pre>
+g3 <span class="fu">=</span> g1</code></pre></div>
 <p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math">\(\gamma_i\)</span> with <span class="math">\(p=2\)</span>. Let step be a <span class="math">\(dt = 1\)</span> for simplicity.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
 <span class="fu">&gt;</span> t p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 p, g2 p, g3 p]
 
 <span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> t <span class="dv">2</span> <span class="dv">1</span>
-[<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">7024143839193153</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596578</span>]</code></pre>
+[<span class="fl">1.3512071919596578</span>,<span class="fu">-</span><span class="fl">1.7024143839193153</span>,<span class="fl">1.3512071919596578</span>]</code></pre></div>
 <p>We have 3 points. If we will take a compositional method <span class="math">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
 <span class="fu">&gt;</span> ut p xs <span class="fu">=</span> xs <span class="fu">&gt;&gt;=</span> (\x <span class="ot">-&gt;</span> t (p<span class="fu">+</span><span class="dv">2</span>) x)
 
 <span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
-[<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>
-,<span class="dv">2</span><span class="fu">.</span><span class="dv">097997398066439</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">900205890992877</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">665181638358605</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5081944151591316</span>]</code></pre>
+[<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span>
+,<span class="fl">2.097997398066439</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>]</code></pre></div>
 <p>This is a coefficients for a compositional method of order <span class="math">\(5\)</span>, (<span class="math">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
-[<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
-,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">4631626832202618</span>,<span class="dv">2</span><span class="fu">.</span><span class="dv">2805800406433505</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>
-,<span class="dv">2</span><span class="fu">.</span><span class="dv">2309447311243717</span>,<span class="fu">-</span><span class="dv">2</span><span class="fu">.</span><span class="dv">0655753110586246</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">955013517256328</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">8100975778074668</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">1</span><span class="fu">.</span><span class="dv">77070200653487</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>]</code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>
+,<span class="fl">1.955013517256328</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>
+,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>,<span class="fl">2.2309447311243717</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>
+,<span class="fl">2.2805800406433505</span>,<span class="fu">-</span><span class="fl">2.4631626832202618</span>,<span class="fl">2.2805800406433505</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>
+,<span class="fl">2.2309447311243717</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>
+,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>,<span class="fl">1.955013517256328</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>
+,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>,<span class="fl">1.639448210847001</span>]</code></pre></div>
 <p>this is a compositional method of order 8.</p>
 <p>To see a places where function will be evaluated we can use:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> scanl (<span class="fu">+</span>) <span class="dv">0</span> <span class="fu">$</span> ut <span class="dv">6</span> <span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
-[<span class="dv">0</span><span class="fu">.</span><span class="dv">0</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">639448210847001</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">131253795687869</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">508194415159132</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">30190316264833483</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">6531103546079933</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">15698722319947356</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">4824609876475274</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">28824101888734255</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">3512071919596584</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7143681190989661</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5165766120254056</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">548998699033219</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">7315813416101316</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">7315813416101302</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">5489986990332203</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5165766120254043</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">7143681190989675</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">3512071919596571</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">2882410188873439</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">4824609876475261</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">156987223199475</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6531103546079919</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">3019031626483362</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">5081944151591307</span>
-,<span class="dv">1</span><span class="fu">.</span><span class="dv">1312537956878703</span>,<span class="fu">-</span><span class="dv">0</span><span class="fu">.</span><span class="dv">6394482108469997</span>,<span class="dv">1</span><span class="fu">.</span><span class="dv">0000000000000013</span>]</code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> scanl (<span class="fu">+</span>) <span class="dv">0</span> <span class="fu">$</span> ut <span class="dv">6</span> <span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
+[<span class="fl">0.0</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">0.131253795687869</span>,<span class="fl">1.508194415159132</span>,<span class="fu">-</span><span class="fl">0.30190316264833483</span>
+,<span class="fl">1.6531103546079933</span>,<span class="fu">-</span><span class="fl">0.15698722319947356</span>,<span class="fl">1.4824609876475274</span>,<span class="fu">-</span><span class="fl">0.28824101888734255</span>
+,<span class="fl">1.3512071919596584</span>,<span class="fu">-</span><span class="fl">0.7143681190989661</span>,<span class="fl">1.5165766120254056</span>,<span class="fu">-</span><span class="fl">0.548998699033219</span>
+,<span class="fl">1.7315813416101316</span>,<span class="fu">-</span><span class="fl">0.7315813416101302</span>,<span class="fl">1.5489986990332203</span>,<span class="fu">-</span><span class="fl">0.5165766120254043</span>
+,<span class="fl">1.7143681190989675</span>,<span class="fu">-</span><span class="fl">0.3512071919596571</span>,<span class="fl">1.2882410188873439</span>,<span class="fu">-</span><span class="fl">0.4824609876475261</span>
+,<span class="fl">1.156987223199475</span>,<span class="fu">-</span><span class="fl">0.6531103546079919</span>,<span class="fl">1.3019031626483362</span>,<span class="fu">-</span><span class="fl">0.5081944151591307</span>
+,<span class="fl">1.1312537956878703</span>,<span class="fu">-</span><span class="fl">0.6394482108469997</span>,<span class="fl">1.0000000000000013</span>]</code></pre></div>
 <p>This way we may obtain a method of any order by the price of a terrible zig-zag of the step points.</p>
 <p>Another approach to a compositional method is using Suzuki`s Fractals.</p>
 <p>The same schema exists for Suzuki`s Fractals, however how we have a diffierent coefficients:</p>
@@ -91,7 +93,7 @@ g3 <span class="fu">=</span> g1</code></pre>
 \end{eqnarray}
 \]</span></p>
 <p>However <span class="math">\(t\)</span> and <span class="math">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE DataKinds #-}</span>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE DataKinds #-}</span>
 <span class="ot">{-# LANGUAGE KindSignatures #-}</span>
 <span class="ot">{-# LANGUAGE TypeFamilies #-}</span>
 <span class="ot">{-# LANGUAGE FlexibleContexts #-}</span>
@@ -156,7 +158,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
     <span class="kw">where</span>
       o <span class="fu">=</span> natVal k
 <span class="ot">      plus2 ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (n<span class="fu">+</span><span class="dv">2</span>)
-      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre>]]></summary>
+      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>]]></summary>
 </entry>
 <entry>
     <title>Formal Power series in haskell</title>
@@ -165,8 +167,8 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
     <published>2014-08-12T00:00:00Z</published>
     <updated>2014-08-12T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Code and math in this post is done with the great help of Korolyov V. This post is written as a literate haskell file so it’s possible to copy it in a text file and run it in ghci. All sources can be found in <a href="https://github.com/qnikst/haskell-fun/tree/master/series">haskell-fun</a> repository.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE BangPatterns #-}</span>
-<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Monad.Fix</span></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE BangPatterns #-}</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Monad.Fix</span></code></pre></div>
 <p>We want to implement a with formal series expansion using haskell. Formal series can be expressed as follows:</p>
 <p><span class="math">\[ f(x) = \sum\limits_{i=0}^\infty a_ix^i \]</span></p>
 <p>And also address a Taylor series as an example. For a function <span class="math">\(f\)</span> we can expand it an any given point <span class="math">\(x_0\)</span>, then:</p>
@@ -178,34 +180,34 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 </ol>
 <p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
 <p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre></div>
 <h2 id="instances">Instances</h2>
 <p>Having a data structure we may define a set of instances.</p>
 <h3 id="functor">Functor</h3>
 <p>Series is a Functor:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
-<span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
+<span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre></div>
 <p>An interesting note that <span class="math">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math">\(a \to a\)</span> to <span class="math">\(b \to b\)</span> that may not be a desired behaviour when <span class="math">\(a \neq b\)</span>.</p>
 <h3 id="num">Num</h3>
 <p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
 <p>A product of scalar and series:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> (<span class="fu">^*</span>) a <span class="fu">=</span> fmap (<span class="fu">*</span>a)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> (<span class="fu">*^</span>) <span class="fu">=</span> flip (<span class="fu">^*</span>)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (/^) ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> (<span class="fu">/^</span>) s a <span class="fu">=</span> fmap (<span class="fu">/</span> a) s</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> (<span class="fu">^*</span>) a <span class="fu">=</span> fmap (<span class="fu">*</span>a)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> (<span class="fu">*^</span>) <span class="fu">=</span> flip (<span class="fu">^*</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (/^) ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> (<span class="fu">/^</span>) s a <span class="fu">=</span> fmap (<span class="fu">/</span> a) s</code></pre></div>
 <p>And pointwise product for future (see Library section for szipWith implementation):</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> (<span class="fu">^*^</span>) <span class="fu">=</span> szipWith (<span class="fu">*</span>)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> (<span class="fu">^*^</span>) <span class="fu">=</span> szipWith (<span class="fu">*</span>)</code></pre></div>
 <p>Now we may give a ‘Num’ instance:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Num</span> (<span class="dt">S</span> a) <span class="kw">where</span>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Num</span> (<span class="dt">S</span> a) <span class="kw">where</span>
 <span class="ot">&gt;</span>   (<span class="dt">S</span> a x) <span class="fu">+</span> (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (a <span class="fu">+</span> b) (x <span class="fu">+</span> y)
 <span class="ot">&gt;</span>   abs s <span class="fu">=</span> fmap abs s
 <span class="ot">&gt;</span>   negate s <span class="fu">=</span> fmap negate s
 <span class="ot">&gt;</span>   signum s <span class="fu">=</span> fmap signum s
 <span class="ot">&gt;</span>   (<span class="dt">S</span> a x) <span class="fu">*</span> (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (a <span class="fu">*</span> b) (a <span class="fu">^*</span> y <span class="fu">+</span>  b <span class="fu">^*</span> x <span class="fu">+</span> <span class="dt">S</span> <span class="dv">0</span> (x <span class="fu">*</span> y))
-<span class="ot">&gt;</span>   fromInteger x <span class="fu">=</span> <span class="dt">S</span> (fromInteger x) <span class="dv">0</span></code></pre>
+<span class="ot">&gt;</span>   fromInteger x <span class="fu">=</span> <span class="dt">S</span> (fromInteger x) <span class="dv">0</span></code></pre></div>
 <p>Here are 2 tricky parts, first one is implementation of <code>*</code> second one is implementation of <code>fromInteger</code>. For <code>*</code> we need to think of an expansion like of polymonial, i.e. <span class="math">\(S a b = a + b \cdot p\)</span>. Then we can write the following:</p>
 <p><span class="math">\[
 \begin{aligned}
@@ -239,9 +241,9 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
   b_i &amp; = \cfrac{-1}{a_0} \sum\limits_{j = 0}^{i - 1} b_{j} a_{j + 1}.
 \end{aligned}
 \]</span></p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">Fractional</span> (<span class="dt">S</span> a) <span class="kw">where</span>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">Fractional</span> (<span class="dt">S</span> a) <span class="kw">where</span>
 <span class="ot">&gt;</span>   recip (<span class="dt">S</span> a x) <span class="fu">=</span> fix <span class="fu">$</span> fmap (<span class="fu">/</span> (<span class="fu">-</span>a)) <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">.</span> (<span class="fu">*</span> x)
-<span class="ot">&gt;</span>   fromRational x <span class="fu">=</span> <span class="dt">S</span> (fromRational x) <span class="dv">0</span></code></pre>
+<span class="ot">&gt;</span>   fromRational x <span class="fu">=</span> <span class="dt">S</span> (fromRational x) <span class="dv">0</span></code></pre></div>
 <p>Formulas for composition and inversion. Only series with zeroed head can be composed or reversed. Composition is handled according to Horner’s method:</p>
 <p><span class="math">\[
 \begin{aligned}
@@ -255,9 +257,9 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 \end{aligned}
 \]</span></p>
 <p>The product of two series can be treated recursively, so:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; compose ::</span> (<span class="dt">Num</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; compose ::</span> (<span class="dt">Num</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> compose (<span class="dt">S</span> a x) (<span class="dt">S</span> <span class="dv">0</span> y) <span class="fu">=</span> <span class="dt">S</span> a (y <span class="fu">*</span> compose x (<span class="dt">S</span> <span class="dv">0</span> y))
-<span class="ot">&gt;</span> compose _ _ <span class="fu">=</span> error <span class="st">&quot;compose: Non-zero head&quot;</span></code></pre>
+<span class="ot">&gt;</span> compose _ _ <span class="fu">=</span> error <span class="st">&quot;compose: Non-zero head&quot;</span></code></pre></div>
 <p>Inversion can be done by the following formula:</p>
 <p><span class="math">\[
 \begin{eqnarray}
@@ -269,9 +271,9 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 \end{eqnarray}
 \]</span></p>
 <p>The last equality gives the recursive rule:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; inverse ::</span> (<span class="dt">Fractional</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; inverse ::</span> (<span class="dt">Fractional</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> inverse (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> <span class="kw">let</span> y <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> (recip <span class="fu">$</span> compose x y) <span class="kw">in</span> y
-<span class="ot">&gt;</span> inverse _ <span class="fu">=</span> error <span class="st">&quot;inverse: Non-zero head&quot;</span></code></pre>
+<span class="ot">&gt;</span> inverse _ <span class="fu">=</span> error <span class="st">&quot;inverse: Non-zero head&quot;</span></code></pre></div>
 <p>According to general theory elementary special functions cannot be evaluated on the non-zero headed series. We try to handle this situaton by breaking the series into two parts: the head and the zero-headed tail.</p>
 <p>The head is treated by classic functions, the tail is treated by composing argument series with classical series of elementary functions, and the combination is done by ad-hoc formulas. The first example of the ad-hoc formula:</p>
 <p><span class="math">\[
@@ -313,7 +315,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
        \right].
 \end{equation}
 \]</span></p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> (<span class="dt">Floating</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">Floating</span> (<span class="dt">S</span> a) <span class="kw">where</span>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> (<span class="dt">Floating</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">Floating</span> (<span class="dt">S</span> a) <span class="kw">where</span>
 <span class="ot">&gt;</span>   pi <span class="fu">=</span> <span class="dt">S</span> pi <span class="dv">0</span>
 <span class="ot">&gt;</span>   exp (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> texp <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x
 <span class="ot">&gt;</span>   exp (<span class="dt">S</span> a x) <span class="fu">=</span> exp a <span class="fu">^*</span> exp (<span class="dt">S</span> <span class="dv">0</span> x)
@@ -322,7 +324,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span>   sin (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tsin <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x
 <span class="ot">&gt;</span>   sin (<span class="dt">S</span> a x) <span class="fu">=</span> sin a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">+</span> cos a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)
 <span class="ot">&gt;</span>   cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tcos <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x
-<span class="ot">&gt;</span>   cos (<span class="dt">S</span> a x) <span class="fu">=</span> cos a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">-</span> sin a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)</code></pre>
+<span class="ot">&gt;</span>   cos (<span class="dt">S</span> a x) <span class="fu">=</span> cos a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">-</span> sin a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)</code></pre></div>
 <p>An interesting example is sqrt, as usual we want to find <span class="math">\(b_n\)</span> such that:</p>
 <p><span class="math">\[ \sum\limits_{n=0}^\infty b_nx^n \cdot \sum\limits_{n=0}^\infty b_nx^n = \sum\limits_{n=0}^n a_i x^n \]</span></p>
 <p>Rewrite the formula in a head-tail form, where <span class="math">\(y\)</span> – is a tail of b, and <span class="math">\(p\)</span> – is a tail of incomming series:</p>
@@ -339,7 +341,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
   \right.
 \end{equation}
 \]</span></p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span>   sqrt (<span class="dt">S</span> <span class="dv">0</span> (<span class="dt">S</span> <span class="dv">0</span> x)) <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> (sqrt x)
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span>   sqrt (<span class="dt">S</span> <span class="dv">0</span> (<span class="dt">S</span> <span class="dv">0</span> x)) <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> (sqrt x)
 <span class="ot">&gt;</span>   sqrt (<span class="dt">S</span> <span class="dv">0</span> _) <span class="fu">=</span> <span class="kw">let</span> sq <span class="fu">=</span> <span class="dt">S</span> (<span class="dv">0</span> <span class="fu">/</span> <span class="dv">0</span>) sq <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> sq
 <span class="ot">&gt;</span>   sqrt (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="kw">let</span> sqa <span class="fu">=</span> sqrt a
 <span class="ot">&gt;</span>                      sqx <span class="fu">=</span> (x <span class="fu">-</span> <span class="dt">S</span> <span class="dv">0</span> (sqx <span class="fu">*</span> sqx)) <span class="fu">/^</span> (<span class="dv">2</span> <span class="fu">*</span> sqrt a)
@@ -359,22 +361,22 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span>   cosh x <span class="fu">=</span> (exp x <span class="fu">+</span> exp (<span class="fu">-</span>x)) <span class="fu">/^</span> <span class="dv">2</span>
 <span class="ot">&gt;</span>   asinh x <span class="fu">=</span> log (x <span class="fu">+</span> sqrt (x <span class="fu">*</span> x <span class="fu">+</span> <span class="dv">1</span>))
 <span class="ot">&gt;</span>   acosh x <span class="fu">=</span> undefined <span class="co">-- log (x + sqrt (x * x - 1))</span>
-<span class="ot">&gt;</span>   atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></code></pre>
+<span class="ot">&gt;</span>   atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></code></pre></div>
 <h2 id="library">Library</h2>
 <p>Now we can define mathematic functions on the power series. The derivative:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</code></pre></div>
 <p>And the integral:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</code></pre></div>
 <h3 id="generic-functions">Generic functions:</h3>
 <p>In order to inspect a stream we can introduce a helper function:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
 <span class="ot">&gt;</span> stake <span class="dv">0</span> _       <span class="fu">=</span> []
-<span class="ot">&gt;</span> stake n (<span class="dt">S</span> a s) <span class="fu">=</span> a<span class="fu">:</span>stake (n<span class="fu">-</span><span class="dv">1</span>) s</code></pre>
+<span class="ot">&gt;</span> stake n (<span class="dt">S</span> a s) <span class="fu">=</span> a<span class="fu">:</span>stake (n<span class="fu">-</span><span class="dv">1</span>) s</code></pre></div>
 <p>Here all functions will be prefixed with <code>s</code> however if you write a module for working with streams you may prefer to not add it and ask user to import module qualified.</p>
 <p>Here is a function that builds a stream from the list (and the other way):</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; fromList ::</span> [a] <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; fromList ::</span> [a] <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> fromList (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="dt">S</span> x (fromList xs) <span class="co">-- works only on infinite list</span>
 <span class="ot">&gt;</span> 
 <span class="ot">&gt; fromListNum ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">S</span> a
@@ -382,80 +384,80 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span> fromListNum (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="dt">S</span> x (fromListNum xs)
 <span class="ot">&gt;</span> 
 <span class="ot">&gt; toList ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
-<span class="ot">&gt;</span> toList (<span class="dt">S</span> x xs) <span class="fu">=</span> x <span class="fu">:</span> toList xs</code></pre>
+<span class="ot">&gt;</span> toList (<span class="dt">S</span> x xs) <span class="fu">=</span> x <span class="fu">:</span> toList xs</code></pre></div>
 <p>In order to write an usefull functions and series we will introduce a folding:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sscan ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sscan ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> sscan f i (<span class="dt">S</span> x s) <span class="fu">=</span>
 <span class="ot">&gt;</span>  <span class="kw">let</span> k <span class="fu">=</span> f i x
-<span class="ot">&gt;</span>  <span class="kw">in</span> <span class="dt">S</span> k (sscan f k s)</code></pre>
+<span class="ot">&gt;</span>  <span class="kw">in</span> <span class="dt">S</span> k (sscan f k s)</code></pre></div>
 <p>Now lets introduce few functions using <code>sfold</code>. A function that will generate a sum of the Stream, i.e. having a stream <code>ssum &lt;a0:a1:a2:..&gt; = &lt;a0:a0+a1:a0+a1+a2:...&gt;</code></p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; ssum ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> ssum <span class="fu">=</span> sscan (<span class="fu">+</span>) <span class="dv">0</span></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; ssum ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> ssum <span class="fu">=</span> sscan (<span class="fu">+</span>) <span class="dv">0</span></code></pre></div>
 <p>Build a stream by iterating a function</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; siterate ::</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> siterate f x <span class="fu">=</span> <span class="dt">S</span> x (siterate f (f x))</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; siterate ::</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> siterate f x <span class="fu">=</span> <span class="dt">S</span> x (siterate f (f x))</code></pre></div>
 <p>Build a serie of powers: <span class="math">\(&lt;x,x^2,x^3,...&gt;\)</span></p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> spower x <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> (siterate (<span class="fu">*</span>x) x)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> spower x <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> (siterate (<span class="fu">*</span>x) x)</code></pre></div>
 <p>Unfold</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sunfold ::</span> (c <span class="ot">-&gt;</span> (c,a)) <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> sunfold f k <span class="fu">=</span> <span class="kw">let</span> (k&#39;,a) <span class="fu">=</span> f k <span class="kw">in</span> <span class="dt">S</span> a (sunfold f k&#39;)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sunfold ::</span> (c <span class="ot">-&gt;</span> (c,a)) <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> sunfold f k <span class="fu">=</span> <span class="kw">let</span> (k&#39;,a) <span class="fu">=</span> f k <span class="kw">in</span> <span class="dt">S</span> a (sunfold f k&#39;)</code></pre></div>
 <p>Because we want to implement a teylor serie we want to have a serie of factorials</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sfac ::</span> (<span class="dt">Enum</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> sfac <span class="fu">=</span> sscan (<span class="fu">*</span>) <span class="dv">1</span> (fromList [<span class="dv">1</span><span class="fu">..</span>]) </code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sfac ::</span> (<span class="dt">Enum</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> sfac <span class="fu">=</span> sscan (<span class="fu">*</span>) <span class="dv">1</span> (fromList [<span class="dv">1</span><span class="fu">..</span>]) </code></pre></div>
 <p>And now 1/factorials</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sdfac ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> sdfac <span class="fu">=</span> fmap (\x <span class="ot">-&gt;</span> <span class="dv">1</span> <span class="fu">/</span> (fromIntegral x)) sfac</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; szipWith ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> c
-<span class="ot">&gt;</span> szipWith f (<span class="dt">S</span> a x) (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (f a b) (szipWith f x y)</code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sdfac ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> sdfac <span class="fu">=</span> fmap (\x <span class="ot">-&gt;</span> <span class="dv">1</span> <span class="fu">/</span> (fromIntegral x)) sfac</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; szipWith ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> c
+<span class="ot">&gt;</span> szipWith f (<span class="dt">S</span> a x) (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (f a b) (szipWith f x y)</code></pre></div>
 <p>This is an actual building of the Taylor serie:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; build ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> build t s <span class="fu">=</span> ssum <span class="fu">$</span> spower t <span class="fu">^*^</span> s</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; shead ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
-<span class="ot">&gt;</span> shead (<span class="dt">S</span> a s) <span class="fu">=</span> a</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stail ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> stail (<span class="dt">S</span> a s) <span class="fu">=</span> s</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sdropWhile ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; build ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> build t s <span class="fu">=</span> ssum <span class="fu">$</span> spower t <span class="fu">^*^</span> s</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; shead ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span> shead (<span class="dt">S</span> a s) <span class="fu">=</span> a</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stail ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> stail (<span class="dt">S</span> a s) <span class="fu">=</span> s</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sdropWhile ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> sdropWhile p s<span class="fu">@</span>(<span class="dt">S</span> a xs)
 <span class="ot">&gt;</span>   <span class="fu">|</span> p a <span class="fu">=</span> sdropWhile p xs
-<span class="ot">&gt;</span>   <span class="fu">|</span> otherwise <span class="fu">=</span> s</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   <span class="fu">|</span> otherwise <span class="fu">=</span> s</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
 <span class="ot">&gt;</span> eps e s <span class="fu">=</span> snd <span class="fu">.</span> shead <span class="fu">.</span> sdropWhile (\(x,y) <span class="ot">-&gt;</span> abs (x <span class="fu">-</span> y) <span class="fu">&gt;=</span> e)
-<span class="ot">&gt;</span>         <span class="fu">$</span> szipWith (,) s (stail s)</code></pre>
+<span class="ot">&gt;</span>         <span class="fu">$</span> szipWith (,) s (stail s)</code></pre></div>
 <h2 id="taylor-series-for-some-analytic-functions">Taylor series for some analytic functions</h2>
 <p>Here we defined examples for the functions with analytically known series at 0.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tlog ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tlog ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tlog <span class="fu">=</span> <span class="kw">let</span> go n s <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) (go (n <span class="fu">+</span> <span class="dv">1</span>) (<span class="fu">-</span>s))
-<span class="ot">&gt;</span>        <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tsin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>        <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tsin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tsin <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">$</span> s
-<span class="ot">&gt;</span>        <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tcos ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>        <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tcos ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tcos <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> s
-<span class="ot">&gt;</span>        <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tasin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>        <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tasin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tasin <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (<span class="dv">1</span> <span class="fu">/</span> n) (fmap (<span class="fu">*</span> (n <span class="fu">/</span> (n <span class="fu">+</span> <span class="dv">1</span>))) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>))
-<span class="ot">&gt;</span>         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tacos ::</span> (<span class="dt">Eq</span> a, <span class="dt">Floating</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> tacos <span class="fu">=</span> pi <span class="fu">/</span> <span class="dv">2</span> <span class="fu">-</span> tasin</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatan ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tacos ::</span> (<span class="dt">Eq</span> a, <span class="dt">Floating</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> tacos <span class="fu">=</span> pi <span class="fu">/</span> <span class="dv">2</span> <span class="fu">-</span> tasin</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatan ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tatan <span class="fu">=</span> <span class="kw">let</span> go s n <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (<span class="fu">-</span>s) (n <span class="fu">+</span> <span class="dv">2</span>)
-<span class="ot">&gt;</span>         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go <span class="dv">1</span> <span class="dv">1</span></code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tsinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go <span class="dv">1</span> <span class="dv">1</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tsinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tsinh <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">$</span> s
-<span class="ot">&gt;</span>         <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tcosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>         <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tcosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tcosh <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> s
-<span class="ot">&gt;</span>         <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tasinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>         <span class="kw">in</span> s <span class="fu">^*^</span> texp</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tasinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tasinh <span class="fu">=</span> <span class="kw">let</span> go s n <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) (fmap (<span class="fu">*</span> (n <span class="fu">/</span> (n <span class="fu">+</span> <span class="dv">1</span>))) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (<span class="fu">-</span>s) (n <span class="fu">+</span> <span class="dv">2</span>))
-<span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tacosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
-<span class="ot">&gt;</span> tacosh <span class="fu">=</span> undefined</code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tacosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
+<span class="ot">&gt;</span> tacosh <span class="fu">=</span> undefined</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
-<span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre>
+<span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
 <h2 id="todo">TODO</h2>
 <p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>

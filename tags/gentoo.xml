@@ -8,15 +8,73 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2013-09-04T00:00:00Z</updated>
+    <updated>2013-11-06T00:00:00Z</updated>
     <entry>
+    <title>Supervision inside OpenRC</title>
+    <link href="https://qnikst.github.io/posts/2013-11-06-openrc-supervision.html" />
+    <id>https://qnikst.github.io/posts/2013-11-06-openrc-supervision.html</id>
+    <published>2013-11-06T00:00:00Z</published>
+    <updated>2013-11-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>The role of the supervision in the init systems becomes crucial. And many administrators wants some kind of s-vision support from the scratch. Here are some thoughts about this problem and a way how things will be solved inside OpenRC.</p>
+<p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
+<h1 id="the-problem.">The problem.</h1>
+<p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
+<ol style="list-style-type: decimal">
+<li>Process exited (with non zero EXIT_CODE);</li>
+<li>Process fail to work as expected.</li>
+</ol>
+<p>In the most systems only first meaning is addressed, however it’s not very carefull and in systems where <em>reliance</em> is required we need to use additional tools to support 2.</p>
+<p>Another set of problem is about how we will decide if we want to restart service and run cleanup actions. And this problem is not easy at all, i.e. we may want to stop restarting service if it fails constantly, or increase timeout in restarts and so on.</p>
+<p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
+<p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
+<p>So the solution would be the following:</p>
+<ol style="list-style-type: decimal">
+<li>Let OpenRC know that user may want s-vision for some services and what module he want to use;</li>
+<li>Provide a set of existing modules;</li>
+<li>Give an ability to create new modules.</li>
+</ol>
+<h1 id="monit">Monit</h1>
+<p>I’ve started to work on ‘monit’ approach. Monit (http://mmonit.com/monit/) is a monitoring that allowes user to monitor services and give much possibilites for their control. This tool provides a special language that describes how each service should be monitored started and restarted.</p>
+<p>Currently it’s possible to run monit as a standalone daemon and then control supervision via monit itself by calling <code>monit foo start</code>/<code>monit foo stop</code>. However having OpenRC as a common point for services control is a good idea.</p>
+<p>All the code available on s-vision branch (https://github.com/qnikst/openrc/compare/s-vision) and will be merged to mainline after some discussion with other developers and administrators that have a good experience with running monit.</p>
+<p>In order to put service under monit control one need:</p>
+<ol style="list-style-type: decimal">
+<li><p>Run monit under inittab control (or other low level s-vision subsystem). This can be done by adding:</p>
+<pre><code>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</code></pre></li>
+</ol>
+<p>to inittab</p>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Add temporary config path under monit control (/etc/monitrc)</p>
+<pre><code>INCLUDE /run/openrc-monit/*</code></pre></li>
+<li><p>Create control file for service under <code>/etc/conf.d/monit-files/servicename</code></p></li>
+<li><p>Add s-vision module to conf.d file, i.e.</p>
+<pre><code>rc_supervise_module=&quot;monit&quot;
+rc_monit_type=&quot;file&quot;</code></pre></li>
+</ol>
+<p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
+<p><span class="label label-warning"> Update: </span> the idea is just to hook up into <code>start_post</code> all call <code>monit restart</code> and <code>monit monitor</code> from there.</p>
+<h1 id="future-work">Future work</h1>
+<p>There are a couple of work to be done before merging:</p>
+<ol style="list-style-type: decimal">
+<li><p>Introduce other <code>monit_types</code> like:</p>
+<ul>
+<li>simple - where basic control file generated automatically on the fly</li>
+<li>native - where existing configuration can be reused.</li>
+</ul></li>
+<li><p>Understand if it possible to run runscript only once</p></li>
+<li><p>Cleanup code</p></li>
+<li><p>Export general API that other s-vision subsystems can use</p></li>
+</ol>
+<p>All comments are welcome</p>]]></summary>
+</entry>
+<entry>
     <title>My ghci</title>
     <link href="https://qnikst.github.io/posts/2013-09-04-my-ghci.html" />
     <id>https://qnikst.github.io/posts/2013-09-04-my-ghci.html</id>
     <published>2013-09-04T00:00:00Z</published>
     <updated>2013-09-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
-<strong>Updates:</strong><br />2013-09-05: add link to dotfile
+<p><strong>Updates:</strong><br />2013-09-05: add link to dotfile</p>
 </div>
 <p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
 <h2 id="pointfree">Pointfree</h2>
@@ -53,20 +111,13 @@
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
 Updates:
 <ul>
-      <li> 
-2008.08.09 - small corrections, acknowledgement section added
-</li>
-    </ul>
-  
+<pre><code>  &lt;li&gt; 2008.08.09 - small corrections, acknowledgement section added &lt;/li&gt;
+&lt;/ul&gt;</code></pre>
 Versions:
 <ul>
-      <li> 
-Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10
-</li>
-      <li> 
-Openrc 0.12
-</li>
-    </ul>
+<pre><code>  &lt;li&gt; Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10 &lt;/li&gt;
+  &lt;li&gt; Openrc 0.12 &lt;/li&gt;
+&lt;/ul&gt;</code></pre>
 </div>
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
@@ -109,7 +160,7 @@ Openrc 0.12
 </code></pre>
 <p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will not be deleted after a hook.</p>
 <p>Here is a script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
-<pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
 <span class="ot">cgroup=</span>/sys/fs/cgroup/openrc
 <span class="ot">cgroup_rmdir=</span>1
 <span class="ot">RC_SVCNAME=$1</span>
@@ -129,9 +180,9 @@ Openrc 0.12
     <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">${c}</span><span class="st">&quot;</span>
   <span class="kw">done</span>;
   <span class="kw">rmdir</span> <span class="st">&quot;</span><span class="ot">$cgroup</span><span class="st">/</span><span class="ot">${1}</span><span class="st">&quot;</span>
-<span class="kw">fi</span></code></pre>
+<span class="kw">fi</span></code></pre></div>
 <p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
-<pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
 <span class="co"># This script is run for service that need to be restarted</span>
 <span class="co"># if it&#39;s last process leaves cgroup.</span>
 
@@ -149,7 +200,7 @@ Openrc 0.12
         *<span class="kw">)</span> 
             <span class="kw">return</span> 0<span class="kw">;;</span>
     <span class="kw">esac</span>
-<span class="kw">fi</span></code></pre>
+<span class="kw">fi</span></code></pre></div>
 <h2 id="other-solutions">Other solutions</h2>
 <p>Generic supervision is quite a complicated problem as there are many conditions when we may suppose that our service failed, like:</p>
 <ul>

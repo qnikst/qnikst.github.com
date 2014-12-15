@@ -10,31 +10,30 @@
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
 </head>
+
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green"><u>module</u></font> <a href="../">QnikstBlog</a>
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
       <div id="navigaion">
       <font color="cyan">(</font> <a href="../posts.html">Archive</a>
       <font color="cyan">,</font> <a href="../projects.html">Projects</a>
       <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green"><u>where</u></font>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
   </div>
 
   <div id="content">
-    
-
-<div class="page-header">
+    <div class="page-header">
     <div class="right">
       <strong>unknown</strong>
     </div>
     <h1>Лекция 1</h1>
     <div class="post-author">by <em>text by Vershilo A.B. <br /> lecture by Tsiganov A. V.</em> by-nc-nd </div>
     <div class="keywords"><strong>Keywords:</strong> </div>
-    </div>
 </div>
 
 <p>В классическом случае рассматриваем голономные системы со связями.</p>
@@ -50,14 +49,11 @@
 <li><p>celtic stone</p></li>
 </ul>
 <p>пример “конёк” (TODO график)</p>
-<p>Рассмотрим голономные скалярные связи на примере двойного маятника: (TODO картинка)</p>
-<p><span class="math">\[f(\vec{r_1},\ldots,\vec{r_n}) = 0\]</span></p>
-<p>Конфигурационное пространство:</p>
-<p><span class="math">\[0 \leq \phi \leq 2\pi,~~~ 0 \leq \theta \leq 2\pi\]</span></p>
+<p>Рассмотрим голономные скалярные связи на примере двойного маятника: (TODO картинка) <span class="math">\[f(\vec{r_1},\ldots,\vec{r_n}) = 0\]</span></p>
+<p>Конфигурационное пространство: <span class="math">\[0 \leq \phi \leq 2\pi,~~~ 0 \leq \theta \leq 2\pi\]</span></p>
 <p>Это тор (TODO картинка)</p>
 <p>Итого возникает вопрос: как квантовать тор?</p>
-<p>Уравнение Лагранжа второго рода</p>
-<p><span class="math">\[\dfrac{d}{dt} \frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i} = 0, i=1\ldots m\]</span></p>
+<p>Уравнение Лагранжа второго рода <span class="math">\[\dfrac{d}{dt} \frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i} = 0, i=1\ldots m\]</span></p>
 <p><span class="math">\[L(q_1,\ldots,q_n,\dot{q}_1,\ldots,\dot{q}_n,t)\]</span></p>
 <p>Осуществляем переход: <span class="math">\((q,\dot{q}) \rightarrow (q,p), ~~~ p_i = \frac{\partial L}{\partial \dot{q}_i}\)</span></p>
 <p>Получаем уравнения Гамильтона (<span class="math">\(n\)</span>-шт)</p>
@@ -75,8 +71,7 @@
 <p>в этом случае <span class="math">\(H\)</span> сохраняется и является первым интегралом движения.</p>
 <p>[Первый интеграл] <span class="math">\(F\)</span> - называется интегралом <span class="math">\(\Leftrightarrow\)</span> <span class="math">\(\dfrac{dF}{dt} (p,q) = 0\)</span></p>
 <p>Интегралы позволяют уменьшть количество уравнений движения. И каждый интеграл связан с симметриями.</p>
-<p>Скобками Пуассона <span class="math">\(\{p,q\}\)</span> называют:</p>
-<p><span class="math">\[\left\{f,g\right\} = \sum \frac{\partial f}{\partial q_i} \cdot \frac{\partial g}{\partial p_i} - 
+<p>Скобками Пуассона <span class="math">\(\{p,q\}\)</span> называют: <span class="math">\[\left\{f,g\right\} = \sum \frac{\partial f}{\partial q_i} \cdot \frac{\partial g}{\partial p_i} - 
                                   \frac{\partial f}{\partial p_i} \cdot \frac{\partial g}{\partial q_i}\]</span></p>
 <p>Если скобки Пуассона совпадают с алгеброй Ли, то они называется скобками Ли-Пуассона.</p>
 <p>Пусть <span class="math">\(\mathcal M\)</span> многообразие с локальными координатами <span class="math">\(z_1,\ldots,z_m\)</span></p>
@@ -89,8 +84,7 @@
          \right)\]</span></p>
 <p>тогда скобки Пуассона которые задают многообразие равны:</p>
 <p><span class="math">\[\{f,g\} = \langle df,Pdg\rangle\]</span></p>
-<p>В нашем случае:</p>
-<p><span class="math">\[P = \left(\begin{matrix} 0 &amp; I \\ -I &amp; 0\end{matrix}\right)\]</span></p>
+<p>В нашем случае: <span class="math">\[P = \left(\begin{matrix} 0 &amp; I \\ -I &amp; 0\end{matrix}\right)\]</span></p>
 <p>би-вектор Пуассона, структурный тензор алгебры Ли.</p>
 <p>Пусть динамика задается Гамильтонианом <span class="math">\(H\)</span>. С этим гамильтонианом мы можем связать векторное поле.</p>
 <p><span class="math">\[X_H = P dH \in T\mathcal M\]</span></p>
@@ -172,6 +166,7 @@
   <footer>
     powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
   </footer>
+
 <script type="text/javascript">
     //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
 var _gaq = _gaq || [];

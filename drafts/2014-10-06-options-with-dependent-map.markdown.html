@@ -2,14 +2,14 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Qnikst blog - Формулы которые нужно знать</title>
+    <title>Qnikst blog - Options with dependent-map</title>
     <!-- Bootstrap -->
     <link href="../css/additional.css" rel="stylesheet" media="screen">
     <link href="../css/hscolour.css" rel="stylesheet" media="screen">
     <link href="../css/hakyll.css" rel="stylesheet" media="screen">
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
     
 </head>
 
@@ -29,38 +29,26 @@
   <div id="content">
     <div class="page-header">
     <div class="right">
-      <strong>February  1, 2013</strong>
+      <strong>October  6, 2014</strong>
     </div>
-    <h1>Формулы которые нужно знать</h1>
-    <div class="post-author">by <em>Alexander Vershilov</em> <a href="https://creativecommons.org/licenses/by/3.0"><img src="https://i.creativecommons.org/l/by/3.0/88x31.png" /></a> </div>
-    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/phys.html">phys</a>, <a href="../tags/univ.html">univ</a></div>
+    <h1>Options with dependent-map</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em> cc-by </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
 </div>
 
-<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>
-<p>Уравнение теплопроводности:</p>
-<p><span class="math">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
-<p>Уравнение Лапласа:</p>
-<p><span class="math">\[\Delta f = 0\]</span></p>
-<p>Уравнение Пуассона:</p>
-<p><span class="math">\[\Delta f = g\]</span></p>
-<p>Уравнение Геймгольца (эллептическое):</p>
-<p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
-<p>Волновое уравнение (гиперболическое):</p>
-<p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
-<p>Уравнение Шрёдингера</p>
-<p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
-<p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
-<p>Задача Штурма-Лиувилля:</p>
-<p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
-<p>Преобразование Лапласа:</p>
-<p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>
+<p>There is a problem when you want to keep some options, where there may be a big set of options and that options are typed. For example it may be some config or set of hints, ideally we want to preserve two properties:</p>
+<ol style="list-style-type: decimal">
+<li><p>for each option we want to have one value per key (option name)</p></li>
+<li><p>we want each options to have concrete type.</p></li>
+</ol>
+<p>The second option is rather hard to maintain and we need to to perform some tricks. There are at least to apporaches</p>
 
 <hr />
 <div id="sociallinks" class="pull-left">
     <strong>Share on:</strong>
-  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2013-02-01-phys-formulae.html" target="_blank" class="social" title="twit it">t</a>  
-  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2013-02-01-phys-formulae.html" target="_blank" class="social" title="share on facebook">F</a> 
-  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2013-02-01-phys-formulae.html" target="_blank" class="social" title="share on g+">g</a>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/drafts/2014-10-06-options-with-dependent-map.markdown.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/drafts/2014-10-06-options-with-dependent-map.markdown.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/drafts/2014-10-06-options-with-dependent-map.markdown.html" target="_blank" class="social" title="share on g+">g</a>
 </div>
 
 <br class="clearfix" />

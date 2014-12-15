@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Things to know about exception handling.</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>June  3, 2015</strong>
+    </div>
+    <h1>Things to know about exception handling.</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>Lets take a look at the simple pattern, in this pattern we want to write an endless program for some purposes:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</code></pre></div>
+<p>Do you see a huge problem here? And this problem does not … with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
+<p>This function as a previous function runs <code>f</code> retrying on any exception, but now only if <code>g</code> returns true. Let <code>f</code> be some simple endless computation (for example <code>let f = forever yield</code>). Try to answer next questions</p>
+<ol style="list-style-type: decimal">
+<li><p>what will happen if you run <code>runit f g</code> in a separate thread (<code>forkIO $ runit f g</code>)?</p></li>
+<li><p>what will happen if you send an exception to the forked thread?</p></li>
+<li><p>what will happen if you send another exception to that thread?</p></li>
+</ol>
+<p>Now you can try to check your guesses in ghci. If everything is ok then there is nothing new to read for you. However if you are lazy (and didn’t try to answer or run the code), you can continue.</p>
+<p>Let’s try to test:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="fu">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span>
+<span class="fu">&gt;</span> <span class="kw">let</span> runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)
+<span class="fu">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> runit <span class="fu">$</span> forever yield
+<span class="fu">&gt;</span> x
+<span class="dt">ThreadId</span> <span class="dv">154</span>
+<span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
+<p>Ok everything as expected, thread is running and consuming 100% of one CPU. Now go to the step 2.:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)
+exc<span class="fu">&gt;</span> eption<span class="fu">!</span>
+<span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
+<p>Exception is caught, everything is OK. Now go to the 3.</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</code></pre></div>
+<p>Hah.. It just hangs!!! We can interrupt it and check thread status</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
+<p>Is is definitely not what could be expected. Lets try to understand what had happened..</p>
+<p>As you know exception send is synchronous in sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or thread dies).</p>
+<p>Quote from <a href="https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html">haddock</a>:</p>
+<blockquote>
+<p>Exception delivery synchronizes between the source and target thread: <code>throwTo</code> does not return until the exception has been raised in the target thread. The calling thread can thus be certain that the target thread has received the exception. Exception delivery is also atomic with respect to other exceptions. Atomicity is a useful property to have when dealing with race conditions: e.g. if there are two threads that can kill each other, it is guaranteed that only one of the threads will get to kill the other.</p>
+</blockquote>
+<p>It’s definitely not an issue of non-reaching safepoint, that is also possible. Another quote:</p>
+<blockquote>
+<p>In GHC, an exception can only be raised when a thread reaches a safe point, where a safe point is where memory allocation occurs. Some loops do not perform any memory allocation inside the loop and therefore cannot be interrupted by a <code>throwTo</code>.</p>
+</blockquote>
+<p>It could be a case if <code>f</code> would be something like <code>f = return $ last [1..]</code> compiled with optimizations turned on. But as we have seen first exception was delivered successfully. And also we are not in a <em>FFI</em> call. The only possibility is left is that thread is in a masked state. Let’s check it:</p>
+<pre><code>&gt; x &lt;- forkIO $ runit (getMaskingState &gt;&gt;= print  &gt;&gt; forever yield)
+Unmasked
+Prelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; throwTo x (userError &quot;bar&quot;)
+exceptiPrelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; on!
+MaskedInterruptible</code></pre>
+<p>Yes, everything happened as we were expecting thread is now in a masked state, and so exception can’t be delivered. But why? Maybe we need to take a look at <code>Control.Exception</code> module documentation? You may try, but at least in was not there in base-4.8.0 (and before).</p>
+<p>But we can try to find out solution somewhere else, for example in RTS documentation:</p>
+<blockquote>
+<p>A thread can request that asynchronous exceptions not be delivered (“masked”) for the duration of an I/O computation. The primitives</p>
+<p>maskAsyncExceptions# :: IO a -&gt; IO a</p>
+<p>and</p>
+<p>maskUninterruptible# :: IO a -&gt; IO a</p>
+<p>are used for this purpose. During a masked section, asynchronous exceptions may be unmasked again temporarily:</p>
+<p>unmaskAsyncExceptions# :: IO a -&gt; IO a</p>
+<p>Furthermore, asynchronous exceptions are masked automatically during the execution of an exception handler. All three of these primitives leave a continuation on the stack which reverts to the previous state (masked interruptible, masked non-interruptible, or unmasked) on exit.</p>
+</blockquote>
+<p>Looks like a reason of our problem. Unfortunatelly it’s not in a documentation that usual user would read, but a nice thing to know.</p>
+<p>And original code should look like that:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span>
+  ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f
+  <span class="kw">case</span> ev <span class="kw">of</span>
+    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;exception&quot;</span> <span class="fu">&gt;&gt;</span> release (runit f)
+    <span class="dt">Right</span> x <span class="ot">-&gt;</span> return x</code></pre></div>
+<p>You’ll need to pass exception type you are interested in or use <code>catches</code>.</p>
+<p>I hope you enjoyed reading this, despite a terrible English that I have.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

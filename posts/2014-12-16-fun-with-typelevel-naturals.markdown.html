@@ -1,21 +1,42 @@
-<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-    <title>Qnikst blog RSS feed - Post tagged typenats</title>
-    <link href="https://qnikst.github.io/tags/typenats.xml" rel="self" />
-    <link href="https://qnikst.github.io" />
-    <id>https://qnikst.github.io/tags/typenats.xml</id>
-    <author>
-        <name>Alexander Vershilov</name>
-        <email>alexander.vershilov@gmail.com</email>
-    </author>
-    <updated>2014-12-16T00:00:00Z</updated>
-    <entry>
-    <title>Approaches to carry a proof for typelevel natural</title>
-    <link href="https://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html" />
-    <id>https://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html</id>
-    <published>2014-12-16T00:00:00Z</published>
-    <updated>2014-12-16T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>For time ago Bas van Dijk asked a question on glasgow-haskell-users mailing list about <a href="https://www.haskell.org/pipermail/glasgow-haskell-users/2014-November/025451.html">proving the properties of type-level natural numbers obtained by user</a>. That lead to an interesting discussion, that you can read in the list archives.</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Approaches to carry a proof for typelevel natural</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>December 16, 2014</strong>
+    </div>
+    <h1>Approaches to carry a proof for typelevel natural</h1>
+    <div class="post-author">by <em>Vershilov A.V.</em> <a href="https://creativecommons.org/licenses/by/3.0"><img src="https://i.creativecommons.org/l/by/3.0/88x31.png" /></a> </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a>, <a href="../tags/typenats.html">typenats</a></div>
+</div>
+
+<p>For time ago Bas van Dijk asked a question on glasgow-haskell-users mailing list about <a href="https://www.haskell.org/pipermail/glasgow-haskell-users/2014-November/025451.html">proving the properties of type-level natural numbers obtained by user</a>. That lead to an interesting discussion, that you can read in the list archives.</p>
 <p>The problem was that we want to impose a constraint on some typelevel natural and then read value from user and guarantee that we have that constraint. For such constraint we took (&lt;=255).</p>
 <p>Here is a file that describe few approaches to solve this problem.</p>
 <p>At first we need to use a HUGE list of pragmas.</p>
@@ -47,7 +68,7 @@
 <span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Unsafe.Coerce</span>
 <span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Data.Singletons</span>
 <span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Monad</span></code></pre></div>
-<h2 id="attempt-1-tagged-value">Attempt-1: Tagged value</h2>
+<h3 id="attempt-1-tagged-value">Attempt-1: Tagged value</h3>
 <p>We can keep a proof together with value, so we can introduce a new type:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Proof</span> n  (<span class="ot">c ::</span> <span class="dt">Constraint</span>) <span class="kw">where</span> <span class="dt">Proof</span><span class="ot"> ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof</span> n c</code></pre></div>
 <p>In mailing list I provide following code:</p>
@@ -69,7 +90,7 @@
         SomeNat :: forall (n :: Nat). KnownNat n =&gt; Proxy n -&gt; SomeNat,
 	in an equation for ‘fromSome’
 	at Proof.lhs:52:13-21</code></pre>
-<h2 id="attempt-2-type-carrier">Attempt-2: Type carrier</h2>
+<h3 id="attempt-2-type-carrier">Attempt-2: Type carrier</h3>
 <p>Now we want to have the following constraint on out Nat</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Proof2</span><span class="ot"> ::</span> (<span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="dt">Constraint</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>   <span class="dt">Proof2</span><span class="ot"> ::</span> c n <span class="ot">=&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof2</span> c</code></pre></div>
@@ -89,10 +110,10 @@
 <p>Update. As Richard Eisenberg says:</p>
 <pre><code>By the way, the bug in the Proof2 version is a bug in GHC 7.8.3
 (only in .3 -- not in .2 or in the soon-to-be .4) that allows you
-to write unsaturated type families that don&#39;t work.
+to write unsaturated type families that don't work.
 Saying `LessThan255` without a parameter should be a syntax error,
 but that check was accidentally turned off for 7.8.3, leading to a bogus type error.</code></pre>
-<h2 id="attempt-3-carry-a-contraint-in-a-datatype">Attempt-3: carry a contraint in a datatype</h2>
+<h3 id="attempt-3-carry-a-contraint-in-a-datatype">Attempt-3: carry a contraint in a datatype</h3>
 <p>Now let’s keep our ‘constraint’ in a datatype, here we have 2 proxy, one for datatype, and one for value, also a KnownNat constraint that we want to use later:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Proof3</span><span class="ot"> ::</span> (<span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>   <span class="dt">Proof3</span><span class="ot"> ::</span> <span class="dt">KnownNat</span> n <span class="ot">=&gt;</span> c n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof3</span> c</code></pre></div>
@@ -113,7 +134,7 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="co">&gt;    where t255 = Proxy :: Proxy 255</span>
 <span class="co">&gt; -}</span></code></pre></div>
 <pre><code>Proof.lhs:138:46:
-  Could not deduce ((n &lt;=? 255) ~ &#39;True)
+  Could not deduce ((n &lt;=? 255) ~ 'True)
   from the context (KnownNat n)</code></pre>
 <p>It doesn’t work simply because value level check doesn’t guarantee typelevel properties.</p>
 <p>One way to solve it is to use unsafeCoerce: the idea is to use a proof for the value we know, and then coerce a type of a proof to the type of the proof related to the users value:</p>
@@ -133,20 +154,20 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span>     <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></code></pre></div>
 <p>Now we can build all set of values that are good:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> family <span class="dt">Guesses</span> (<span class="ot">n::</span><span class="dt">Nat</span>)<span class="ot"> ::</span> [<span class="dt">Nat</span>] <span class="kw">where</span>
-<span class="ot">&gt;</span>    <span class="dt">Guesses</span> <span class="dv">0</span> <span class="fu">=</span> <span class="ch">&#39;[0]</span>
-<span class="ot">&gt;</span>    <span class="dt">Guesses</span> n <span class="fu">=</span> n <span class="ch">&#39;: Guesses (n-1)</span></code></pre></div>
+<span class="ot">&gt;</span>    <span class="dt">Guesses</span> <span class="dv">0</span> <span class="fu">=</span> <span class="ch">'[0]</span>
+<span class="ot">&gt;</span>    <span class="dt">Guesses</span> n <span class="fu">=</span> n <span class="ch">': Guesses (n-1)</span></code></pre></div>
 <p>And write a code that will check all possible values:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">class</span> <span class="dt">GuessProof</span> (<span class="ot">n ::</span> [<span class="dt">Nat</span>]) <span class="kw">where</span>
 <span class="ot">&gt;   proof ::</span> <span class="dt">SomeNat</span> <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Proof3</span> <span class="dt">LessThan255D</span>)
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">GuessProof</span> <span class="ch">&#39;[] where</span>
+<span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">GuessProof</span> <span class="ch">'[] where</span>
 <span class="ot">&gt;</span>   proof _ _ <span class="fu">=</span> <span class="dt">Nothing</span>
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="kw">instance</span> (<span class="dt">KnownNat</span> n, n <span class="fu">&lt;=</span> <span class="dv">255</span>, <span class="dt">GuessProof</span> ns) <span class="ot">=&gt;</span> <span class="dt">GuessProof</span> (n <span class="ch">&#39;: ns) where</span>
+<span class="ot">&gt;</span> <span class="kw">instance</span> (<span class="dt">KnownNat</span> n, n <span class="fu">&lt;=</span> <span class="dv">255</span>, <span class="dt">GuessProof</span> ns) <span class="ot">=&gt;</span> <span class="dt">GuessProof</span> (n <span class="ch">': ns) where</span>
 <span class="ot">&gt;</span>   proof s p <span class="fu">=</span> guessProof s (inner p) <span class="ot">`mplus`</span> proof s (next p)
-<span class="ot">&gt;</span>    <span class="kw">where</span><span class="ot"> inner ::</span> <span class="dt">Proxy</span> (n <span class="ch">&#39;: ns) -&gt; Proxy (n::Nat)</span>
+<span class="ot">&gt;</span>    <span class="kw">where</span><span class="ot"> inner ::</span> <span class="dt">Proxy</span> (n <span class="ch">': ns) -&gt; Proxy (n::Nat)</span>
 <span class="ot">&gt;</span>          inner _ <span class="fu">=</span> <span class="dt">Proxy</span>
-<span class="ot">&gt;          next ::</span> <span class="dt">Proxy</span> (n <span class="ch">&#39;: ns) -&gt; Proxy (ns::[Nat])</span>
+<span class="ot">&gt;          next ::</span> <span class="dt">Proxy</span> (n <span class="ch">': ns) -&gt; Proxy (ns::[Nat])</span>
 <span class="ot">&gt;</span>          next _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
 <p>It’s not very usable, have a bad complexity and require to change ghc options but it works and it’s safe.</p>
 <p>Now let’s test our code:</p>
@@ -172,7 +193,7 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span>   <span class="kw">where</span>
 <span class="ot">&gt;     g ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (<span class="dt">Guesses</span> n)
 <span class="ot">&gt;</span>     g _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
-<h2 id="attempt-5-singletons">Attempt 5: Singletons</h2>
+<h3 id="attempt-5-singletons">Attempt 5: Singletons</h3>
 <p>This is not the only solution, one more solution was provided by Richard Eisenberg I have not found it in mailing list archives so including it here.</p>
 <p>The idea is that we may use less effective representation for typelevel naturals, i.e. unary naturals we can build a proof using singletons:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">{-# LANGUAGE TemplateHaskell, DataKinds, PolyKinds, TypeFamilies,</span>
@@ -192,8 +213,8 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span>   leNat (<span class="dt">Succ</span> a) (<span class="dt">Succ</span> b) <span class="fu">=</span> a <span class="ot">`leNat`</span> b
 <span class="ot">&gt;</span>   <span class="fu">|</span>])
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="co">-- | Singletons&#39;s &#39;withSomeSing&#39; is what we want, but a bug in 7.8.3 doesn&#39;t</span>
-<span class="ot">&gt;</span> <span class="co">-- let it work without a specialized type for &#39;Nat&#39;s</span>
+<span class="ot">&gt;</span> <span class="co">-- | Singletons's 'withSomeSing' is what we want, but a bug in 7.8.3 doesn't</span>
+<span class="ot">&gt;</span> <span class="co">-- let it work without a specialized type for 'Nat's</span>
 <span class="ot">&gt; withSomeNat ::</span> <span class="dt">Nat</span> <span class="ot">-&gt;</span> (forall (<span class="ot">n ::</span> <span class="dt">Nat</span>)<span class="fu">.</span> <span class="dt">Sing</span> n <span class="ot">-&gt;</span> r) <span class="ot">-&gt;</span> r
 <span class="ot">&gt;</span> withSomeNat <span class="fu">=</span> withSomeSing
 <span class="ot">&gt;</span> 
@@ -211,7 +232,7 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span> 
 <span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Bound</span> <span class="fu">=</span> <span class="dt">U</span> <span class="dv">255</span>
 <span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="co">-- easier to test in GHCi than a proper &#39;main&#39;</span>
+<span class="ot">&gt;</span> <span class="co">-- easier to test in GHCi than a proper 'main'</span>
 <span class="ot">&gt; go ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
 <span class="ot">&gt;</span> go n <span class="fu">=</span>
 <span class="ot">&gt;</span>    <span class="kw">case</span> toNat n <span class="kw">of</span>
@@ -219,11 +240,11 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span>      <span class="dt">Just</span> nat <span class="ot">-&gt;</span> putStrLn <span class="fu">$</span> withSomeNat nat <span class="fu">$</span> \ snat <span class="ot">-&gt;</span>
 <span class="ot">&gt;</span>        <span class="kw">case</span> snat <span class="ot">`sLeNat`</span> (<span class="ot">sing ::</span> <span class="dt">Sing</span> <span class="dt">Bound</span>) <span class="kw">of</span>
 <span class="ot">&gt;</span>          <span class="dt">STrue</span>  <span class="ot">-&gt;</span> f snat
-<span class="ot">&gt;</span>          <span class="dt">SFalse</span> <span class="ot">-&gt;</span> <span class="st">&quot;Didn&#39;t work&quot;</span>
+<span class="ot">&gt;</span>          <span class="dt">SFalse</span> <span class="ot">-&gt;</span> <span class="st">&quot;Didn't work&quot;</span>
 <span class="ot">&gt;</span> 
 <span class="ot">&gt; f ::</span> forall proxy (<span class="ot">n ::</span> <span class="dt">Nat</span>)<span class="fu">.</span> (n <span class="ot">`LeNat`</span> <span class="dt">Bound</span>) <span class="fu">~</span> <span class="dt">True</span> <span class="ot">=&gt;</span> proxy n <span class="ot">-&gt;</span> <span class="dt">String</span>
 <span class="ot">&gt;</span> f _ <span class="fu">=</span> <span class="st">&quot;It worked!&quot;</span></code></pre></div>
-<h2 id="attempt-6-using-luquid-haskell">Attempt 6: Using Luquid haskell</h2>
+<h3 id="attempt-6-using-luquid-haskell">Attempt 6: Using Luquid haskell</h3>
 <p>Ranjit Jhala, provided a great solution for liquid haskell, that could be found either by <a href="http://goto.ucsd.edu:8090/index.html#?demo=permalink%2F1418064183.hs">url</a> or here:</p>
 <hr />
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> 
@@ -263,87 +284,52 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <span class="ot">&gt;</span>           <span class="kw">if</span> isValid n
 <span class="ot">&gt;</span>              <span class="kw">then</span> workWithValidNumber n
 <span class="ot">&gt;</span>              <span class="kw">else</span> putStrLn <span class="st">&quot;Humph, bad input, try again!&quot;</span> <span class="fu">&gt;&gt;</span> loop</code></pre></div>
-<p>I hope you have enjoyed reading this.</p>]]></summary>
-</entry>
-<entry>
-    <title>Playing with types: type level numbers</title>
-    <link href="https://qnikst.github.io/posts/2014-08-07-playing-with-types.html" />
-    <id>https://qnikst.github.io/posts/2014-08-07-playing-with-types.html</id>
-    <published>2013-12-30T00:00:00Z</published>
-    <updated>2013-12-30T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<blockquote>
-<p>As always I’m terribly sorry for my bad english, but writing the posts and having a feedback is the only reasonable way to improve it.</p>
-</blockquote>
-<p>This post describes an easy exercise that gives a feeling of use typelevel numbers. This post is a part of another work that hopefully will be covered in following posts.</p>
-<p>If you want to know more about typelevel literals and friends you can take a look at the <a href="http://ponies.io/posts/2014-07-30-typelits.html">following post</a> it describes the theory much better than I can.</p>
-<p>Intead of using type level Strings we will address numbers. In this post I want to create a datatype that will contain a number that is known <em>statically</em> (at compilation time) and which can be extracted from type at <em>runtime</em>.</p>
-<p>The first part of the problem (having a number) in a type may be interesting if you want to distiguish types assosiated with different numbers.</p>
-<p>For simplicity we will take <a href="https://hackage.haskell.org/package/tagged-0.7.2/docs/Data-Tagged.html">Data.Tagged.Tagged</a> type from <code>tagged</code> package. However it’s possible to create our own type as I did at the beggining (just I did a first time).</p>
-<p>We add helper methods that allow us to extract infomation about the type-parameter from the value:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">toProxy ::</span> <span class="dt">Tagged</span> n a  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n
-toProxy _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
-<p>And add a constrictor helper that allow to create a type with information about number that is provided by us.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mkT ::</span> proxy n <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Tagged</span> n a
-mkT _ a <span class="fu">=</span> <span class="dt">Tagged</span> a</code></pre></div>
-<p>Just check that we can create a fancy values:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="ch">&#39;Nothing a</span></code></pre></div>
-<h1 id="naturals">Naturals</h1>
-<p>From this point we can start real fun. At first lest create a value with natural type parameter:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="dv">3</span> a</code></pre></div>
-<p>Now we want to be able to use this information at runtime. Let’s introduce a new method that will use <code>natVal</code> function:</p>
-<pre class="haskel"><code>natVal :: forall n proxy. KnownNat n =&gt; proxy n -&gt; Integer` </code></pre>
-<p>take a type that acts as a type proxy and returns the integer assosiated with a type.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">useT ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> n a <span class="ot">-&gt;</span> a
-useT t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> fromIntegral (natVal (toProxy t)) <span class="fu">+</span> a</code></pre></div>
-<p>Here we are:</p>
-<ol style="list-style-type: decimal">
-<li><p>extracting type information by calling <code>toProxy</code></p></li>
-<li><p>extracting natural number from a proxy by calling <code>natVal</code></p></li>
-<li><p>returning a calculated results</p></li>
-</ol>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useT <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span>
-<span class="dv">11</span></code></pre></div>
-<h1 id="positive-rational">Positive rational</h1>
-<p>On the next step we will introduce a code that works for natural numbers, by definition rational number is <code>a % b</code>, where <code>a \in Z</code> and <code>b \in N</code>. Lets lift this information to a type level by introducing a typelevel rational:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> (<span class="fu">:%%</span>) a b</code></pre></div>
-<p>And introduce type extraction mechanisms</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- | extract numerator type</span>
-numerator<span class="ot"> ::</span> proxy (n <span class="fu">:%%</span> m) <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n
-numerator _ <span class="fu">=</span> <span class="dt">Proxy</span>
+<p>I hope you have enjoyed reading this.</p>
 
-<span class="co">-- | Extract denomenator type </span>
-<span class="ot">denomenator ::</span> proxy (n <span class="fu">:%%</span> m)  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> m
-denomenator _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
-<p>Today we don’t conver math operations over the type-parameters, this may be a topic for another post. So now we may be quite happy as we can create values tagged by something that looks like a rational number.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>) a</code></pre></div>
-<p>Now we can write a function that will use information about the type at runtime:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">useTF ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">KnownNat</span> m, <span class="dt">Fractional</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (n <span class="fu">:%%</span> m) a <span class="ot">-&gt;</span> a
-useTF t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> v <span class="fu">+</span> a
-  <span class="kw">where</span> v <span class="fu">=</span> fromRational <span class="fu">$</span>
-               natVal (numerator <span class="fu">$</span> toProxy t) <span class="fu">:%</span> natVal (denomenator <span class="fu">$</span> toProxy t)</code></pre></div>
-<p>Lets check:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useTF <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span>
-<span class="fl">8.375</span></code></pre></div>
-<h1 id="positive-real.">Positive real.</h1>
-<p>Now we want to solve the following problem: it’s not easy to write types for ratio, the reason that for a complex cases we need somehow to find the ratio that fits. Also we want to support real numbers. Having in mind the fact that real values are not supported on the typelevel, we may be quite happy with Rational approximation.</p>
-<p>In order to solve those 2 problems we need:</p>
-<ol style="list-style-type: decimal">
-<li><p>real values support</p></li>
-<li><p>ability to write code easily</p></li>
-</ol>
-<p>We will introduce a TH function that will find a good approximation and create required type:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mkFloatProxy ::</span> <span class="dt">RealFrac</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
-mkFloatProxy x <span class="fu">=</span> [<span class="fu">|</span> <span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="fu">$</span>(nk a) <span class="fu">:%%</span> <span class="fu">$</span>(nk b)) <span class="fu">|</span>]
-  <span class="kw">where</span> (a <span class="fu">:%</span> b) <span class="fu">=</span> toRational x
-          nk x <span class="fu">=</span> sigT (litT (numTyLit x)) (<span class="dt">ConT</span> <span class="fu">$</span> mkName <span class="st">&quot;Nat&quot;</span>)</code></pre></div>
-<p>the magic that we have in <code>nk x</code> we need to create a type parameter of kind <code>Nat</code>. Now we can write a code like:</p>
-<blockquote>
-<p>test = mkT $(mkFloatProxy pi) 7.0</p>
-</blockquote>
-<p>This is quite nice, next steps may be support of negative values, using SomeNat and operations on values.</p>]]></summary>
-</entry>
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
 
-</feed>
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
