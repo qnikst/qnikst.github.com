@@ -2,10 +2,9 @@
     <h2>Posts</h2>
     <div class="sourceCode">
         <div style="padding: 10px">
-	    recentPosts =
             <ul class="haskell-list">
 	       $for(posts)$
-	       <li> (<a href="$url$">$title$</a>, $date$)
+	       <li> ($date$, <a href="$url$">$title$</a>)
 	       $if(teaser)$
 	       <blockquote>$teaser$</blockquote>
 	       $endif$

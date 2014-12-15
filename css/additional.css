@@ -2,6 +2,7 @@ body {
   width: 80%;
   margin: 0px auto;
   padding-top: 7px;
+  background-color: #F1F1F1;
 }
 
 #caption {
@@ -15,6 +16,8 @@ body {
 
 #content {
   margin-top: 25px;
+  max-width: 800px;
+  padding:  5px;
 }
 
 div.sourceCode, code.sourceCode {

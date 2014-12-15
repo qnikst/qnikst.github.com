@@ -1,0 +1,78 @@
+% Simulating hand-drawn lines with TikZ
+% Author: percusse
+\documentclass{article}
+\usepackage{tikz,amsmath}
+\usetikzlibrary{calc,decorations.pathmorphing,patterns,positioning,decorations.pathreplacing}
+\usepackage[graphics,tightpage,active]{preview}
+\PreviewEnvironment{tikzpicture}
+\PreviewEnvironment{equation}
+\PreviewEnvironment{equation*}
+\newlength{\imagewidth}
+\newlength{\imagescale}
+\pagestyle{empty}
+\thispagestyle{empty}
+\pgfdeclaredecoration{penciline}{initial}{
+    \state{initial}[width=+\pgfdecoratedinputsegmentremainingdistance,
+    auto corner on length=1mm,]{
+        \pgfpathcurveto%
+        {% From
+            \pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}
+                      {\pgfdecorationsegmentamplitude}
+        }
+        {%  Control 1
+        \pgfmathrand
+        \pgfpointadd{\pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}{0pt}}
+                    {\pgfqpoint{-\pgfdecorationsegmentaspect
+                     \pgfdecoratedinputsegmentremainingdistance}%
+                               {\pgfmathresult\pgfdecorationsegmentamplitude}
+                    }
+        }
+        {%TO 
+        \pgfpointadd{\pgfpointdecoratedinputsegmentlast}{\pgfpoint{1pt}{1pt}}
+        }
+    }
+    \state{final}{}
+}
+\begin{document}
+
+\begin{tikzpicture}[decoration=penciline]
+\node[decorate,draw,inner sep=0.2cm,fill=yellow,circle] (a) at (-1,0)
+  {\Large{${}_i^oA_a^b$}};
+  \draw[decorate,thick,dashed] (2,-1.5) rectangle (6,1.3);
+\node[decorate,draw,inner sep=0.3cm,fill=red] (c) at (2.5,-0.5) {o};
+\draw[decorate,draw,thick] (a.east) -> (2, 0) node[above,midway]{stepAuto};
+\node[decorate,draw,inner sep=0.1cm,fill=yellow,circle] at (3.7,-0.5)
+  {\Large{${}_i^oA_i^b$}};
+  \draw [decoration={brace,amplitude=0.7em},decorate,ultra thick,black]
+    (2.2,-1.5) -- (2.2,0.3);
+  \draw [decoration={brace,amplitude=0.7em},decorate,ultra thick,black]
+    (4.4,0.3) -- (4.4,-1.5);
+  \node at (3,-1) {\Large{,}};
+\node[decorate,draw,inner sep=0.3cm,fill=red] (b) at (5.5,-0.5) {b};
+%  \draw[decorate,ultra thick,color=red] (-2,-2.2) -- (8,-2.2);
+%  \node[decorate,draw,inner sep=0.2cm,fill=yellow,circle] (a) at (0,0) {
+%  \Large{${}_i^oA_a^b$}};
+%  \draw[decorate,thick,dashed] (2,1) rectangle (5.5,-1);
+%  \node[decorate,draw,inner sep=0.2cm,fill=yellow,circle] (b) at (3,0) {
+%      \Large{${}_i^oA_b^{\_}$}
+%  };
+%  \draw[decorate,->,thick] (a) -| ($(b.west)+(-0.1,0)$);
+%  \node[decorate,draw,inner sep=0.2cm,fill=yellow,circle] (b2) at (4.5,0) {
+%  \Large{${}_i^oA_i^c$}
+%  };
+%  \node[decorate,draw,inner sep=0.2cm,fill=yellow,circle] (c) at (8,0) {
+%  \Large{${}_i^oA_c^d$}};
+%  \draw[decorate,->,thick] ($(b2.east)+(0.1,0)$) -| (c.west);
+%  \node at (2,-2.6) {\Large{Request [o]}};
+%  \draw[dashed,->] (3,-2.3) to[in=180,out=90] (3.3,-1.1);
+%  \node at (4.5,-2.6) {\Large{Reply [i]}};
+%  \draw[dashed,->] (4.5,-2.3) to[in=0,out=90] (4.3,-1.2);
+%  \draw[decorate,->] ($(b.east)+(-0.3,0)$) to[in=120,out=270] (3.6,-2.2);
+%  \draw[decorate,->] (3.8,-2.2) to ($(b2.west)+(0.3,0)$);
+%  \node at (-0.9,2.2) {Automata};
+%  \draw[dashed] (0,2.2) to[in=10,out=270] (a.north);
+%%  \draw[dashed] (0,2) to[in=90,out=270] (.north);
+%  \draw[dashed] (0,2.2) to[in=90,out=270] (c.north);
+%  \node[color=red,ultra thick] at (-1.5,-1.9) {\Large{IO}};
+\end{tikzpicture}
+\end{document}

@@ -1,7 +1,8 @@
 ----
-date: 06/11/2013
+date:   2013-11-06
 author: Alexander Vershilov
 title: Supervision inside OpenRC
+tags: gentoo, openrc, linux
 ----
 
 The role of the supervision in the init systems

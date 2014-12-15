@@ -1,0 +1,69 @@
+% Simulating hand-drawn lines with TikZ
+% Author: percusse
+\documentclass{article}
+\usepackage{tikz,amsmath}
+\usetikzlibrary{calc,decorations.pathmorphing,patterns,positioning,decorations.pathreplacing}
+\usepackage[graphics,tightpage,active]{preview}
+\PreviewEnvironment{tikzpicture}
+\PreviewEnvironment{equation}
+\PreviewEnvironment{equation*}
+\newlength{\imagewidth}
+\newlength{\imagescale}
+\pagestyle{empty}
+\thispagestyle{empty}
+\pgfdeclaredecoration{penciline}{initial}{
+    \state{initial}[width=+\pgfdecoratedinputsegmentremainingdistance,
+    auto corner on length=1mm,]{
+        \pgfpathcurveto%
+        {% From
+            \pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}
+                      {\pgfdecorationsegmentamplitude}
+        }
+        {%  Control 1
+        \pgfmathrand
+        \pgfpointadd{\pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}{0pt}}
+                    {\pgfqpoint{-\pgfdecorationsegmentaspect
+                     \pgfdecoratedinputsegmentremainingdistance}%
+                               {\pgfmathresult\pgfdecorationsegmentamplitude}
+                    }
+        }
+        {%TO 
+        \pgfpointadd{\pgfpointdecoratedinputsegmentlast}{\pgfpoint{1pt}{1pt}}
+        }
+    }
+    \state{final}{}
+}
+\begin{document}
+
+\begin{tikzpicture}[decoration=penciline]
+    %\draw[decorate,style=help lines] (-1,-3) grid[step=1cm] (8,2);
+  \node[decorate,draw,inner sep=0.2cm,fill=red] (a) at (0,0) {a};
+  \draw[decorate,thick,dashed] (2,-1) rectangle (5,0.7);
+  \node[gray] at  (3.4,0.2) {\Large{Either}};
+  \draw[decorate,draw,thick, ->] (a.east) -> (1.9, 0) node[above,midway]{stepAuto};
+  \node[decorate,draw,inner sep=0.2cm,fill=red] (b) at (4.5,-0.5) {b};
+  \node at (2.6,-0.5) {\Large{$\left\{~~~,\cdot\right\}$}};
+  \draw[draw,gray] (2.2,-0.4) rectangle (2.5,-0.7);
+  \draw[draw,gray] (0.4,-1.3) rectangle (1.2,-2.1);
+  \draw[draw,gray] (0.4,-1.3) -- (2.2,-0.4);
+  \draw[draw,gray] (2.5,-0.7) -- (1.2,-2.1);
+  \draw[draw,gray] (2.5,-0.4) -- (1.2,-1.3);
+  \draw[draw,gray] (2.5,-0.4) -- (1.2,-1.3);
+  \draw[draw,gray] (2.2,-0.7) -- (1.2,-1.5);
+  \node[decorate,draw,inner sep=0.2cm,fill=red] (o) at (0.8,-1.7) {o};
+%  \draw[decorate,thick,dashed,draw,->] (2.1,-0.5) to[in=90,out=180] (o.north);
+  \draw[decorate,thick,draw,->] (o.south) to[in=90,out=-90] (1.3,-3);
+  \node[decorate,draw,inner sep=0.2cm,fill=red] (i) at (2.5,-2.2) {i};
+  \draw[decorate,thick,draw,->] (1.6,-3) to[in=90,out=90] (i.west);
+  \node[decorate,draw,inner sep=0.1cm,fill=yellow,circle] (a2) at (4.2,-2)
+    {\Large{${}_i^oA_i^b$}};
+  \draw[decorate,thick,draw,->] (i.east) to[in=5,out=5] (a2.west);
+  \draw[decorate,thick,draw,->] (a2.east) 
+               to[in=-60,out=0] (6,-1.5) 
+               to[in=0,out=90] (5.1,0);
+  \draw[decorate,thick,dashed,draw,->] (2.7,-0.5) to[in=30,out=0] (a2.north);
+  \node[decorate,draw,inner sep=0.1cm,fill=yellow,circle] (a3) at (7.2,0)
+    {\Large{${}_i^oA_b^c$}};
+  \draw[decorate,thick,draw,->] (b.east) to[in=90,out=-10] (a3.west);
+\end{tikzpicture}
+\end{document}

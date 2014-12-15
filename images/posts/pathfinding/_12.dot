@@ -1,0 +1,61 @@
+graph {
+    subgraph clusterM {
+        label="map";
+        d1[label=1,color=red]
+        d2[label=2,]
+        d3[label=3,color=red]
+        d4[label=4,color=red]
+        d5[label=5,color=green]
+        edge[weight=95,label=5];
+        d1 -- d2;
+        edge[weight=60,label=40];
+        d1 -- d3;
+        edge[weight=1,label=100];
+        d1 -- d5;
+        edge[weight=90,label=10];
+        d2 -- d3;
+        edge[weight=70,label=30];
+        d2 -- d4;
+        edge[weight=90,label=10];
+        d3 -- d4;
+        edge[weight=80,label=20];
+        d3 -- d5;
+        edge[weight=95,label=5];
+        d4 -- d5;
+    }
+    subgraph cluster1 {
+        label="go";
+        subgraph cluster0 {
+            label="frontier";
+            f31[label="1 (40)"];
+            f1[label="1 (100)"];
+            f32[label="2 (35)"];
+            n[label="Nil"];
+            f32 -- f31 -- f1 -- n;
+        }
+        subgraph cluster01 {
+            label="visited";
+            v1[label="5"];
+            v3[label="3"];
+            v4[label="4"];
+            v1;
+            v3;
+            v4;
+        }
+        subgraph cluster02 {
+            label="current location";
+            c23[label="2 (25)"];
+        }
+        subgraph cluster03 {
+            label="new elements";
+            c1[label="1 (30)"];
+        }
+    }
+    subgraph cluster2 {
+        label="result";
+        r5[label="5 (0)"];
+        r4[label="4 (5)"];
+        r3[label="3 (15)"];
+        r5--r4--r3;
+    }
+}

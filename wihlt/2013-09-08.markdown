@@ -1,0 +1,21 @@
+---
+date: 2013-09-08
+---
+
+  * [Blogged](/posts/2013-09-08-pathfinding.html): path finding algorithm. 
+  * Graphvis: In order to use striked text in dot you can use vim's digraph
+              and long strike [U+0336](http://stackoverflow.com/questions/11833786/how-to-strike-through-text-in-dot-language-graphviz);
+  * Graphvis: you can use label in subgraph cluster to add label to the subgraph;
+
+## what puzzeles me (new questions):
+  
+
+## list of pending questions
+  * Treadscope fails for me with strange errors (should be debugged and possibly fixed) (2013-09-04);
+  * I need to blogpost about biegunka once I'll have good config (2013-09-05);
+  * Write git-annex usecases I want to implement in order to ask how can I archive them. (2013-09-04)
+  * How to use zippers to work with trees (see ndtimofeev questions on [juick](http://juick.com/ndtimofeev/2504504)) (2013-09-05)
+  * how to include list of pending questions on all WHILT pages without troubles (2013-09-05)
+  * I need to read articles about repa and understand tutorials; (2013-09-06)
+  * I need to have basic undestanding of [http://okmij.org/ftp/meta-programming/HPC.html] (2013-09-06)
+  * K-means example still not work for me;  (2013-09-06)
