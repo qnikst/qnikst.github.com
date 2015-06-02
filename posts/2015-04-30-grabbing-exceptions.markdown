@@ -15,8 +15,7 @@ program with `+RTS -xc` in order to get exceptions messages and stack-traces
 logged. However I assume that most of the ghc users doesn't have `ghc`
 compiled with profiling flags. So we need to find another option.
 
-And there is a solution, as every forked thread (that uses `forkIO`
-installs a exceptions handler:
+And there is a solution. Every forked thread installs a exceptions handler:
 
 From [GHC.Cons.Sym](https://hackage.haskell.org/package/base-4.8.0.0/docs/src/GHC-Conc-Sync.html#forkIO)
 ```haskell
@@ -62,11 +61,7 @@ let uncaughtExceptionHandler :: SomeException -> IO ()
         putStrLn $ "Unhandled exception: " ++ show e
 :}
 
-:{
-let setDefaultUncaughtExceptionHandler :: IO ()
-    setDefaultUncaughtExceptionHandler =
-       setUncaughtExceptionHandler uncaughtExceptionHandler
-:}
+setUncaughtExceptionHandler uncaughtExceptionHandler
 
 :m -GHC.Conc.Sync Control.Exception
 ```
@@ -82,6 +77,6 @@ Loading package base ... linking ... done.
 Prelude> :m +Control.Exception Control.Concurrent
 Prelude Control.Exception Control.Concurrent> forkIO $ threadDelay 10000 >> error "yo!"
 ThreadId 28
-Prelude Control.Exception Control.Concurrent> ghc: yo!
+Prelude Control.Exception Control.Concurrent> Unhandled exception: yo!
 ```
 
