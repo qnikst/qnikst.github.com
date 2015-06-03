@@ -4,18 +4,18 @@ date:   2015-06-03
 title: Things to know about exception handling.
 ---
 
-Lets take a look at the simple pattern, in this pattern we want to write
-an endless program for some purposes:
+Let's take a look at the simple pattern, in this pattern we want to write
+an endless program for some purpose:
 
 ```haskell
 runit f = f `onException` (putStrLn "exception!" >> runit f)
 ```
 
 Do you see a huge problem here? And this problem is not with code
-accuracy, inability to gracefully exit or something likethat. There is another
+accuracy, inability to gracefully exit or something like that. There is another
 problem in this pattern. If you don't then continue reading.
 
-Assume `f` is some simple function that loops (for example `let f = forever yield`). Try to answer next questions
+Assume `f` is some simple function that loops (for example `let f = forever yield`). Try to answer the following questions
 
   1. what will happen if you run `runit f` in a separate thread
      (`forkIO $ runit f`)?
@@ -64,11 +64,11 @@ Hah.. It just hangs!!! We can interrupt it and check thread status
 ThreadRunning
 ```
 
-Is is definitely not what could be expected. Lets try to understand what
-had happened..
+This is definitely not what could be expected. Lets try to understand what
+had happened.
 
-As you know exception send is synchronous in sense, that `throwTo` call
-will not exit unless exception will be delivered to the thread (or thread dies).
+As you know exception sending is synchronous in a sense, that `throwTo` call
+will not exit unless exception will be delivered to the thread (or the thread dies).
 
 Quote from [haddock](https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html):
 
@@ -80,8 +80,8 @@ It's definitely not an issue of non-reaching safepoint, that is also possible. A
 > In GHC, an exception can only be raised when a thread reaches a safe point, where a safe point is where memory allocation occurs. Some loops do not perform any memory allocation inside the loop and therefore cannot be interrupted by a `throwTo`.
 
 It could be a case if `f` would be something like `f = return $ last [1..]` compiled with optimizations
-turned on. But as we have seen first exception was delivered successfully.
-And also we are not in a *FFI* call. The only possibility is left is that thread is in a masked state.
+turned on. But as we have seen the first exception was delivered successfully.
+And also we are not in a *FFI* call. The only left possibility is that the thread is in a masked state.
 Let's check it:
 
 ```
@@ -91,10 +91,11 @@ Prelude Control.Exception Control.Concurrent GHC.Conc Control.Monad> throwTo x (
 exceptiPrelude Control.Exception Control.Concurrent GHC.Conc Control.Monad> on!
 MaskedInterruptible
 ```
-Yes, everything happened as we were expecting thread is now in a masked state,
+
+Yes, everything happened as we were expecting the thread is now in a masked state,
 and so exception can't be delivered. But why? Maybe we need to take a look at
-`Control.Exception` module documentation? You may try, but at least in was not there
-in base-4.8.0 (and before).
+`Control.Exception` module documentation? You may try, but at least in base-4.8.0
+(and in the previous versions) these details were not documented.
 
 But we can try to find out solution somewhere else, for example in RTS documentation:
 
@@ -118,10 +119,10 @@ But we can try to find out solution somewhere else, for example in RTS documenta
 > state (masked interruptible, masked non-interruptible, or unmasked)
 > on exit.
 
-Looks like a reason of our problem. Unfortunatelly it's not in a documentation
+Looks like a reason of our problem. Unfortunatelly it's not in the documentation
 that usual user would read, but a nice thing to know.
 
-And original code should look like that:
+And original code should look like the following:
 
 ```haskell
 runit f = mask $ \release -> do
