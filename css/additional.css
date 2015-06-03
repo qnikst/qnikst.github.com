@@ -20,12 +20,13 @@ body {
   padding:  5px;
 }
 
-div.sourceCode, code.sourceCode {
+code.sourceCode {
   border: solid black;
   border-width: 1px 1px 1px 5px;
   display: block;
   border-color: black black black green;
-  padding: 2px;
+  padding: 5px;
+  padding-bottom: 7px;
   margin: 15px;
 }
 

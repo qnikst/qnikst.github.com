@@ -11,16 +11,14 @@ an endless program for some purposes:
 runit f = f `onException` (putStrLn "exception!" >> runit f)
 ```
 
-Do you see a huge problem here? And this problem does not ... with code
-accuracy, inability to gracefully exit or something like that. There is another
+Do you see a huge problem here? And this problem is not with code
+accuracy, inability to gracefully exit or something likethat. There is another
 problem in this pattern. If you don't then continue reading.
 
-This function as a previous function runs `f` retrying on any exception,
-but now only if `g` returns true. Let `f` be some simple endless
-computation (for example `let f = forever yield`). Try to answer next questions
+Assume `f` is some simple function that loops (for example `let f = forever yield`). Try to answer next questions
 
-  1. what will happen if you run `runit f g` in a separate thread
-     (`forkIO $ runit f g`)?
+  1. what will happen if you run `runit f` in a separate thread
+     (`forkIO $ runit f`)?
 
   2. what will happen if you send an exception to the forked thread?
 
