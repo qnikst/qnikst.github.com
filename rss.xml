@@ -15,12 +15,12 @@
     <id>https://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html</id>
     <published>2015-06-03T00:00:00Z</published>
     <updated>2015-06-03T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Lets take a look at the simple pattern, in this pattern we want to write an endless program for some purposes:</p>
+    <summary type="html"><![CDATA[<p>Let’s take a look at the simple pattern, in this pattern we want to write an endless program for some purpose:</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</code></pre></div>
-<p>Do you see a huge problem here? And this problem does not … with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
-<p>This function as a previous function runs <code>f</code> retrying on any exception, but now only if <code>g</code> returns true. Let <code>f</code> be some simple endless computation (for example <code>let f = forever yield</code>). Try to answer next questions</p>
+<p>Do you see a huge problem here? And this problem is not with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
+<p>Assume <code>f</code> is some simple function that loops (for example <code>let f = forever yield</code>). Try to answer the following questions</p>
 <ol style="list-style-type: decimal">
-<li><p>what will happen if you run <code>runit f g</code> in a separate thread (<code>forkIO $ runit f g</code>)?</p></li>
+<li><p>what will happen if you run <code>runit f</code> in a separate thread (<code>forkIO $ runit f</code>)?</p></li>
 <li><p>what will happen if you send an exception to the forked thread?</p></li>
 <li><p>what will happen if you send another exception to that thread?</p></li>
 </ol>
@@ -43,8 +43,8 @@ exc<span class="fu">&gt;</span> eption<span class="fu">!</span>
 <p>Hah.. It just hangs!!! We can interrupt it and check thread status</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> threadStatus x
 <span class="dt">ThreadRunning</span></code></pre></div>
-<p>Is is definitely not what could be expected. Lets try to understand what had happened..</p>
-<p>As you know exception send is synchronous in sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or thread dies).</p>
+<p>This is definitely not what could be expected. Lets try to understand what had happened.</p>
+<p>As you know exception sending is synchronous in a sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or the thread dies).</p>
 <p>Quote from <a href="https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html">haddock</a>:</p>
 <blockquote>
 <p>Exception delivery synchronizes between the source and target thread: <code>throwTo</code> does not return until the exception has been raised in the target thread. The calling thread can thus be certain that the target thread has received the exception. Exception delivery is also atomic with respect to other exceptions. Atomicity is a useful property to have when dealing with race conditions: e.g. if there are two threads that can kill each other, it is guaranteed that only one of the threads will get to kill the other.</p>
@@ -53,13 +53,13 @@ exc<span class="fu">&gt;</span> eption<span class="fu">!</span>
 <blockquote>
 <p>In GHC, an exception can only be raised when a thread reaches a safe point, where a safe point is where memory allocation occurs. Some loops do not perform any memory allocation inside the loop and therefore cannot be interrupted by a <code>throwTo</code>.</p>
 </blockquote>
-<p>It could be a case if <code>f</code> would be something like <code>f = return $ last [1..]</code> compiled with optimizations turned on. But as we have seen first exception was delivered successfully. And also we are not in a <em>FFI</em> call. The only possibility is left is that thread is in a masked state. Let’s check it:</p>
+<p>It could be a case if <code>f</code> would be something like <code>f = return $ last [1..]</code> compiled with optimizations turned on. But as we have seen the first exception was delivered successfully. And also we are not in a <em>FFI</em> call. The only left possibility is that the thread is in a masked state. Let’s check it:</p>
 <pre><code>&gt; x &lt;- forkIO $ runit (getMaskingState &gt;&gt;= print  &gt;&gt; forever yield)
 Unmasked
 Prelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; throwTo x (userError &quot;bar&quot;)
 exceptiPrelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; on!
 MaskedInterruptible</code></pre>
-<p>Yes, everything happened as we were expecting thread is now in a masked state, and so exception can’t be delivered. But why? Maybe we need to take a look at <code>Control.Exception</code> module documentation? You may try, but at least in was not there in base-4.8.0 (and before).</p>
+<p>Yes, everything happened as we were expecting the thread is now in a masked state, and so exception can’t be delivered. But why? Maybe we need to take a look at <code>Control.Exception</code> module documentation? You may try, but at least in base-4.8.0 (and in the previous versions) these details were not documented.</p>
 <p>But we can try to find out solution somewhere else, for example in RTS documentation:</p>
 <blockquote>
 <p>A thread can request that asynchronous exceptions not be delivered (“masked”) for the duration of an I/O computation. The primitives</p>
@@ -70,8 +70,8 @@ MaskedInterruptible</code></pre>
 <p>unmaskAsyncExceptions# :: IO a -&gt; IO a</p>
 <p>Furthermore, asynchronous exceptions are masked automatically during the execution of an exception handler. All three of these primitives leave a continuation on the stack which reverts to the previous state (masked interruptible, masked non-interruptible, or unmasked) on exit.</p>
 </blockquote>
-<p>Looks like a reason of our problem. Unfortunatelly it’s not in a documentation that usual user would read, but a nice thing to know.</p>
-<p>And original code should look like that:</p>
+<p>Looks like a reason of our problem. Unfortunatelly it’s not in the documentation that usual user would read, but a nice thing to know.</p>
+<p>And original code should look like the following:</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span>
   ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f
   <span class="kw">case</span> ev <span class="kw">of</span>
