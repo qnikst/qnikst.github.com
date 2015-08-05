@@ -39,8 +39,8 @@
 <p>В классическом случае рассматриваем голономные системы со связями.</p>
 <p>Связи бывают двух видов</p>
 <ol>
-<li><p>не удерживающие, одностороннее взаимодействие <span class="math">\[f(r_1,\ldots,r_n,t)\geq 0\]</span></p></li>
-<li><p>удерживающие, двустороннее взаимодействие <span class="math">\[f(r_1,\ldots,r_n,t)=0\]</span></p></li>
+<li><p>не удерживающие, одностороннее взаимодействие <span class="math display">\[f(r_1,\ldots,r_n,t)\geq 0\]</span></p></li>
+<li><p>удерживающие, двустороннее взаимодействие <span class="math display">\[f(r_1,\ldots,r_n,t)=0\]</span></p></li>
 </ol>
 <p>Если в уравнения входит скорости - то система называется неголономной:</p>
 <p>Примеры:</p>
@@ -49,90 +49,91 @@
 <li><p>celtic stone</p></li>
 </ul>
 <p>пример “конёк” (TODO график)</p>
-<p>Рассмотрим голономные скалярные связи на примере двойного маятника: (TODO картинка) <span class="math">\[f(\vec{r_1},\ldots,\vec{r_n}) = 0\]</span></p>
-<p>Конфигурационное пространство: <span class="math">\[0 \leq \phi \leq 2\pi,~~~ 0 \leq \theta \leq 2\pi\]</span></p>
+<p>Рассмотрим голономные скалярные связи на примере двойного маятника: (TODO картинка) <span class="math display">\[f(\vec{r_1},\ldots,\vec{r_n}) = 0\]</span></p>
+<p>Конфигурационное пространство: <span class="math display">\[0 \leq \phi \leq 2\pi,~~~ 0 \leq \theta \leq 2\pi\]</span></p>
 <p>Это тор (TODO картинка)</p>
 <p>Итого возникает вопрос: как квантовать тор?</p>
-<p>Уравнение Лагранжа второго рода <span class="math">\[\dfrac{d}{dt} \frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i} = 0, i=1\ldots m\]</span></p>
-<p><span class="math">\[L(q_1,\ldots,q_n,\dot{q}_1,\ldots,\dot{q}_n,t)\]</span></p>
-<p>Осуществляем переход: <span class="math">\((q,\dot{q}) \rightarrow (q,p), ~~~ p_i = \frac{\partial L}{\partial \dot{q}_i}\)</span></p>
-<p>Получаем уравнения Гамильтона (<span class="math">\(n\)</span>-шт)</p>
-<p><span class="math">\[H = \sum p_i \dot{q}_i - l\]</span></p>
-<p>Откуда получаем уравнения второго рода (<span class="math">\(2n\)</span> штук)</p>
-<p><span class="math">\[\left\{
+<p>Уравнение Лагранжа второго рода <span class="math display">\[\dfrac{d}{dt} \frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i} = 0, i=1\ldots m\]</span></p>
+<p><span class="math display">\[L(q_1,\ldots,q_n,\dot{q}_1,\ldots,\dot{q}_n,t)\]</span></p>
+<p>Осуществляем переход: <span class="math inline">\((q,\dot{q}) \rightarrow (q,p), ~~~ p_i = \frac{\partial L}{\partial \dot{q}_i}\)</span></p>
+<p>Получаем уравнения Гамильтона (<span class="math inline">\(n\)</span>-шт)</p>
+<p><span class="math display">\[H = \sum p_i \dot{q}_i - l\]</span></p>
+<p>Откуда получаем уравнения второго рода (<span class="math inline">\(2n\)</span> штук)</p>
+<p><span class="math display">\[\left\{
         \begin{align}
               \dot{q}_i = \fraq{\partial H}{\partial p_i} \\
               \dot{p}_i = - \fraq{\partial H}{\partial \dot{q}_i
         \end{align}
     \right.\]</span></p>
-<p>Для кватнования у <span class="math">\(L\)</span> и <span class="math">\(H\)</span> разные теории и рассматривать <span class="math">\(L\)</span> мы не будем.</p>
-<p><span class="math">\[H=H(p,q,\not t)\]</span></p>
-<p><span class="math">\[\frac{dH}{dt} = \sum_{i=1}^m \frac{\partial H}{\partial p}\dot{p}_i + \sum \frac{\partial H}{\partial q_i} \dot{q}_i = 0\]</span></p>
-<p>в этом случае <span class="math">\(H\)</span> сохраняется и является первым интегралом движения.</p>
-<p>[Первый интеграл] <span class="math">\(F\)</span> - называется интегралом <span class="math">\(\Leftrightarrow\)</span> <span class="math">\(\dfrac{dF}{dt} (p,q) = 0\)</span></p>
+<p>Для кватнования у <span class="math inline">\(L\)</span> и <span class="math inline">\(H\)</span> разные теории и рассматривать <span class="math inline">\(L\)</span> мы не будем.</p>
+<p><span class="math display">\[H=H(p,q,\not t)\]</span></p>
+<p><span class="math display">\[\frac{dH}{dt} = \sum_{i=1}^m \frac{\partial H}{\partial p}\dot{p}_i + \sum \frac{\partial H}{\partial q_i} \dot{q}_i = 0\]</span></p>
+<p>в этом случае <span class="math inline">\(H\)</span> сохраняется и является первым интегралом движения.</p>
+<p>[Первый интеграл] <span class="math inline">\(F\)</span> - называется интегралом <span class="math inline">\(\Leftrightarrow\)</span> <span class="math inline">\(\dfrac{dF}{dt} (p,q) = 0\)</span></p>
 <p>Интегралы позволяют уменьшть количество уравнений движения. И каждый интеграл связан с симметриями.</p>
-<p>Скобками Пуассона <span class="math">\(\{p,q\}\)</span> называют: <span class="math">\[\left\{f,g\right\} = \sum \frac{\partial f}{\partial q_i} \cdot \frac{\partial g}{\partial p_i} - 
+<p>Скобками Пуассона <span class="math inline">\(\{p,q\}\)</span> называют: <span class="math display">\[\left\{f,g\right\} = \sum \frac{\partial f}{\partial q_i} \cdot \frac{\partial g}{\partial p_i} - 
                                   \frac{\partial f}{\partial p_i} \cdot \frac{\partial g}{\partial q_i}\]</span></p>
 <p>Если скобки Пуассона совпадают с алгеброй Ли, то они называется скобками Ли-Пуассона.</p>
-<p>Пусть <span class="math">\(\mathcal M\)</span> многообразие с локальными координатами <span class="math">\(z_1,\ldots,z_m\)</span></p>
-<p><span class="math">\(f(z_1,\ldots,z_m)\)</span> - функция на многообразии, то мы молжем взять внешнюю производную</p>
-<p><span class="math">\[df = \left( \begin{align}
+<p>Пусть <span class="math inline">\(\mathcal M\)</span> многообразие с локальными координатами <span class="math inline">\(z_1,\ldots,z_m\)</span></p>
+<p><span class="math inline">\(f(z_1,\ldots,z_m)\)</span> - функция на многообразии, то мы молжем взять внешнюю производную</p>
+<p><span class="math display">\[df = \left( \begin{align}
                   \frac{\partial f}{\partial z_1}\\
                   \vdots\\
                   \frac{\partial f}{\partial z_n}\\
                 \end{align}
          \right)\]</span></p>
 <p>тогда скобки Пуассона которые задают многообразие равны:</p>
-<p><span class="math">\[\{f,g\} = \langle df,Pdg\rangle\]</span></p>
-<p>В нашем случае: <span class="math">\[P = \left(\begin{matrix} 0 &amp; I \\ -I &amp; 0\end{matrix}\right)\]</span></p>
+<p><span class="math display">\[\{f,g\} = \langle df,Pdg\rangle\]</span></p>
+<p>В нашем случае: <span class="math display">\[P = \left(\begin{matrix} 0 &amp; I \\ -I &amp; 0\end{matrix}\right)\]</span></p>
 <p>би-вектор Пуассона, структурный тензор алгебры Ли.</p>
-<p>Пусть динамика задается Гамильтонианом <span class="math">\(H\)</span>. С этим гамильтонианом мы можем связать векторное поле.</p>
-<p><span class="math">\[X_H = P dH \in T\mathcal M\]</span></p>
-<p><span class="math">\[X_H(x) = \{H,x\}\]</span></p>
-<p>Запишем динамику эволюции. Вводим время <span class="math">\(t\)</span></p>
+<p>Пусть динамика задается Гамильтонианом <span class="math inline">\(H\)</span>. С этим гамильтонианом мы можем связать векторное поле.</p>
+<p><span class="math display">\[X_H = P dH \in T\mathcal M\]</span></p>
+<p><span class="math display">\[X_H(x) = \{H,x\}\]</span></p>
+<p>Запишем динамику эволюции. Вводим время <span class="math inline">\(t\)</span></p>
 <p>(TODO картинку)</p>
 <p>эволюция гамильтоновой системы</p>
-<p><span class="math">\((t,f) \rightarrow f_t\)</span> - значение во время <span class="math">\(t\)</span>, <span class="math">\(f\in C^\infty(\mathcal M)\)</span></p>
+<p><span class="math inline">\((t,f) \rightarrow f_t\)</span> - значение во время <span class="math inline">\(t\)</span>, <span class="math inline">\(f\in C^\infty(\mathcal M)\)</span></p>
 <p>Фазовый поток:</p>
-<p><span class="math">\(f(q_1,\ldots,q_m,p_1,\ldots,p_m,t) \rightarrow f(q_1(t),\ldots,q_m(t),p_1(t),\ldots,p_m(t))\)</span></p>
-<p>Если время <span class="math">\(t\)</span> - малое то:</p>
-<p><span class="math">\[f(t) = exp(tH) \circ f = \sum \frac{t^n}{n!} \{\underbrace{f\cdot f\cdot \ldots \cdot f}_{n},H\}\]</span></p>
-<p>Уравнения движения принимают вид <span class="math">\(X_H(x) = \{H,x\} = P dH(x)\)</span>.</p>
+<p><span class="math inline">\(f(q_1,\ldots,q_m,p_1,\ldots,p_m,t) \rightarrow f(q_1(t),\ldots,q_m(t),p_1(t),\ldots,p_m(t))\)</span></p>
+<p>Если время <span class="math inline">\(t\)</span> - малое то:</p>
+<p><span class="math display">\[f(t) = exp(tH) \circ f = \sum \frac{t^n}{n!} \{\underbrace{f\cdot f\cdot \ldots \cdot f}_{n},H\}\]</span></p>
+<p>Уравнения движения принимают вид <span class="math inline">\(X_H(x) = \{H,x\} = P dH(x)\)</span>.</p>
 <p>Разберемся сначала:</p>
-<p><span class="math">\[i \hbar \frac{\partial \Psi}{\partial t} = \hat H \Phi\]</span></p>
-<p><span class="math">\[H = \frac{p^2}{2m} + V(q), p = \frac{i\hbar \partial}{\partial q}\]</span></p>
+<p><span class="math display">\[i \hbar \frac{\partial \Psi}{\partial t} = \hat H \Phi\]</span></p>
+<p><span class="math display">\[H = \frac{p^2}{2m} + V(q), p = \frac{i\hbar \partial}{\partial q}\]</span></p>
 <p>Наша задача написать операторы.</p>
-<p>В квадратичном случае <span class="math">\(\Psi=e^{i\hbar R}\Psi \rightarrow  \hat H \Psi = E \Psi\)</span>. тут надо найти все векторы <span class="math">\(\Psi_1,\ldots,\Psi_k\)</span>.</p>
+<p>В квадратичном случае <span class="math inline">\(\Psi=e^{i\hbar R}\Psi \rightarrow  \hat H \Psi = E \Psi\)</span>. тут надо найти все векторы <span class="math inline">\(\Psi_1,\ldots,\Psi_k\)</span>.</p>
 <p>Задача:</p>
 <ul>
 <li><p>зная Лагранжево подмножество, как построить собственную фунцию /Шон Бетье лекции по геометрическоу квантованию/</p></li>
-<li><p>алгебраическое квантование есть <span class="math">\(\{f,g\}\)</span> и считаем, что <span class="math">\(\{f,g\} = \lim_{h\rightarrow 0} \frac{[f,g]}{h}\)</span><br /><span class="math">\(\{f,g\} = i h [~]_0 + h^2 [~]_1\)</span>, где <span class="math">\([~]\)</span> - граница когомологии Пуассона-Линхеровича, деформационное кватнование.</p></li>
+<li><p>алгебраическое квантование есть <span class="math inline">\(\{f,g\}\)</span> и считаем, что <span class="math inline">\(\{f,g\} = \lim_{h\rightarrow 0} \frac{[f,g]}{h}\)</span><br />
+<span class="math inline">\(\{f,g\} = i h [~]_0 + h^2 [~]_1\)</span>, где <span class="math inline">\([~]\)</span> - граница когомологии Пуассона-Линхеровича, деформационное кватнование.</p></li>
 </ul>
-<p>Теорема Лиувиля <span class="math">\(\mathcal M\)</span>, <span class="math">\(dim \mathcal M=2n\)</span>, симлектическое многообразие (т.е. существует симлектическая форма <span class="math">\(\omega = P^{-1} \Rightarrow \exists \{\cdot,\cdot\}\)</span>)</p>
+<p>Теорема Лиувиля <span class="math inline">\(\mathcal M\)</span>, <span class="math inline">\(dim \mathcal M=2n\)</span>, симлектическое многообразие (т.е. существует симлектическая форма <span class="math inline">\(\omega = P^{-1} \Rightarrow \exists \{\cdot,\cdot\}\)</span>)</p>
 <ol>
-<li><p>есть <span class="math">\(m\)</span> ингтегралов движения <span class="math">\(\{H_1,\ldots,H_m\}\)</span>, <span class="math">\(\frac{dH_i}{dt}=0\)</span></p></li>
+<li><p>есть <span class="math inline">\(m\)</span> ингтегралов движения <span class="math inline">\(\{H_1,\ldots,H_m\}\)</span>, <span class="math inline">\(\frac{dH_i}{dt}=0\)</span></p></li>
 <li><p>интегралы функционально независимы</p></li>
-<li><p>интегралы находятся в инволюции <span class="math">\(\{H_i,H_j\} = 0\)</span></p></li>
+<li><p>интегралы находятся в инволюции <span class="math inline">\(\{H_i,H_j\} = 0\)</span></p></li>
 </ol>
 <p>Тогда такие системы называются интегрируемыми в квадратурах (по Лиувилю)</p>
 <p>Арнольд (1960-е)</p>
 <p>Многообразие это объединение торов и мы можем перейти в окрестности тора в координаты (действие-угол)</p>
 <p>действие перпендикулярно тору, т.е. переводит с тора на другой, угол описывает вращение вокруг тора.</p>
-<p>С точки зрения кватновой механики система интегрируема или близка к интегрируемой <span class="math">\(\Leftrightarrow\)</span> (TODO картинку)</p>
+<p>С точки зрения кватновой механики система интегрируема или близка к интегрируемой <span class="math inline">\(\Leftrightarrow\)</span> (TODO картинку)</p>
 <p>Барабан Сеная (TODO картинку)</p>
 <p>Простейшее определение</p>
 <ul>
-<li><p><span class="math">\(\hat H_1, \hat H_2,\ldots, \hat H_n\)</span></p></li>
-<li><p><span class="math">\([\hat H_i, \hat H_j] = 0\)</span></p></li>
-<li><p><span class="math">\(H\)</span> - независимы</p></li>
+<li><p><span class="math inline">\(\hat H_1, \hat H_2,\ldots, \hat H_n\)</span></p></li>
+<li><p><span class="math inline">\([\hat H_i, \hat H_j] = 0\)</span></p></li>
+<li><p><span class="math inline">\(H\)</span> - независимы</p></li>
 </ul>
 <p>тогда кватновая система интегрируема</p>
 <p>Возникают вопросы:</p>
-<p>что такое <span class="math">\(m\)</span></p>
+<p>что такое <span class="math inline">\(m\)</span></p>
 <p>что такое коммутатор</p>
 <p>что такое независимость</p>
-<p>В теории рассеяния интегрируемые системы <span class="math">\(\Leftrightarrow\)</span> системы без дифракции</p>
-<p>В <span class="math">\(\partial\Omega\)</span> гран многообразий (TODO картинки)</p>
+<p>В теории рассеяния интегрируемые системы <span class="math inline">\(\Leftrightarrow\)</span> системы без дифракции</p>
+<p>В <span class="math inline">\(\partial\Omega\)</span> гран многообразий (TODO картинки)</p>
 
 <hr />
 <div id="sociallinks" class="pull-left">

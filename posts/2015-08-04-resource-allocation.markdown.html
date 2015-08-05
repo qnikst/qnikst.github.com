@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Массовое выделение ресурсов (пост-ответ)</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>August  4, 2015</strong>
+    </div>
+    <h1>Массовое выделение ресурсов (пост-ответ)</h1>
+    <div class="post-author">by <em>Вершилов А.В.</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>В посте <a href="http://ndtimofeev.github.io/ru/posts/2015-08-02-scope.html" class="uri">http://ndtimofeev.github.io/ru/posts/2015-08-02-scope.html</a> ставится вопрос как решить задачу с выделением многих объектов в “Ресурсо-подобном” окружениии.</p>
+<p>Попробуем решить данную задачу. Естественно такую задачу можно решить генераций кода и TH, но это путь настоящего лиспера. В то время как Haskell язык с продвинутой системой типов, настолько, что типы могут писать за нас. Вот это и попробуем продемострировать.</p>
+<p>Сначала включим немного интересных расширений.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TypeOperators #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE DataKinds #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE KindSignatures #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span></code></pre></div>
+<p>Для решения нашей задачи мы пострим список на уровне типов, тут он будет напоминать тип из пакета <a href="https://hackage.haskell.org/package/vinyl">vinyl</a>, так же гетерогенные списки и похожие стуктуры можно найти в пакетах <a href="https://hackage.haskell.org/package/HList">HList</a>, <a href="https://hackage.haskell.org/package/fixed-vector-hetero">fixed-vector-hetero</a> и других.</p>
+<p>Тут мы пишем тип сами, потому, что это просто, и для данной задачи не требуются какие либо дополнительные свойства. Для этого мы создаем GADT структуру данных, тут можно было бы воспользоваться и type family, но в этом случае возникли бы сложности связанные с их неинъективностью.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">H</span> (<span class="ot">p ::</span> <span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) (<span class="ot">c::</span>[<span class="fu">*</span>]) <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">Nil</span><span class="ot">   ::</span> <span class="dt">H</span> p <span class="ch">'[]</span>
+<span class="ot">&gt;   (:.)  ::</span> p a <span class="ot">-&gt;</span> <span class="dt">H</span> p as <span class="ot">-&gt;</span> <span class="dt">H</span> p (a <span class="ch">': as)</span></code></pre></div>
+<p>Здесь важно, что у мы создаем не 1 параметр, в котором типы элементов, определяются списком на уровне типов (второй параметр), но и дополнительным типов, который определяет тип элемента, так что элементы списка являются тегами. Это сделано для упрощения написания необходимой функциональность, но может быть легко расширено, если требуется.</p>
+<p>Выпишем тип для регионов, которые тут невложенные, что важно, т.к. иначе можно было бы сделать приведение ресурсов к внутреннему региону, как сделано в <a href="https://hackage.haskell.org/package/regions-0.11/docs/Control-Monad-Trans-Region.html#g:4">regions</a>.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Scope</span> s c <span class="fu">=</span> <span class="dt">Scope</span> {<span class="ot"> unScope ::</span> <span class="dt">IO</span> c } <span class="co">-- destructor should be private</span>
+<span class="ot">&gt;</span>    <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>)</code></pre></div>
+<p>Конструктор экспортировать не следует, т.к. пользователю не нужно давать возможность доставать IO действие. Фантомная переменная <code>s</code> нужна для того, чтобы переменные аллоцированные внутри scope не могли из него выйти</p>
+<p>Теперь запишем типы используемые в задаче:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">DeviceHnd</span> a   <span class="fu">=</span> <span class="dt">DeviceHnd</span> <span class="dt">String</span> <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>)
+<span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">StaticHnd</span> s a <span class="fu">=</span> <span class="dt">StaticHnd</span> <span class="dt">String</span> <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>)</code></pre></div>
+<p>Для аллокации и деаллокации ресурсов предлагается использовать следующие функции:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; alloc0 ::</span> <span class="dt">DeviceHnd</span> a <span class="ot">-&gt;</span> <span class="dt">Scope</span> s (<span class="dt">StaticHnd</span> s a)
+<span class="ot">&gt;</span> alloc0 (<span class="dt">DeviceHnd</span> s)<span class="fu">=</span> <span class="dt">Scope</span> <span class="fu">$</span> const (<span class="dt">StaticHnd</span> s) <span class="fu">&lt;$&gt;</span> putStrLn (<span class="st">&quot;allocating &quot;</span> <span class="fu">++</span> s)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; dealloc0 ::</span> <span class="dt">StaticHnd</span> s a <span class="ot">-&gt;</span> <span class="dt">Scope</span> s ()
+<span class="ot">&gt;</span> dealloc0 (<span class="dt">StaticHnd</span> s) <span class="fu">=</span> <span class="dt">Scope</span> <span class="fu">$</span> putStrLn (<span class="st">&quot;deallocating &quot;</span> <span class="fu">++</span> s)</code></pre></div>
+<p>В задаче ставился, вопрос, как сразу выделить много ресурсов, и благодаря информации о типе объектов в гетероненном списке, мы может легко это сделать.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; alloc1 ::</span> <span class="dt">H</span> <span class="dt">DeviceHnd</span> ls <span class="ot">-&gt;</span> <span class="dt">Scope</span> s (<span class="dt">H</span> (<span class="dt">StaticHnd</span> s) ls)
+<span class="ot">&gt;</span> alloc1 <span class="dt">Nil</span> <span class="fu">=</span> return <span class="dt">Nil</span>
+<span class="ot">&gt;</span> alloc1 (a <span class="fu">:.</span> as) <span class="fu">=</span> (<span class="fu">:.</span>) <span class="fu">&lt;$&gt;</span> alloc0 a <span class="fu">&lt;*&gt;</span> alloc1 as</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; dealloc1 ::</span> <span class="dt">H</span> (<span class="dt">StaticHnd</span> s) ls <span class="ot">-&gt;</span> <span class="dt">Scope</span> s ()
+<span class="ot">&gt;</span> dealloc1 <span class="dt">Nil</span> <span class="fu">=</span> return ()
+<span class="ot">&gt;</span> dealloc1 (a <span class="fu">:.</span> as) <span class="fu">=</span> dealloc0 a <span class="fu">&gt;&gt;</span> dealloc1 as</code></pre></div>
+<p>Тут важную роль играет первый параметр типа гетерогенного списка <code>p</code>, благодаря этой информации мы можем применять функции <code>*0</code> при проходе списка. Если бы мы это не сделали, то пришлось бы ещё реализовавывать ad-hoc полиморфизм добавляя классы-типов и код был бы чуть-чуть более громоздким.</p>
+<p>Теперь мы можем реализовать искомый тип:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; withResources ::</span> <span class="dt">H</span> <span class="dt">DeviceHnd</span> ls <span class="ot">-&gt;</span> (forall s <span class="fu">.</span> <span class="dt">H</span> (<span class="dt">StaticHnd</span> s) ls <span class="ot">-&gt;</span> <span class="dt">Scope</span> s b) <span class="ot">-&gt;</span> <span class="dt">IO</span> b
+<span class="ot">&gt;</span> withResources ls f <span class="fu">=</span> unScope <span class="fu">$</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>    h <span class="ot">&lt;-</span> alloc1 ls
+<span class="ot">&gt;</span>    v <span class="ot">&lt;-</span> f h
+<span class="ot">&gt;</span>    dealloc1 h
+<span class="ot">&gt;</span>    return v</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test <span class="fu">=</span> withResources ((<span class="dt">DeviceHnd</span> <span class="st">&quot;1&quot;</span><span class="ot">::</span><span class="dt">DeviceHnd</span> <span class="dt">Int</span>) <span class="fu">:.</span> ((<span class="dt">DeviceHnd</span> <span class="st">&quot;2&quot;</span><span class="ot">::</span><span class="dt">DeviceHnd</span> <span class="dt">String</span>)<span class="fu">:.</span><span class="dt">Nil</span>)) <span class="fu">$</span>
+<span class="ot">&gt;</span>         \(dev1<span class="fu">:.</span>(dev2<span class="fu">:.</span><span class="dt">Nil</span>)) <span class="ot">-&gt;</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>            useInt dev1
+<span class="ot">&gt;</span>            useString dev2
+<span class="ot">&gt;</span>  <span class="kw">where</span>
+<span class="ot">&gt;   useInt ::</span> <span class="dt">StaticHnd</span> s <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Scope</span> s ()
+<span class="ot">&gt;</span>   useInt _ <span class="fu">=</span> <span class="dt">Scope</span> <span class="fu">$</span> putStrLn <span class="st">&quot;int&quot;</span>
+<span class="ot">&gt;   useString ::</span> <span class="dt">StaticHnd</span> s <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Scope</span> s ()
+<span class="ot">&gt;</span>   useString _ <span class="fu">=</span> <span class="dt">Scope</span> <span class="fu">$</span> putStrLn <span class="st">&quot;String&quot;</span></code></pre></div>
+<p>И проверить:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> test
+<span class="ot">&gt;</span> allocating <span class="dv">1</span>
+<span class="ot">&gt;</span> allocating <span class="dv">2</span>
+<span class="ot">&gt;</span> int
+<span class="ot">&gt;</span> <span class="dt">String</span>
+<span class="ot">&gt;</span> deallocating <span class="dv">1</span>
+<span class="ot">&gt;</span> deallocating <span class="dv">2</span></code></pre></div>
+<p>Все ли это? Нет, во-первых к созданию ресурсов нужно добавить поддержку асинхронных исключений и выделять ресурсы используя <code>bracket</code> или одну из библиотек <code>Regions</code> или <code>resourcet</code>, в этом случае необходимость использования масс-выделения может исчезнуть. С другой стороны, в <code>alloc1</code> мы можем перед аллокацией ресурсов запрашивать все устройства через выделенный объект, что может спасти от возможных deadlock-ов, в случае, если два разных потока одновременно аллоцируют ресурсы в “плохом” порядке.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2015-08-04-resource-allocation.markdown.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2015-08-04-resource-allocation.markdown.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2015-08-04-resource-allocation.markdown.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

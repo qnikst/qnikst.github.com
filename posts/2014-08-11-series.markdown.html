@@ -40,15 +40,15 @@
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE BangPatterns #-}</span>
 <span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Control.Monad.Fix</span></code></pre></div>
 <p>We want to implement a with formal series expansion using haskell. Formal series can be expressed as follows:</p>
-<p><span class="math">\[ f(x) = \sum\limits_{i=0}^\infty a_ix^i \]</span></p>
-<p>And also address a Taylor series as an example. For a function <span class="math">\(f\)</span> we can expand it an any given point <span class="math">\(x_0\)</span>, then:</p>
-<p><span class="math">\[ f(x) = f(x_0) + \sum_{k=1}\frac{f^{(k)}}{k!}(x-x_0)^k \]</span></p>
+<p><span class="math display">\[ f(x) = \sum\limits_{i=0}^\infty a_ix^i \]</span></p>
+<p>And also address a Taylor series as an example. For a function <span class="math inline">\(f\)</span> we can expand it an any given point <span class="math inline">\(x_0\)</span>, then:</p>
+<p><span class="math display">\[ f(x) = f(x_0) + \sum_{k=1}\frac{f^{(k)}}{k!}(x-x_0)^k \]</span></p>
 <p>Here we wanto to introduce a data structure that is capable for representation of such series. For such datastructure we have 2 main candidates:</p>
 <ol style="list-style-type: decimal">
 <li><p>List - a datastructure with two constructors that represent a possibly infinite single-linked list.</p></li>
 <li><p>Stream - a datastructure with one constructor that represent an infinite stream of values.</p></li>
 </ol>
-<p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
+<p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math inline">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
 <p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre></div>
 <h3 id="instances">Instances</h3>
@@ -57,7 +57,7 @@
 <p>Series is a Functor:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre></div>
-<p>An interesting note that <span class="math">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math">\(a \to a\)</span> to <span class="math">\(b \to b\)</span> that may not be a desired behaviour when <span class="math">\(a \neq b\)</span>.</p>
+<p>An interesting note that <span class="math inline">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math inline">\(a \to a\)</span> to <span class="math inline">\(b \to b\)</span> that may not be a desired behaviour when <span class="math inline">\(a \neq b\)</span>.</p>
 <h4 id="num">Num</h4>
 <p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
 <p>A product of scalar and series:</p>
@@ -78,8 +78,8 @@
 <span class="ot">&gt;</span>   signum s <span class="fu">=</span> fmap signum s
 <span class="ot">&gt;</span>   (<span class="dt">S</span> a x) <span class="fu">*</span> (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (a <span class="fu">*</span> b) (a <span class="fu">^*</span> y <span class="fu">+</span>  b <span class="fu">^*</span> x <span class="fu">+</span> <span class="dt">S</span> <span class="dv">0</span> (x <span class="fu">*</span> y))
 <span class="ot">&gt;</span>   fromInteger x <span class="fu">=</span> <span class="dt">S</span> (fromInteger x) <span class="dv">0</span></code></pre></div>
-<p>Here are 2 tricky parts, first one is implementation of <code>*</code> second one is implementation of <code>fromInteger</code>. For <code>*</code> we need to think of an expansion like of polymonial, i.e. <span class="math">\(S a b = a + b \cdot p\)</span>. Then we can write the following:</p>
-<p><span class="math">\[
+<p>Here are 2 tricky parts, first one is implementation of <code>*</code> second one is implementation of <code>fromInteger</code>. For <code>*</code> we need to think of an expansion like of polymonial, i.e. <span class="math inline">\(S a b = a + b \cdot p\)</span>. Then we can write the following:</p>
+<p><span class="math display">\[
 \begin{aligned}
  (S~a~x) \cdot (S~b~y) &amp;= (a + x p) \cdot (b + y p) = \\
   &amp;= (a b + a y p + b x p + x y p^2) = \\
@@ -92,11 +92,11 @@
 <li><p><code>fromInteger x = S (fromInteger x) (fromInteger x)</code></p></li>
 <li><p><code>fromInteger x = S (fromInteger x) 0</code></p></li>
 </ol>
-<p>For <code>fromInteger</code> we need to select an implemention such that <span class="math">\(fromInteger 1 * a == a\)</span> <span class="math">\(fromInteger 0 + a = a\)</span> <span class="math">\(fromInteger 0 * a == 0\)</span> for any <span class="math">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math">\(1\)</span> will not hold.</p>
+<p>For <code>fromInteger</code> we need to select an implemention such that <span class="math inline">\(fromInteger 1 * a == a\)</span> <span class="math inline">\(fromInteger 0 + a = a\)</span> <span class="math inline">\(fromInteger 0 * a == 0\)</span> for any <span class="math inline">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math inline">\(1\)</span> will not hold.</p>
 <h4 id="fractional">Fractional</h4>
 <p>Now we can add a simple Fractional instance.</p>
-<p>We say that <span class="math">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math">\((S\, b\, y)\)</span> is the solution of equation <span class="math">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
-<p><span class="math">\[
+<p>We say that <span class="math inline">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math inline">\((S\, b\, y)\)</span> is the solution of equation <span class="math inline">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
+<p><span class="math display">\[
 \begin{aligned}
   b_0 a_0 &amp; = 1,\\
   b_0 a_1 + b_1 a_0 &amp; = 0,\\
@@ -104,8 +104,8 @@
   \ldots
 \end{aligned}
 \]</span></p>
-<p>These equations can be resursively solved by moving the last term from left-side convolutions to the right side, and dividing by <span class="math">\((-a_0)\)</span>. Moreover the rest of terms on the left are convolutions too, then as now series <span class="math">\(a\)</span> convolve with the tail of series <span class="math">\(b\)</span>. That fact may be used for compact of definition of recursive equations:</p>
-<p><span class="math">\[
+<p>These equations can be resursively solved by moving the last term from left-side convolutions to the right side, and dividing by <span class="math inline">\((-a_0)\)</span>. Moreover the rest of terms on the left are convolutions too, then as now series <span class="math inline">\(a\)</span> convolve with the tail of series <span class="math inline">\(b\)</span>. That fact may be used for compact of definition of recursive equations:</p>
+<p><span class="math display">\[
 \begin{aligned}
   b_0 &amp; = \cfrac{1}{a_0},\\
   b_i &amp; = \cfrac{-1}{a_0} \sum\limits_{j = 0}^{i - 1} b_{j} a_{j + 1}.
@@ -115,7 +115,7 @@
 <span class="ot">&gt;</span>   recip (<span class="dt">S</span> a x) <span class="fu">=</span> fix <span class="fu">$</span> fmap (<span class="fu">/</span> (<span class="fu">-</span>a)) <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">.</span> (<span class="fu">*</span> x)
 <span class="ot">&gt;</span>   fromRational x <span class="fu">=</span> <span class="dt">S</span> (fromRational x) <span class="dv">0</span></code></pre></div>
 <p>Formulas for composition and inversion. Only series with zeroed head can be composed or reversed. Composition is handled according to Horner’s method:</p>
-<p><span class="math">\[
+<p><span class="math display">\[
 \begin{aligned}
   f(x) &amp;= \sum\limits_{i=0}^{\infty} a_i x^i =
            a_0 + x \sum\limits_{i=0}^{\infty} a_{i+1} x^i,\\
@@ -131,7 +131,7 @@
 <span class="ot">&gt;</span> compose (<span class="dt">S</span> a x) (<span class="dt">S</span> <span class="dv">0</span> y) <span class="fu">=</span> <span class="dt">S</span> a (y <span class="fu">*</span> compose x (<span class="dt">S</span> <span class="dv">0</span> y))
 <span class="ot">&gt;</span> compose _ _ <span class="fu">=</span> error <span class="st">&quot;compose: Non-zero head&quot;</span></code></pre></div>
 <p>Inversion can be done by the following formula:</p>
-<p><span class="math">\[
+<p><span class="math display">\[
 \begin{eqnarray}
   f(g(x)) &amp; = x, \\
   a_1 g(x) + a_2 g^2(x) + \ldots &amp; = x, \\
@@ -146,7 +146,7 @@
 <span class="ot">&gt;</span> inverse _ <span class="fu">=</span> error <span class="st">&quot;inverse: Non-zero head&quot;</span></code></pre></div>
 <p>According to general theory elementary special functions cannot be evaluated on the non-zero headed series. We try to handle this situaton by breaking the series into two parts: the head and the zero-headed tail.</p>
 <p>The head is treated by classic functions, the tail is treated by composing argument series with classical series of elementary functions, and the combination is done by ad-hoc formulas. The first example of the ad-hoc formula:</p>
-<p><span class="math">\[
+<p><span class="math display">\[
 \begin{eqnarray}
   \sin \sum\limits_{i = 0}^{\infty} a_i x^i =
        \sin (a_0 + \sum\limits_{i = 1}^{\infty} a_i x^i) =
@@ -154,16 +154,16 @@
        \cos a_0 \cdot \sin \sum\limits_{i = 1}^{\infty} a_i x^i.
 \end{eqnarray}
 \]</span></p>
-<p>Here <span class="math">\(\cos a_0\)</span> and <span class="math">\(\sin a_0\)</span> are sine and cosine of scalar. And the sine/cosine of zero-headed series can be calculated by composition of the argument with well-known series of sine/cosine.</p>
-<p>The second example. Let’s look at the <span class="math">\(\arcsin\)</span>, definitions:</p>
-<p><span class="math">\[
+<p>Here <span class="math inline">\(\cos a_0\)</span> and <span class="math inline">\(\sin a_0\)</span> are sine and cosine of scalar. And the sine/cosine of zero-headed series can be calculated by composition of the argument with well-known series of sine/cosine.</p>
+<p>The second example. Let’s look at the <span class="math inline">\(\arcsin\)</span>, definitions:</p>
+<p><span class="math display">\[
 \begin{eqnarray}
   \sum\limits_{i = 0}^{\infty} b_i x^i = \arcsin \sum\limits_{i = 0}^{\infty} a_i x^i,\\
   \sin\sum\limits_{i = 0}^{\infty} b_i x^i = \sum\limits_{i = 0}^{\infty} a_i x^i.
 \end{eqnarray}
 \]</span></p>
-<p>And solution for an ad-hoc formula is obtained as follows (using the fact <span class="math">\(b_0 = \arcsin a_0\)</span>):</p>
-<p><span class="math">\[
+<p>And solution for an ad-hoc formula is obtained as follows (using the fact <span class="math inline">\(b_0 = \arcsin a_0\)</span>):</p>
+<p><span class="math display">\[
 \begin{eqnarray}
   \sin\sum\limits_{i = 1}^{\infty} b_i x^i =
     \sin\left(\sum\limits_{i = 0}^{\infty} b_i x^i - b_0 \right) = \\
@@ -173,8 +173,8 @@
     a_0 \cdot \sqrt{1 - \left(\sum\limits_{i = 0}^{\infty} a_i x^i\right)^2}.
 \end{eqnarray}
 \]</span></p>
-<p>The full formula is done by adding <span class="math">\(b_0\)</span>:</p>
-<p><span class="math">\[
+<p>The full formula is done by adding <span class="math inline">\(b_0\)</span>:</p>
+<p><span class="math display">\[
 \begin{equation}
   \sum\limits_{i = 0}^{\infty} b_i x^i =
     \arcsin a_0 + \arcsin
@@ -195,13 +195,13 @@
 <span class="ot">&gt;</span>   sin (<span class="dt">S</span> a x) <span class="fu">=</span> sin a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">+</span> cos a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)
 <span class="ot">&gt;</span>   cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tcos <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x
 <span class="ot">&gt;</span>   cos (<span class="dt">S</span> a x) <span class="fu">=</span> cos a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">-</span> sin a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)</code></pre></div>
-<p>An interesting example is sqrt, as usual we want to find <span class="math">\(b_n\)</span> such that:</p>
-<p><span class="math">\[ \sum\limits_{n=0}^\infty b_nx^n \cdot \sum\limits_{n=0}^\infty b_nx^n = \sum\limits_{n=0}^n a_i x^n \]</span></p>
-<p>Rewrite the formula in a head-tail form, where <span class="math">\(y\)</span> – is a tail of b, and <span class="math">\(p\)</span> – is a tail of incomming series:</p>
-<p><span class="math">\[ (b_0 + x * y) (b_ 0 + x * y) = a0 + x p\]</span></p>
-<p><span class="math">\[ b_0^2 + 2 x y + x^2 y = a0 + x p\]</span></p>
-<p>by grouping elements with 0 and 1 power of <span class="math">\(x\)</span>, we find:</p>
-<p><span class="math">\[
+<p>An interesting example is sqrt, as usual we want to find <span class="math inline">\(b_n\)</span> such that:</p>
+<p><span class="math display">\[ \sum\limits_{n=0}^\infty b_nx^n \cdot \sum\limits_{n=0}^\infty b_nx^n = \sum\limits_{n=0}^n a_i x^n \]</span></p>
+<p>Rewrite the formula in a head-tail form, where <span class="math inline">\(y\)</span> – is a tail of b, and <span class="math inline">\(p\)</span> – is a tail of incomming series:</p>
+<p><span class="math display">\[ (b_0 + x * y) (b_ 0 + x * y) = a0 + x p\]</span></p>
+<p><span class="math display">\[ b_0^2 + 2 x y + x^2 y = a0 + x p\]</span></p>
+<p>by grouping elements with 0 and 1 power of <span class="math inline">\(x\)</span>, we find:</p>
+<p><span class="math display">\[
 \begin{equation}
   \left\lbrace
   \begin{matrix}
@@ -266,7 +266,7 @@
 <p>Build a stream by iterating a function</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; siterate ::</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> siterate f x <span class="fu">=</span> <span class="dt">S</span> x (siterate f (f x))</code></pre></div>
-<p>Build a serie of powers: <span class="math">\(&lt;x,x^2,x^3,...&gt;\)</span></p>
+<p>Build a serie of powers: <span class="math inline">\(&lt;x,x^2,x^3,...&gt;\)</span></p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> spower x <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> (siterate (<span class="fu">*</span>x) x)</code></pre></div>
 <p>Unfold</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; sunfold ::</span> (c <span class="ot">-&gt;</span> (c,a)) <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">S</span> a
@@ -329,9 +329,9 @@
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
 <span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
 <h3 id="todo">TODO</h3>
-<p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math">\(0\)</span>.</p>
+<p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math inline">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>
-<p>It’s possible to generalize <span class="math">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>
+<p>It’s possible to generalize <span class="math inline">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>
 
 <hr />
 <div id="sociallinks" class="pull-left">

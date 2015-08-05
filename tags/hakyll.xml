@@ -95,8 +95,8 @@ mathCtx = field &quot;mathjax&quot; $ \item -&gt; do
          &gt;&gt;= relativizeUrls</code></pre>
 <p>that’s all</p>
 <p>Example:</p>
-<p><span class="math">\[M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
-M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and <span class="math">\[{{\gamma}}_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.\]</span> Such as <span class="math">\(C_1=0\)</span> and <span class="math">\[\dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{{{\gamma}}_3}-\dfrac{4\beta_2{{\gamma}}_1M_2(1-q_k)}{{{\gamma}}_3}\,,\]</span></p>]]></summary>
+<p><span class="math display">\[M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
+M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and <span class="math display">\[{{\gamma}}_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.\]</span> Such as <span class="math inline">\(C_1=0\)</span> and <span class="math display">\[\dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{{{\gamma}}_3}-\dfrac{4\beta_2{{\gamma}}_1M_2(1-q_k)}{{{\gamma}}_3}\,,\]</span></p>]]></summary>
 </entry>
 
 </feed>

@@ -17,22 +17,22 @@
     <updated>2013-02-01T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Список формул, которые мне желательно знать и уметь вспомнить/вывести будучи пробуженным посреди ночи</p>
 <p>Уравнение теплопроводности:</p>
-<p><span class="math">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
+<p><span class="math display">\[D_t F = D_{xx} F = f(x,t)\]</span></p>
 <p>Уравнение Лапласа:</p>
-<p><span class="math">\[\Delta f = 0\]</span></p>
+<p><span class="math display">\[\Delta f = 0\]</span></p>
 <p>Уравнение Пуассона:</p>
-<p><span class="math">\[\Delta f = g\]</span></p>
+<p><span class="math display">\[\Delta f = g\]</span></p>
 <p>Уравнение Геймгольца (эллептическое):</p>
-<p><span class="math">\[(\Delta + k^2) u = f\]</span></p>
+<p><span class="math display">\[(\Delta + k^2) u = f\]</span></p>
 <p>Волновое уравнение (гиперболическое):</p>
-<p><span class="math">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
+<p><span class="math display">\[\Delta u = \frac{1}{v^2} D_{tt} u\]</span></p>
 <p>Уравнение Шрёдингера</p>
-<p><span class="math">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
-<p><span class="math">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
+<p><span class="math display">\[-i \hbar \frac{\partial \Psi}{\partial t} = H \Psi\]</span></p>
+<p><span class="math display">\[\Psi(x,t) = \Psi(x) \exp\left\{ \frac{-2\pi i E t}{h}\right\} \Rightarrow H\Psi = E\Psi\]</span></p>
 <p>Задача Штурма-Лиувилля:</p>
-<p><span class="math">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
+<p><span class="math display">\[\frac{d}{dx} \left( p(x) \frac{d}{dx} y \right) - q(x)y+\lambda\rho(x)y=0\]</span></p>
 <p>Преобразование Лапласа:</p>
-<p><span class="math">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>]]></summary>
+<p><span class="math display">\[F(x) \equiv L\{f(t)\} = \int_0^{+\infty}e^{-ts}f(t)dt\]</span></p>]]></summary>
 </entry>
 
 </feed>

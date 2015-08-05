@@ -60,11 +60,11 @@
 <h5 id="addr">Addr#</h5>
 <p>Addr# - unlifted unpacked тип данных являющийся указателем. Стоит напомнить, что данный тип является строгим по построению. С помощью данного типа можно обращаться напрямую к данным внутри примитивных частей программы. Функции для работы с этим типом есть в GHC.Prim (пакет ghc-prim) и Control.Primitive (пакет primitive). Обычно использовние Addr# не нужно, поскольку компилятор умеет приводить приводить работу к данному типу (за это отвечает анализатор строгости).</p>
 <h5 id="ptr">Ptr</h5>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="st">#)</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Ptr</span> a <span class="fu">=</span> <span class="dt">Ptr</span> (<span class="dt">Addr</span><span class="fu">#</span>)</code></pre></div>
 <p>Типизированная обертка над Addr (lifted, unpacked по умолчанию (изменится в ghc 7.8)), с помощью данного типа данных можно работать с указателями в “обычном” haskell коде. В подавляющем большинстве случаев ленивость и boxing убираются компилятором. Данный тип не “держит” содержимое на которое указывает и не защищает его от сборки GC.</p>
 <p>Функции для работы с указателями предоставляются модулем ‘Foreign.Ptr’</p>
 <h5 id="foreignptr">ForeignPtr</h5>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="st"># ForeignPtrConents</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">ForeignPtr</span> <span class="fu">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="fu">#</span> <span class="dt">ForeignPtrConents</span></code></pre></div>
 <p>Указатель, к которому можно привязывать финализаторы: действие которое должно быть выполнено как только не осталось ссылок на ForeignPtr из кода.</p>
 <h3 id="общее-описание-структур-данных">Общее описание структур данных</h3>
 <h4 id="cstringcstring-len">CString/CString Len</h4>

@@ -42,7 +42,7 @@
 <p>From <a href="https://hackage.haskell.org/package/base-4.8.0.0/docs/src/GHC-Conc-Sync.html#forkIO">GHC.Cons.Sym</a></p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">forkIO ::</span> <span class="dt">IO</span> () <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">ThreadId</span>
 forkIO action <span class="fu">=</span> <span class="dt">IO</span> <span class="fu">$</span> \ s <span class="ot">-&gt;</span>
-   <span class="kw">case</span> (fork<span class="st"># action_plus s) of (# s1, tid #) -&gt; (# s1, ThreadId tid #)</span>
+   <span class="kw">case</span> (fork<span class="fu">#</span> action_plus s) <span class="kw">of</span> (<span class="fu">#</span> s1, tid <span class="fu">#</span>) <span class="ot">-&gt;</span> (<span class="fu">#</span> s1, <span class="dt">ThreadId</span> tid <span class="fu">#</span>)
     <span class="kw">where</span>
       action_plus <span class="fu">=</span> catchException action childHandler</code></pre></div>
 <p>From <a href>GHC.IO</a></p>

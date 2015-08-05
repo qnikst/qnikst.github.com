@@ -64,7 +64,8 @@
 <li><p>Install ebtales</p>
 <p># emerge ebtables</p></li>
 <li><p>Add ebtables option:</p>
-<p># ebtables -t nat -A POSTROUTING -o wlan0 -j snat –to-src <wlan0_mac><br /> –snat-arp ACCEPT #</p></li>
+<p># ebtables -t nat -A POSTROUTING -o wlan0 -j snat –to-src <wlan0_mac><br />
+ –snat-arp ACCEPT #</p></li>
 <li><p>Save ebtables table</p>
 <p># /etc/init.d/ebtables save</p></li>
 <li><p>Start ebtables</p>

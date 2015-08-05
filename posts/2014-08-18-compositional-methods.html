@@ -40,28 +40,28 @@
 <!--more-->
 <p>This post is based on the work of the Ernst Harrier [<a href="http://www.springer.com/mathematics/computational+science+%26+engineering/book/978-3-540-30663-4">1</a>] and doesn’t contain any additional research work.</p>
 <p>Here we want to solve a system of equations that can we written as:</p>
-<p><span class="math">\[ \dot{y} = f(y). \]</span></p>
-<p>In order to solve it we are introducing a mapping from an old state at <span class="math">\(t0\)</span> to a new one at <span class="math">\(t_1 = t_0 + dt\)</span>:</p>
-<p><span class="math">\[\Phi_h: y_{n} \rightarrow  y_{n+1}\]</span></p>
+<p><span class="math display">\[ \dot{y} = f(y). \]</span></p>
+<p>In order to solve it we are introducing a mapping from an old state at <span class="math inline">\(t0\)</span> to a new one at <span class="math inline">\(t_1 = t_0 + dt\)</span>:</p>
+<p><span class="math display">\[\Phi_h: y_{n} \rightarrow  y_{n+1}\]</span></p>
 <p>In order to increase the order of the solution while preserving some desirable properties of the base method we may prepare a compositional method:</p>
-<p><span class="math">\[\Psi_h = \Phi_{\gamma_1h} \circ \ldots \circ \Phi_{\gamma_nh},\]</span></p>
-<p>where <span class="math">\(\gamma_i\)</span> is a coefficient from <span class="math">\(\mathbb R\)</span>. This approach was studied by Suzuki, Yoshina, McLackcan in 1990th. Here we compose a base method at a different points in time.</p>
+<p><span class="math display">\[\Psi_h = \Phi_{\gamma_1h} \circ \ldots \circ \Phi_{\gamma_nh},\]</span></p>
+<p>where <span class="math inline">\(\gamma_i\)</span> is a coefficient from <span class="math inline">\(\mathbb R\)</span>. This approach was studied by Suzuki, Yoshina, McLackcan in 1990th. Here we compose a base method at a different points in time.</p>
 <p>We have a theorem about this approach to compositional methods.</p>
 <p><em>Theorem</em></p>
 <blockquote>
-<p>Let <span class="math">\(\Phi_h\)</span> be a one-step method of order <span class="math">\(p\)</span>. If</p>
-<p><span class="math">\[
+<p>Let <span class="math inline">\(\Phi_h\)</span> be a one-step method of order <span class="math inline">\(p\)</span>. If</p>
+<p><span class="math display">\[
 \begin{eqnarray}
    \gamma_1 + \ldots + \gamma_s = 1 \\
    \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
 \end{eqnarray}
-\]</span> then the compositional method <span class="math">\(\Psi_h\)</span> is at least of the order <span class="math">\(p+1\)</span>.</p>
+\]</span> then the compositional method <span class="math inline">\(\Psi_h\)</span> is at least of the order <span class="math inline">\(p+1\)</span>.</p>
 </blockquote>
-<p>This gives theorem gives us a nice way to improve properties of the existing method. The question now is how to find a good coefficients <span class="math">\(\gamma_i\)</span>.</p>
-<p>The first notice is that equations does not have a real solution for the odd <span class="math">\(p\)</span>, so we can improve only solutions with even <span class="math">\(p\)</span>.</p>
-<p>The smallest number <span class="math">\(s\)</span> where a solution in reals exists is <span class="math">\(3\)</span>. And coefficients are defined as:</p>
-<p><span class="math">\[ \gamma_1 = \gamma_3 = \frac{1}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
-<p><span class="math">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p>This gives theorem gives us a nice way to improve properties of the existing method. The question now is how to find a good coefficients <span class="math inline">\(\gamma_i\)</span>.</p>
+<p>The first notice is that equations does not have a real solution for the odd <span class="math inline">\(p\)</span>, so we can improve only solutions with even <span class="math inline">\(p\)</span>.</p>
+<p>The smallest number <span class="math inline">\(s\)</span> where a solution in reals exists is <span class="math inline">\(3\)</span>. And coefficients are defined as:</p>
+<p><span class="math display">\[ \gamma_1 = \gamma_3 = \frac{1}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
+<p><span class="math display">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
 <p>This method is called tripple jump. Lets check how does it work.</p>
 <p>At first we will introduce a coefficients</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
@@ -72,20 +72,20 @@ g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</spa
 
 <span class="ot">g3 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span>
 g3 <span class="fu">=</span> g1</code></pre></div>
-<p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math">\(\gamma_i\)</span> with <span class="math">\(p=2\)</span>. Let step be a <span class="math">\(dt = 1\)</span> for simplicity.</p>
+<p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math inline">\(\gamma_i\)</span> with <span class="math inline">\(p=2\)</span>. Let step be a <span class="math inline">\(dt = 1\)</span> for simplicity.</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
 <span class="fu">&gt;</span> t p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 p, g2 p, g3 p]
 
 <span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> t <span class="dv">2</span> <span class="dv">1</span>
 [<span class="fl">1.3512071919596578</span>,<span class="fu">-</span><span class="fl">1.7024143839193153</span>,<span class="fl">1.3512071919596578</span>]</code></pre></div>
-<p>We have 3 points. If we will take a compositional method <span class="math">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
+<p>We have 3 points. If we will take a compositional method <span class="math inline">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math inline">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math inline">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]
 <span class="fu">&gt;</span> ut p xs <span class="fu">=</span> xs <span class="fu">&gt;&gt;=</span> (\x <span class="ot">-&gt;</span> t (p<span class="fu">+</span><span class="dv">2</span>) x)
 
 <span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
 [<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span>
 ,<span class="fl">2.097997398066439</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>]</code></pre></div>
-<p>This is a coefficients for a compositional method of order <span class="math">\(5\)</span>, (<span class="math">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
+<p>This is a coefficients for a compositional method of order <span class="math inline">\(5\)</span>, (<span class="math inline">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)
 [<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>
 ,<span class="fl">1.955013517256328</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>
@@ -107,13 +107,13 @@ g3 <span class="fu">=</span> g1</code></pre></div>
 <p>This way we may obtain a method of any order by the price of a terrible zig-zag of the step points.</p>
 <p>Another approach to a compositional method is using Suzuki`s Fractals.</p>
 <p>The same schema exists for Suzuki`s Fractals, however how we have a diffierent coefficients:</p>
-<p><span class="math">\[
+<p><span class="math display">\[
 \begin{eqnarray}
   \gamma_1 = \gamma_2 = \gamma_4 = \gamma_5 = \frac{1}{4-4^{\frac{1}{p+1}}} \\
   \gamma_3 = - \frac{4^{\frac{1}{p+1}}}{4-4^{\frac{1}{p+1}}}
 \end{eqnarray}
 \]</span></p>
-<p>However <span class="math">\(t\)</span> and <span class="math">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
+<p>However <span class="math inline">\(t\)</span> and <span class="math inline">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
 <div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE DataKinds #-}</span>
 <span class="ot">{-# LANGUAGE KindSignatures #-}</span>
 <span class="ot">{-# LANGUAGE TypeFamilies #-}</span>
