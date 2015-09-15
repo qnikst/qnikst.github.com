@@ -8,8 +8,68 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2015-04-30T00:00:00Z</updated>
+    <updated>2015-09-15T00:00:00Z</updated>
     <entry>
+    <title>Создание объекта через замыкания (пост ответ)</title>
+    <link href="https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html" />
+    <id>https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html</id>
+    <published>2015-09-15T00:00:00Z</published>
+    <updated>2015-09-15T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>В целом тем кто читал <a href="https://www.cis.upenn.edu/~bcpierce/tapl/">TAPL</a> чтение данного поста не рекомендуется, так же тем кто хочет знать как делать правильно лучше сразу брать TAPL и читать его. Так же тут не описывается полноценное ООП, для этого можно посмотреть в сторону <a href="http://arxiv.org/abs/cs/0509027">Object Haskell</a>, где показывается вариант реализации через гетерогенные списки.</p>
+<p>В одном из тредов на <a href="http://umnik.point.im/vhpti">point.im</a> возник вопрос, каким образом можно сделать “объект” (состояние и функции связанные с ним) с помощью функций.</p>
+<p>Здесь и далее будет использоваться haskell и немного комментариев о других языках, так же будет использоваться подход идеоматичный для haskell, другие варианты тоже будут мельком обсуждены.</p>
+<p>Итак нам как обычно потребуется немного расширений языка</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">System.IO</span></code></pre></div>
+<p>Общая идея заключается в том, чтобы создать автомат (mealy machine), который на вход получает запросы, а на выходе дает результат (+ новую версию себя). Рассмотрим сначала простейший вариант:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">M1</span> a <span class="fu">=</span> <span class="dt">M1</span> {<span class="ot"> runM1 ::</span> forall b <span class="fu">.</span> a b <span class="ot">-&gt;</span> b }</code></pre></div>
+<p>Тут мы создаем тип обёртку, над замыканием, которое принимает на вход запрос типа <code>a b</code> и отдает результат типа <code>b</code>. Таким образом объекты типизируются видом запросов, которые они могут обрабатывать. Можно записать простой пример запросов для системы логирования:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogLevel</span> <span class="fu">=</span> <span class="dt">Debug</span> <span class="fu">|</span> <span class="dt">Info</span> <span class="fu">|</span> <span class="dt">Warn</span> <span class="fu">|</span> <span class="dt">Error</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Ord</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogRequest</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">WriteLog</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">IO</span> ())
+<span class="ot">&gt;</span>   <span class="dt">SetLevel</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">M1</span> <span class="dt">LogRequest</span>)
+<span class="ot">&gt;</span>   <span class="dt">GetLevel</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> <span class="dt">LogLevel</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">LogRequest</span></code></pre></div>
+<p>Здесь мы имеем три типа запроса, первый - записал лог, создает действие типа <code>IO ()</code>, т.е. выполняет какой-то эффект, второе - обновляет уровень логирования возвращая новый обьект из текущего, и третье это чистое действие, получение уровня логирования из текущего.</p>
+<p>Теперь мы можем создавать различне логгеры, например:</p>
+<p>Для того, чтобы не делать копипаст создадим базовый логгер:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; baseLogger ::</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ())
+<span class="ot">&gt;</span>            <span class="ot">-&gt;</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>)
+<span class="ot">&gt;</span>            <span class="ot">-&gt;</span> <span class="dt">LogLevel</span>
+<span class="ot">&gt;</span>            <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> baseLogger writeLog newLogger lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a <span class="co">-- очень важная строчка делающая компилятор счастливым</span>
+<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s) 
+<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> writeLog l s
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> newLogger l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<p>И два конкретных</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkStdErrLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkStdErrLogger <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) mkStdErrLogger</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkFileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkFileLogger path <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile path s) (mkFileLogger path)</code></pre></div>
+<p>Пример использования</p>
+<pre><code>*Main&gt; let l1 = mkStdErrLogger Warn
+*Main&gt; runM1 l1 (WriteLog Info &quot;info&quot;)
+*Main&gt; runM1 l1 (WriteLog Error &quot;error&quot;)
+error
+*Main&gt; runM1 l1 GetLevel
+Warn
+*Main&gt; let l2 = runM1 l1 (SetLevel Info)
+*Main&gt; runM1 l2 (WriteLog Info &quot;info&quot;)
+info</code></pre>
+<p>Что тут неудобно:</p>
+<ol style="list-style-type: decimal">
+<li><p>не всегда возвращение нового объекта может быть удобно, есть несколько выходов или завернуть в State, или использовать изменяемые поля. Но в последнем случае доступы к полям тоже будут в <code>IO</code> монаде, заметьте, что сейчас функции, считывающие состояние без его изменения чистые.</p></li>
+<li><p>я не знаю как правильно добавлять наследование в таком подходе, или объекты принимающие доп параметры, например, если в FileLogger хочется иметь запрос <code>GetFilePath</code>, тут надо смотреть статью выше. Наверное в ближайшие дни опишу один из вариантов расширения.</p></li>
+</ol>
+<p>Но для многих задач и этого достаточно.</p>
+<p>Что можно улучшать, можно, например, разделить все запросы на запросы записи, чтения и выполнения, например как <code>data Action = Read | Write | Execute</code> и пример можно найти где-то <a href="https://github.com/YoEight/eventstore/blob/refact/testability/Database/EventStore/Internal/Manager/Subscription/Model.hs#L102-L106">здесь</a>.</p>
+<p>Абсолютно те же трюки можно провести и в других языках, только вместо pattern-matching будет диспетчеризация по типу, например куча <code>if</code> и проверкой <code>typeof</code> и меньше статических гарантий.</p>]]></summary>
+</entry>
+<entry>
     <title>Logging all exceptions in ghci</title>
     <link href="https://qnikst.github.io/posts/2015-04-30-grabbing-exceptions.html" />
     <id>https://qnikst.github.io/posts/2015-04-30-grabbing-exceptions.html</id>
@@ -1268,49 +1328,6 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <p>To hide a big list of imported modules and have a nice look’n’feel you can change you ghci prompt.</p>
 <pre><code>:set prompt &quot;λ&gt; &quot;</code></pre>
 <p>To see list of imported modules you can type: <code>:show imports</code>.</p>]]></summary>
-</entry>
-<entry>
-    <title>Adding license notes to blog pages.</title>
-    <link href="https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html" />
-    <id>https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
-    <published>2013-08-26T00:00:00Z</published>
-    <updated>2013-08-26T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>I’ve finally manged to create configurable license notes for each article:</p>
-<p>To do it you need to add additional context:</p>
-<pre><code>licenseCtx :: Context a
-licenseCtx = field &quot;license&quot; $ \item -&gt; do
-    metadata &lt;- getMetadata $ itemIdentifier item
-    return $ case M.lookup &quot;license&quot; metadata of
-                    Nothing -&gt; &quot;&quot;
-                    Just m -&gt; case M.lookup (trim m) licenses of
-                                      Nothing -&gt; &quot;unknown license&quot;
-                                      Just (u,i) -&gt; &quot;&lt;a href=\&quot;&quot;++u++&quot;\&quot;&gt;&lt;img src=\&quot;&quot;++i++&quot;\&quot;/&gt;&lt;/a&gt;&quot;
-  where
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
-
-licenses = m.fromlist 
-    [ (&quot;by&quot;,       ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-sa&quot;,    ( &quot;http://creativecommons.org/licenses/by-sa/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-sa/3.0/88x31.png&quot;))
-    , (&quot;by-nd&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-nc&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-nc-sa&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-sa/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png&quot;))
-    , (&quot;by-nc-nd&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-nd/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png&quot;))]</code></pre>
-<p>Currently only cc-* licenses are added, and but it will be possible to add another.</p>
-<p>To apply license to template just add <code>$license$</code> and add context:</p>
-<pre><code>  loadAndApplyTemplate &quot;templates/post.html&quot; (licenseCtx &lt;&gt; postCtx tags)</code></pre>
-<p>For my blog I’m trying to use:</p>
-<ul>
-<li>by - for announces and physics</li>
-<li>by-nc-sa - for documentation like posts</li>
-<li>by-nc-nd - for personal posts</li>
-</ul>]]></summary>
 </entry>
 
 </feed>
