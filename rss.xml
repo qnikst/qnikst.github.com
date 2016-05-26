@@ -8,8 +8,196 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2015-09-15T00:00:00Z</updated>
+    <updated>2016-05-06T00:00:00Z</updated>
     <entry>
+    <title>Solving one problem towards an open union</title>
+    <link href="https://qnikst.github.io/posts/2016-06-19-on-the-way-to-unions.html" />
+    <id>https://qnikst.github.io/posts/2016-06-19-on-the-way-to-unions.html</id>
+    <published>2016-05-06T00:00:00Z</published>
+    <updated>2016-05-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Recently on <a href="https://gitter.im/ruHaskell/forall">#ruHakell</a> gitter channel there was a question about how to make compiler happy. I managed to fix the problem, though it was not straightforward. Here I describe a problem and solution.</p>
+<p>As the original code is not mine but <span class="citation">[@int-index]</span>(https://github.com/int-index) I may be not correct in description on an intent. Also I’ll not get deep into the details of the new extensions, because I may be not correct in all details.</p>
+<p>The original code was <a href="">https://gist.github.com/int-index/c6b853351912d177cfcefd54678b27ff</a>. Copy here for the history:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE TypeInType, GADTs, TypeFamilies #-}</span>
+
+<span class="kw">import </span><span class="dt">Data.Kind</span> (<span class="dt">Type</span>)
+
+<span class="kw">data</span> <span class="dt">N</span> <span class="fu">=</span> <span class="dt">Z</span> <span class="fu">|</span> <span class="dt">S</span> <span class="dt">N</span>
+
+<span class="kw">data</span> <span class="dt">Fin</span><span class="ot"> ::</span> <span class="dt">N</span> <span class="ot">-&gt;</span> <span class="dt">Type</span> <span class="kw">where</span>
+  <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
+  <span class="dt">FS</span><span class="ot"> ::</span> <span class="dt">Fin</span> n <span class="ot">-&gt;</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
+
+<span class="kw">type</span> family <span class="dt">FieldCount</span> (<span class="ot">t ::</span> <span class="dt">Type</span>)<span class="ot"> ::</span> <span class="dt">N</span>
+
+<span class="kw">type</span> family <span class="dt">FieldType</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> t))<span class="ot"> ::</span> <span class="dt">Type</span>
+
+<span class="kw">data</span> <span class="dt">T</span>
+
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldCount</span> <span class="dt">T</span> <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>))
+
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">Int</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> <span class="dt">FZ</span>) <span class="fu">=</span> <span class="dt">Bool</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> (<span class="dt">FS</span> <span class="dt">FZ</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<p>And type instances didn’t typecheck with a very strange error:</p>
+<pre><code>fieldtype.hs:19:27: error:
+    • Expected kind ‘Fin (FieldCount T)’,
+        but ‘&#39;FZ’ has kind ‘Fin (&#39;S n0)’
+    • In the second argument of ‘FieldType’, namely ‘FZ’
+      In the type instance declaration for ‘FieldType’</code></pre>
+<p>I’m not able to explain why we have that error, and it looks like a bug to me, or that some <a href="https://ghc.haskell.org/trac/ghc/wiki/NewAxioms">axioms</a> prevents typechecker from inferring right types.</p>
+<p>So my first solution was to break the task into simpler ones. First, is that it’s easy to write type function that returns field that is needed:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">FiledTypeI</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">N</span>)<span class="ot"> ::</span> <span class="dt">Type</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> <span class="dt">Z</span> <span class="fu">=</span> <span class="dt">Int</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="fu">=</span> <span class="dt">Bool</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<p>this works fine, we can check in ghci:</p>
+<pre><code>*Main&gt; :kind! FieldTypeI T (S Z)
+FieldTypeI T (S Z) :: *
+= Bool</code></pre>
+<p>Now we need to be able to convert <code>Fin N</code> to the raw <code>N</code>, this can be easily done with a closed type family:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">F2II</span> (<span class="ot">a ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">N</span> <span class="kw">where</span>
+  <span class="dt">F2II</span> (<span class="dt">FS</span> n) <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">F2</span> <span class="dt">II</span> n)
+  <span class="dt">F2II</span> <span class="dt">FZ</span>     <span class="fu">=</span> <span class="dt">Z</span></code></pre></div>
+<p>so far so good. Now we can check in the repl:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>kind<span class="fu">!</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))
+<span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))<span class="ot"> ::</span> <span class="fu">*</span>
+<span class="fu">=</span> <span class="dt">Bool</span></code></pre></div>
+<p>At this point we may expect that everything is ok, and now we can just write a type synonym to hide ugliness:</p>
+<pre><code>type DoesNotWork (t::Type) (i :: Fin (FieldCount t)) = FieldTypeI t (F2II i)</code></pre>
+<p>Here we have all types known and all requred dependencies. But it doesn’t work:</p>
+<pre><code>*Main&gt; :kind! DoesNotWork T (FS FZ)
+DoesNotWork T (FS FZ) :: Type
+= FieldTypeI T (F2II (&#39;FS &#39;FZ))</code></pre>
+<p>even written as a typefamily</p>
+<pre><code>type family DoesNotWork (t :: Type) (i :: Fin (FieldCount t) where
+  DoesNotWork t i = FieldTypeI t (F2II i)</code></pre>
+<p>Later invesigation showed that <code>t</code> and <code>FieldCount t</code> on the same side doesn’t work well.</p>
+<p>So solution here is no remove them. One way is to introduce a <code>cast</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">Cast</span> (<span class="ot">t ::</span> <span class="dt">N</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">Fin</span> t <span class="kw">where</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> n) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> n) (<span class="dt">FS</span> k) <span class="fu">=</span> <span class="dt">FS</span> (<span class="dt">Cast</span> n k)</code></pre></div>
+<p>Now we can use this cast function to write a nice wrapper:</p>
+<pre><code>type family FieldType (t :: Type) (i :: Fin p) where
+  FieldType t i = FieldTypeI t (F2II (Cast (FieldCount t) i))</code></pre>
+<p>And everything works!</p>
+<pre><code>*Main&gt; :kind! FieldType T (FS FZ)
+FieldType T (FS FZ) :: *
+= Bool</code></pre>
+<p>However, there are some problems with this solution as we have lost dependency between types <code>t</code> and <code>Fin (f t)</code>. This means that if we write unsupported index, we will not be warn with a nice message from the start, but we will fail to compute <code>FieldType</code> function, with possibly more scary error message.</p>]]></summary>
+</entry>
+<entry>
+    <title>Создание объекта через замыкания (пост ответ)</title>
+    <link href="https://qnikst.github.io/posts/2015-09-16-object-as-automaton.markdown.html" />
+    <id>https://qnikst.github.io/posts/2015-09-16-object-as-automaton.markdown.html</id>
+    <published>2015-09-15T00:00:00Z</published>
+    <updated>2015-09-15T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>В целом тем кто читал <a href="https://www.cis.upenn.edu/~bcpierce/tapl/">TAPL</a> чтение данного поста не рекомендуется, так же тем кто хочет знать как делать правильно лучше сразу брать TAPL и читать его. Так же тут не описывается полноценное ООП, для этого можно посмотреть в сторону <a href="http://arxiv.org/abs/cs/0509027">Object Haskell</a>, где показывается вариант реализации через гетерогенные списки.</p>
+<p>В одном из тредов на <a href="http://umnik.point.im/vhpti">point.im</a> возник вопрос, каким образом можно сделать “объект” (состояние и функции связанные с ним) с помощью функций.</p>
+<p>Здесь и далее будет использоваться haskell и немного комментариев о других языках, так же будет использоваться подход идеоматичный для haskell, другие варианты тоже будут мельком обсуждены.</p>
+<p>Итак нам как обычно потребуется немного расширений языка</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TypeFamilies #-}</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">System.IO</span></code></pre></div>
+<p>Общая идея заключается в том, чтобы создать автомат (mealy machine), который на вход получает запросы, а на выходе дает результат (+ новую версию себя). Рассмотрим сначала простейший вариант:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">M1</span> a <span class="fu">=</span> <span class="dt">M1</span> {<span class="ot"> runM1 ::</span> forall b <span class="fu">.</span> a b <span class="ot">-&gt;</span> b }</code></pre></div>
+<p>Тут мы создаем тип обёртку, над замыканием, которое принимает на вход запрос типа <code>a b</code> и отдает результат типа <code>b</code>. Таким образом объекты типизируются видом запросов, которые они могут обрабатывать. Можно записать простой пример запросов для системы логирования:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogLevel</span> <span class="fu">=</span> <span class="dt">Debug</span> <span class="fu">|</span> <span class="dt">Info</span> <span class="fu">|</span> <span class="dt">Warn</span> <span class="fu">|</span> <span class="dt">Error</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Ord</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogRequest</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">WriteLog</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">IO</span> ())
+<span class="ot">&gt;</span>   <span class="dt">SetLevel</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">GetLevel</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> <span class="dt">LogLevel</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">LogRequest</span></code></pre></div>
+<p>Здесь мы имеем три типа запроса, первый - записал лог, создает действие типа <code>IO ()</code>, т.е. выполняет какой-то эффект, второе - обновляет уровень логирования возвращая новый обьект из текущего, и третье это чистое действие, получение уровня логирования из текущего.</p>
+<p>Теперь мы можем создавать различне логгеры, например:</p>
+<p>Для того, чтобы не делать копипаст создадим базовый логгер:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; dummyLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> dummyLogger lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go <span class="dt">WriteLog</span>{} <span class="fu">=</span> error <span class="st">&quot;dummy logger: write log is not implemented&quot;</span>
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> dummyLogger l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<p>Пример</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger0 ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> stdoutLogger0 lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s)
+<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> hPutStrLn stderr s
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger0 l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span> <span class="fu">=</span> runM1 (dummyLogger lvl) <span class="dt">GetLevel</span></code></pre></div>
+<p>Абстрактные методы:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; baseLogger ::</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ())
+<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogLevel</span>
+<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> baseLogger writeLog lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a <span class="co">-- очень важная строчка делающая компилятор счастливым</span>
+<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s) 
+<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> writeLog l s
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> baseLogger writeLog l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<p>Наследование 1:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> stdoutLogger lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go base <span class="kw">where</span>
+<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) lvl
+<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">WriteLog</span> <span class="dt">Error</span> _) <span class="fu">=</span> hPutStrLn stdout <span class="st">&quot;AAAAAAAAAAAAAAA!&quot;</span> <span class="fu">&gt;&gt;</span> runM1 b s
+<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger l <span class="co">-- не удобно :)</span>
+<span class="ot">&gt;</span>   go b s <span class="fu">=</span> runM1 base s</code></pre></div>
+<p>Наследование 2:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">FileLogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">FileLogRequest</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> family <span class="dt">Outer</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">Outer</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">Outer</span> a         <span class="fu">=</span> a
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">FileLogRequest</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">SetFile</span><span class="ot"> ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">GetFile</span><span class="ot"> ::</span> <span class="dt">FileLogRequest</span> FilePath
+<span class="ot">&gt;</span>   <span class="dt">AsLogObject</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> (<span class="dt">Outer</span> a)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; fileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span> fileLogger fp lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go (base lvl) <span class="kw">where</span>
+<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile fp s)
+<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go _ (<span class="dt">SetFile</span> fp&#39;) <span class="fu">=</span> fileLogger fp&#39; lvl
+<span class="ot">&gt;</span>   go _ <span class="dt">GetFile</span>       <span class="fu">=</span> fp
+<span class="ot">&gt;</span>   go b (<span class="dt">AsLogObject</span> s) <span class="fu">=</span> <span class="kw">case</span> s <span class="kw">of</span>
+<span class="ot">&gt;</span>        (<span class="dt">SetLevel</span> l) <span class="ot">-&gt;</span> <span class="dt">M1</span> <span class="fu">$</span> go (runM1 b s)
+<span class="ot">&gt;</span>        p <span class="ot">-&gt;</span> runM1 b p</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">{-</span>
+<span class="co">&gt; baseLogger :: (LogLevel -&gt; String -&gt; IO ())</span>
+<span class="co">&gt;            -&gt; (LogLevel -&gt; LogObject)</span>
+<span class="co">&gt;            -&gt; LogLevel</span>
+<span class="co">&gt;            -&gt; LogObject</span>
+<span class="co">&gt; baseLogger writeLog newLogger lvl = M1 go where</span></code></pre></div>
+<p>И два конкретных</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkStdErrLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkStdErrLogger <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) mkStdErrLogger</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkFileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkFileLogger path <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile path s) (mkFileLogger path)</code></pre></div>
+<p>Пример использования</p>
+<pre><code>*Main&gt; let l1 = mkStdErrLogger Warn
+*Main&gt; runM1 l1 (WriteLog Info &quot;info&quot;)
+*Main&gt; runM1 l1 (WriteLog Error &quot;error&quot;)
+error
+*Main&gt; runM1 l1 GetLevel
+Warn
+*Main&gt; let l2 = runM1 l1 (SetLevel Info)
+*Main&gt; runM1 l2 (WriteLog Info &quot;info&quot;)
+info</code></pre>
+<p>Что тут неудобно:</p>
+<ol style="list-style-type: decimal">
+<li><p>не всегда возвращение нового объекта может быть удобно, есть несколько выходов или завернуть в State, или использовать изменяемые поля. Но в последнем случае доступы к полям тоже будут в <code>IO</code> монаде, заметьте, что сейчас функции, считывающие состояние без его изменения чистые.</p></li>
+<li><p>я не знаю как правильно добавлять наследование в таком подходе, или объекты принимающие доп параметры, например, если в FileLogger хочется иметь запрос <code>GetFilePath</code>, тут надо смотреть статью выше. Наверное в ближайшие дни опишу один из вариантов расширения.</p></li>
+</ol>
+<p>Но для многих задач и этого достаточно.</p>
+<p>Что можно улучшать, можно, например, разделить все запросы на запросы записи, чтения и выполнения, например как <code>data Action = Read | Write | Execute</code> и пример можно найти где-то <a href="https://github.com/YoEight/eventstore/blob/refact/testability/Database/EventStore/Internal/Manager/Subscription/Model.hs#L102-L106">здесь</a>.</p>
+<p>Абсолютно те же трюки можно провести и в других языках, только вместо pattern-matching будет диспетчеризация по типу, например куча <code>if</code> и проверкой <code>typeof</code> и меньше статических гарантий.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="fu">-</span>}</code></pre></div>]]></summary>
+</entry>
+<entry>
     <title>Создание объекта через замыкания (пост ответ)</title>
     <link href="https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html" />
     <id>https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html</id>
@@ -540,8 +728,8 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <p>Let <span class="math inline">\(\Phi_h\)</span> be a one-step method of order <span class="math inline">\(p\)</span>. If</p>
 <p><span class="math display">\[
 \begin{eqnarray}
-   \gamma_1 + \ldots + \gamma_s = 1 \\
-   \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
+\gamma_1 + \ldots + \gamma_s = 1 \\
+\gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
 \end{eqnarray}
 \]</span> then the compositional method <span class="math inline">\(\Psi_h\)</span> is at least of the order <span class="math inline">\(p+1\)</span>.</p>
 </blockquote>
@@ -690,14 +878,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math inline">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
 <p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre></div>
-<h2 id="instances">Instances</h2>
+<p>## Instances</p>
 <p>Having a data structure we may define a set of instances.</p>
-<h3 id="functor">Functor</h3>
+<p>### Functor</p>
 <p>Series is a Functor:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre></div>
 <p>An interesting note that <span class="math inline">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math inline">\(a \to a\)</span> to <span class="math inline">\(b \to b\)</span> that may not be a desired behaviour when <span class="math inline">\(a \neq b\)</span>.</p>
-<h3 id="num">Num</h3>
+<p>### Num</p>
 <p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
 <p>A product of scalar and series:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
@@ -732,7 +920,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <li><p><code>fromInteger x = S (fromInteger x) 0</code></p></li>
 </ol>
 <p>For <code>fromInteger</code> we need to select an implemention such that <span class="math inline">\(fromInteger 1 * a == a\)</span> <span class="math inline">\(fromInteger 0 + a = a\)</span> <span class="math inline">\(fromInteger 0 * a == 0\)</span> for any <span class="math inline">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math inline">\(1\)</span> will not hold.</p>
-<h3 id="fractional">Fractional</h3>
+<p>### Fractional</p>
 <p>Now we can add a simple Fractional instance.</p>
 <p>We say that <span class="math inline">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math inline">\((S\, b\, y)\)</span> is the solution of equation <span class="math inline">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
 <p><span class="math display">\[
@@ -871,14 +1059,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span>   asinh x <span class="fu">=</span> log (x <span class="fu">+</span> sqrt (x <span class="fu">*</span> x <span class="fu">+</span> <span class="dv">1</span>))
 <span class="ot">&gt;</span>   acosh x <span class="fu">=</span> undefined <span class="co">-- log (x + sqrt (x * x - 1))</span>
 <span class="ot">&gt;</span>   atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></code></pre></div>
-<h2 id="library">Library</h2>
+<p>## Library</p>
 <p>Now we can define mathematic functions on the power series. The derivative:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</code></pre></div>
 <p>And the integral:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</code></pre></div>
-<h3 id="generic-functions">Generic functions:</h3>
+<p>### Generic functions:</p>
 <p>In order to inspect a stream we can introduce a helper function:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
 <span class="ot">&gt;</span> stake <span class="dv">0</span> _       <span class="fu">=</span> []
@@ -932,7 +1120,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
 <span class="ot">&gt;</span> eps e s <span class="fu">=</span> snd <span class="fu">.</span> shead <span class="fu">.</span> sdropWhile (\(x,y) <span class="ot">-&gt;</span> abs (x <span class="fu">-</span> y) <span class="fu">&gt;=</span> e)
 <span class="ot">&gt;</span>         <span class="fu">$</span> szipWith (,) s (stail s)</code></pre></div>
-<h2 id="taylor-series-for-some-analytic-functions">Taylor series for some analytic functions</h2>
+<p>## Taylor series for some analytic functions</p>
 <p>Here we defined examples for the functions with analytically known series at 0.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</code></pre></div>
@@ -967,7 +1155,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
 <span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
-<h2 id="todo">TODO</h2>
+<p>## TODO</p>
 <p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math inline">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>
 <p>It’s possible to generalize <span class="math inline">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>]]></summary>
@@ -1051,185 +1239,6 @@ mkFloatProxy x <span class="fu">=</span> [<span class="fu">|</span> <span class=
 <p>test = mkT $(mkFloatProxy pi) 7.0</p>
 </blockquote>
 <p>This is quite nice, next steps may be support of negative values, using SomeNat and operations on values.</p>]]></summary>
-</entry>
-<entry>
-    <title>О stockdb</title>
-    <link href="https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" />
-    <id>https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html</id>
-    <published>2013-12-30T00:00:00Z</published>
-    <updated>2013-12-30T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
-<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
-<p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
-<p>Что позволяет ленивость:</p>
-<pre><code>1. Возможность не вычислять значения, которые не используются
-
-2. Возможность создания эффективных персистентных структур данных (см. Окасаки)
-
-3. Возможность создания итеративных вычислений</code></pre>
-<p>Естественно, все это дается не бесплатно:</p>
-<pre><code>1. Ленивость приводит к оверхеду по памяти, т.к. нужно хранить больше информации
-
-2. Ленивость может приводить к повторным вычислениям в многопоточных программах
-
-3. Ленивость может приводить к “утечкам”, т.е. случаям, когда вместо результато
-   создаются структуры описывающие отложенные вычисления “thunk” и их накапливается
-   очень большое количество. Часто этот эффект называют memory leak, хотя лично
-   мне не нравится данный термин, поскольку обычно он используется для описания
-   неиспользуемой, но не освобожденной памяти.</code></pre>
-<p>Особенно неприятной является третья проблема, как но её решение, в очень многих случаях, заключается в применении следующего правила:</p>
-<blockquote>
-<p>Не использовать ленивые поля в стуктурах данных, если это специально не требуется.</p>
-</blockquote>
-<h2 id="строгость-структур-данных">Строгость структур данных</h2>
-<p>В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать {-# UNPACK #-} это снимет один уровень индирекции.</p>
-<p>Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.</p>
-<p>Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.</p>
-<h2 id="неправильные-библиотеки">“Неправильные” библиотеки</h2>
-<p>В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.</p>
-<p>Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора diff записей. Поэтому четкое разделение runBitGet и runGet сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.</p>
-<p>Следующй шаг это выделение всего что можно в Applicative синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код. Итеративный подход</p>
-<p>Следующий момент в использовании reverse/snoc подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо reverse/snoc, можно использовать go/snoc, где go создает хвост списка.</p>
-<p>Поэтому код</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
-parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span>
-  stock <span class="ot">&lt;-</span> readRow previous
-  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre></div>
-<p>можно переписать как:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []
-parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span>
-  l <span class="ot">&lt;-</span> readRow
-  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)
-  return <span class="fu">$!</span> l<span class="fu">:</span>ls</code></pre></div>
-<p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список O(N) по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде Get это не относится).</p>
-<p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода runGetOrFail.</p>
-<p>На самом деле нужно идти дальше и делать composable операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>
-<h2 id="код-и-результаты">Код и результаты:</h2>
-<p>Код можно найти на <a href="https://github.com/maxlapshin/stockdb-hs">github</a>, ветку с изменениями примерно там же.</p>
-<p>В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:</p>
-<pre><code>diff --git a/stockdb.hs b/stockdb.hs
-index 75fa7da..8ecf2e1 100644
---- a/stockdb.hs
-+++ b/stockdb.hs
-@@ -81,7 +81,7 @@ runEither (Left e)  = fail e
- readStocks :: BS.ByteString -&gt; Either String [Stock]
- readStocks = parsePayload . BS.drop (289 * 4) . skipHeaders where
-     parsePayload payload = BG.runBitGet payload $
--        parsePayload&#39; 10000 (fail &quot;First row must be full&quot;) []
-+        parsePayload&#39; 167544 (fail &quot;First row must be full&quot;) []
-     parsePayload&#39; 0 previous acc = return (reverse acc)
-     parsePayload&#39; count previous acc = do
-         stock &lt;- readRow previous</code></pre>
-<p>Время работы оригинальной программы:</p>
-<pre><code>qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
-167544
-     Command being timed: &quot;./stockdb out.stock-2&quot;
-     User time (seconds): 13.96
-     System time (seconds): 1.00
-     Percent of CPU this job got: 99%
-     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.98
-     Average shared text size (kbytes): 0
-     Average unshared data size (kbytes): 0
-     Average stack size (kbytes): 0
-     Average total size (kbytes): 0
-     Maximum resident set size (kbytes): 15146224
-     Average resident set size (kbytes): 0
-     Major (requiring I/O) page faults: 0
-     Minor (reclaiming a frame) page faults: 945203
-     Voluntary context switches: 1
-     Involuntary context switches: 1550
-     Swaps: 0
-     File system inputs: 0
-     File system outputs: 0
-     Socket messages sent: 0
-     Socket messages received: 0
-     Signals delivered: 0
-     Page size (bytes): 4096
-     Exit status: 0</code></pre>
-<p>Время работы обновленной программы</p>
-<pre><code>167544
-     Command being timed: &quot;./stockdb out.stock-2&quot;
-     User time (seconds): 5.11
-     System time (seconds): 0.27
-     Percent of CPU this job got: 99%
-     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.39
-     Average shared text size (kbytes): 0
-     Average unshared data size (kbytes): 0
-     Average stack size (kbytes): 0
-     Average total size (kbytes): 0
-     Maximum resident set size (kbytes): 783664
-     Average resident set size (kbytes): 0
-     Major (requiring I/O) page faults: 0
-     Minor (reclaiming a frame) page faults: 233956
-     Voluntary context switches: 1
-     Involuntary context switches: 542
-     Swaps: 0
-     File system inputs: 0
-     File system outputs: 0
-     Socket messages sent: 0
-     Socket messages received: 0
-     Signals delivered: 0
-     Page size (bytes): 4096
-     Exit status: 0</code></pre>
-<p>Итого ускорение посчти в 3 раза по скорости, а потребление мапяти уменьшилось в 20 раз.</p>]]></summary>
-</entry>
-<entry>
-    <title>Supervision inside OpenRC</title>
-    <link href="https://qnikst.github.io/posts/2013-11-06-openrc-supervision.html" />
-    <id>https://qnikst.github.io/posts/2013-11-06-openrc-supervision.html</id>
-    <published>2013-11-06T00:00:00Z</published>
-    <updated>2013-11-06T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>The role of the supervision in the init systems becomes crucial. And many administrators wants some kind of s-vision support from the scratch. Here are some thoughts about this problem and a way how things will be solved inside OpenRC.</p>
-<p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
-<h1 id="the-problem.">The problem.</h1>
-<p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
-<ol style="list-style-type: decimal">
-<li>Process exited (with non zero EXIT_CODE);</li>
-<li>Process fail to work as expected.</li>
-</ol>
-<p>In the most systems only first meaning is addressed, however it’s not very carefull and in systems where <em>reliance</em> is required we need to use additional tools to support 2.</p>
-<p>Another set of problem is about how we will decide if we want to restart service and run cleanup actions. And this problem is not easy at all, i.e. we may want to stop restarting service if it fails constantly, or increase timeout in restarts and so on.</p>
-<p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
-<p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
-<p>So the solution would be the following:</p>
-<ol style="list-style-type: decimal">
-<li>Let OpenRC know that user may want s-vision for some services and what module he want to use;</li>
-<li>Provide a set of existing modules;</li>
-<li>Give an ability to create new modules.</li>
-</ol>
-<h1 id="monit">Monit</h1>
-<p>I’ve started to work on ‘monit’ approach. Monit (http://mmonit.com/monit/) is a monitoring that allowes user to monitor services and give much possibilites for their control. This tool provides a special language that describes how each service should be monitored started and restarted.</p>
-<p>Currently it’s possible to run monit as a standalone daemon and then control supervision via monit itself by calling <code>monit foo start</code>/<code>monit foo stop</code>. However having OpenRC as a common point for services control is a good idea.</p>
-<p>All the code available on s-vision branch (https://github.com/qnikst/openrc/compare/s-vision) and will be merged to mainline after some discussion with other developers and administrators that have a good experience with running monit.</p>
-<p>In order to put service under monit control one need:</p>
-<ol style="list-style-type: decimal">
-<li><p>Run monit under inittab control (or other low level s-vision subsystem). This can be done by adding:</p>
-<pre><code>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</code></pre></li>
-</ol>
-<p>to inittab</p>
-<ol start="2" style="list-style-type: decimal">
-<li><p>Add temporary config path under monit control (/etc/monitrc)</p>
-<pre><code>INCLUDE /run/openrc-monit/*</code></pre></li>
-<li><p>Create control file for service under <code>/etc/conf.d/monit-files/servicename</code></p></li>
-<li><p>Add s-vision module to conf.d file, i.e.</p>
-<pre><code>rc_supervise_module=&quot;monit&quot;
-rc_monit_type=&quot;file&quot;</code></pre></li>
-</ol>
-<p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
-<p><span class="label label-warning"> Update: </span> the idea is just to hook up into <code>start_post</code> all call <code>monit restart</code> and <code>monit monitor</code> from there.</p>
-<h1 id="future-work">Future work</h1>
-<p>There are a couple of work to be done before merging:</p>
-<ol style="list-style-type: decimal">
-<li><p>Introduce other <code>monit_types</code> like:</p>
-<ul>
-<li>simple - where basic control file generated automatically on the fly</li>
-<li>native - where existing configuration can be reused.</li>
-</ul></li>
-<li><p>Understand if it possible to run runscript only once</p></li>
-<li><p>Cleanup code</p></li>
-<li><p>Export general API that other s-vision subsystems can use</p></li>
-</ol>
-<p>All comments are welcome</p>]]></summary>
 </entry>
 
 </feed>

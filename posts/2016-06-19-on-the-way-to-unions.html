@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Solving one problem towards an open union</title>
+    <!-- Bootstrap -->
+    <link href="../css/additional.css" rel="stylesheet" media="screen">
+    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
+    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption">
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      </div>
+      <div id="navigaion">
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>May  6, 2016</strong>
+    </div>
+    <h1>Solving one problem towards an open union</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>Recently on <a href="https://gitter.im/ruHaskell/forall">#ruHakell</a> gitter channel there was a question about how to make compiler happy. I managed to fix the problem, though it was not straightforward. Here I describe a problem and solution.</p>
+<p>As the original code is not mine but <span class="citation">[@int-index]</span>(https://github.com/int-index) I may be not correct in description on an intent. Also I’ll not get deep into the details of the new extensions, because I may be not correct in all details.</p>
+<p>The original code was <a href>https://gist.github.com/int-index/c6b853351912d177cfcefd54678b27ff</a>. Copy here for the history:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE TypeInType, GADTs, TypeFamilies #-}</span>
+
+<span class="kw">import </span><span class="dt">Data.Kind</span> (<span class="dt">Type</span>)
+
+<span class="kw">data</span> <span class="dt">N</span> <span class="fu">=</span> <span class="dt">Z</span> <span class="fu">|</span> <span class="dt">S</span> <span class="dt">N</span>
+
+<span class="kw">data</span> <span class="dt">Fin</span><span class="ot"> ::</span> <span class="dt">N</span> <span class="ot">-&gt;</span> <span class="dt">Type</span> <span class="kw">where</span>
+  <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
+  <span class="dt">FS</span><span class="ot"> ::</span> <span class="dt">Fin</span> n <span class="ot">-&gt;</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
+
+<span class="kw">type</span> family <span class="dt">FieldCount</span> (<span class="ot">t ::</span> <span class="dt">Type</span>)<span class="ot"> ::</span> <span class="dt">N</span>
+
+<span class="kw">type</span> family <span class="dt">FieldType</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> t))<span class="ot"> ::</span> <span class="dt">Type</span>
+
+<span class="kw">data</span> <span class="dt">T</span>
+
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldCount</span> <span class="dt">T</span> <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>))
+
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">Int</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> <span class="dt">FZ</span>) <span class="fu">=</span> <span class="dt">Bool</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> (<span class="dt">FS</span> <span class="dt">FZ</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<p>And type instances didn’t typecheck with a very strange error:</p>
+<pre><code>fieldtype.hs:19:27: error:
+    • Expected kind ‘Fin (FieldCount T)’,
+        but ‘'FZ’ has kind ‘Fin ('S n0)’
+    • In the second argument of ‘FieldType’, namely ‘FZ’
+      In the type instance declaration for ‘FieldType’</code></pre>
+<p>I’m not able to explain why we have that error, and it looks like a bug to me, or that some <a href="https://ghc.haskell.org/trac/ghc/wiki/NewAxioms">axioms</a> prevents typechecker from inferring right types.</p>
+<p>So my first solution was to break the task into simpler ones. First, is that it’s easy to write type function that returns field that is needed:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">FiledTypeI</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">N</span>)<span class="ot"> ::</span> <span class="dt">Type</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> <span class="dt">Z</span> <span class="fu">=</span> <span class="dt">Int</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="fu">=</span> <span class="dt">Bool</span>
+<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<p>this works fine, we can check in ghci:</p>
+<pre><code>*Main&gt; :kind! FieldTypeI T (S Z)
+FieldTypeI T (S Z) :: *
+= Bool</code></pre>
+<p>Now we need to be able to convert <code>Fin N</code> to the raw <code>N</code>, this can be easily done with a closed type family:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">F2II</span> (<span class="ot">a ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">N</span> <span class="kw">where</span>
+  <span class="dt">F2II</span> (<span class="dt">FS</span> n) <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">F2</span> <span class="dt">II</span> n)
+  <span class="dt">F2II</span> <span class="dt">FZ</span>     <span class="fu">=</span> <span class="dt">Z</span></code></pre></div>
+<p>so far so good. Now we can check in the repl:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>kind<span class="fu">!</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))
+<span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))<span class="ot"> ::</span> <span class="fu">*</span>
+<span class="fu">=</span> <span class="dt">Bool</span></code></pre></div>
+<p>At this point we may expect that everything is ok, and now we can just write a type synonym to hide ugliness:</p>
+<pre><code>type DoesNotWork (t::Type) (i :: Fin (FieldCount t)) = FieldTypeI t (F2II i)</code></pre>
+<p>Here we have all types known and all requred dependencies. But it doesn’t work:</p>
+<pre><code>*Main&gt; :kind! DoesNotWork T (FS FZ)
+DoesNotWork T (FS FZ) :: Type
+= FieldTypeI T (F2II ('FS 'FZ))</code></pre>
+<p>even written as a typefamily</p>
+<pre><code>type family DoesNotWork (t :: Type) (i :: Fin (FieldCount t) where
+  DoesNotWork t i = FieldTypeI t (F2II i)</code></pre>
+<p>Later invesigation showed that <code>t</code> and <code>FieldCount t</code> on the same side doesn’t work well.</p>
+<p>So solution here is no remove them. One way is to introduce a <code>cast</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">Cast</span> (<span class="ot">t ::</span> <span class="dt">N</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">Fin</span> t <span class="kw">where</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> n) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
+  <span class="dt">Cast</span> (<span class="dt">S</span> n) (<span class="dt">FS</span> k) <span class="fu">=</span> <span class="dt">FS</span> (<span class="dt">Cast</span> n k)</code></pre></div>
+<p>Now we can use this cast function to write a nice wrapper:</p>
+<pre><code>type family FieldType (t :: Type) (i :: Fin p) where
+  FieldType t i = FieldTypeI t (F2II (Cast (FieldCount t) i))</code></pre>
+<p>And everything works!</p>
+<pre><code>*Main&gt; :kind! FieldType T (FS FZ)
+FieldType T (FS FZ) :: *
+= Bool</code></pre>
+<p>However, there are some problems with this solution as we have lost dependency between types <code>t</code> and <code>Fin (f t)</code>. This means that if we write unsupported index, we will not be warn with a nice message from the start, but we will fail to compute <code>FieldType</code> function, with possibly more scary error message.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2016-06-19-on-the-way-to-unions.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2016-06-19-on-the-way-to-unions.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2016-06-19-on-the-way-to-unions.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

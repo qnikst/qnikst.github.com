@@ -11,6 +11,116 @@
     <updated>2015-09-15T00:00:00Z</updated>
     <entry>
     <title>Создание объекта через замыкания (пост ответ)</title>
+    <link href="https://qnikst.github.io/posts/2015-09-16-object-as-automaton.markdown.html" />
+    <id>https://qnikst.github.io/posts/2015-09-16-object-as-automaton.markdown.html</id>
+    <published>2015-09-15T00:00:00Z</published>
+    <updated>2015-09-15T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>В целом тем кто читал <a href="https://www.cis.upenn.edu/~bcpierce/tapl/">TAPL</a> чтение данного поста не рекомендуется, так же тем кто хочет знать как делать правильно лучше сразу брать TAPL и читать его. Так же тут не описывается полноценное ООП, для этого можно посмотреть в сторону <a href="http://arxiv.org/abs/cs/0509027">Object Haskell</a>, где показывается вариант реализации через гетерогенные списки.</p>
+<p>В одном из тредов на <a href="http://umnik.point.im/vhpti">point.im</a> возник вопрос, каким образом можно сделать “объект” (состояние и функции связанные с ним) с помощью функций.</p>
+<p>Здесь и далее будет использоваться haskell и немного комментариев о других языках, так же будет использоваться подход идеоматичный для haskell, другие варианты тоже будут мельком обсуждены.</p>
+<p>Итак нам как обычно потребуется немного расширений языка</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span>
+<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TypeFamilies #-}</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">System.IO</span></code></pre></div>
+<p>Общая идея заключается в том, чтобы создать автомат (mealy machine), который на вход получает запросы, а на выходе дает результат (+ новую версию себя). Рассмотрим сначала простейший вариант:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">M1</span> a <span class="fu">=</span> <span class="dt">M1</span> {<span class="ot"> runM1 ::</span> forall b <span class="fu">.</span> a b <span class="ot">-&gt;</span> b }</code></pre></div>
+<p>Тут мы создаем тип обёртку, над замыканием, которое принимает на вход запрос типа <code>a b</code> и отдает результат типа <code>b</code>. Таким образом объекты типизируются видом запросов, которые они могут обрабатывать. Можно записать простой пример запросов для системы логирования:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogLevel</span> <span class="fu">=</span> <span class="dt">Debug</span> <span class="fu">|</span> <span class="dt">Info</span> <span class="fu">|</span> <span class="dt">Warn</span> <span class="fu">|</span> <span class="dt">Error</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Ord</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogRequest</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">WriteLog</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">IO</span> ())
+<span class="ot">&gt;</span>   <span class="dt">SetLevel</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">GetLevel</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> <span class="dt">LogLevel</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">LogRequest</span></code></pre></div>
+<p>Здесь мы имеем три типа запроса, первый - записал лог, создает действие типа <code>IO ()</code>, т.е. выполняет какой-то эффект, второе - обновляет уровень логирования возвращая новый обьект из текущего, и третье это чистое действие, получение уровня логирования из текущего.</p>
+<p>Теперь мы можем создавать различне логгеры, например:</p>
+<p>Для того, чтобы не делать копипаст создадим базовый логгер:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; dummyLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> dummyLogger lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go <span class="dt">WriteLog</span>{} <span class="fu">=</span> error <span class="st">&quot;dummy logger: write log is not implemented&quot;</span>
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> dummyLogger l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<p>Пример</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger0 ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> stdoutLogger0 lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s)
+<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> hPutStrLn stderr s
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger0 l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span> <span class="fu">=</span> runM1 (dummyLogger lvl) <span class="dt">GetLevel</span></code></pre></div>
+<p>Абстрактные методы:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; baseLogger ::</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ())
+<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogLevel</span>
+<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> baseLogger writeLog lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
+<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a <span class="co">-- очень важная строчка делающая компилятор счастливым</span>
+<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s) 
+<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> writeLog l s
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
+<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> baseLogger writeLog l
+<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<p>Наследование 1:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> stdoutLogger lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go base <span class="kw">where</span>
+<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) lvl
+<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">WriteLog</span> <span class="dt">Error</span> _) <span class="fu">=</span> hPutStrLn stdout <span class="st">&quot;AAAAAAAAAAAAAAA!&quot;</span> <span class="fu">&gt;&gt;</span> runM1 b s
+<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger l <span class="co">-- не удобно :)</span>
+<span class="ot">&gt;</span>   go b s <span class="fu">=</span> runM1 base s</code></pre></div>
+<p>Наследование 2:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">FileLogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">FileLogRequest</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> family <span class="dt">Outer</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">Outer</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">Outer</span> a         <span class="fu">=</span> a
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">FileLogRequest</span> a <span class="kw">where</span>
+<span class="ot">&gt;</span>   <span class="dt">SetFile</span><span class="ot"> ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span>   <span class="dt">GetFile</span><span class="ot"> ::</span> <span class="dt">FileLogRequest</span> FilePath
+<span class="ot">&gt;</span>   <span class="dt">AsLogObject</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> (<span class="dt">Outer</span> a)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; fileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">FileLogObject</span>
+<span class="ot">&gt;</span> fileLogger fp lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go (base lvl) <span class="kw">where</span>
+<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile fp s)
+<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> a <span class="ot">-&gt;</span> a
+<span class="ot">&gt;</span>   go _ (<span class="dt">SetFile</span> fp&#39;) <span class="fu">=</span> fileLogger fp&#39; lvl
+<span class="ot">&gt;</span>   go _ <span class="dt">GetFile</span>       <span class="fu">=</span> fp
+<span class="ot">&gt;</span>   go b (<span class="dt">AsLogObject</span> s) <span class="fu">=</span> <span class="kw">case</span> s <span class="kw">of</span>
+<span class="ot">&gt;</span>        (<span class="dt">SetLevel</span> l) <span class="ot">-&gt;</span> <span class="dt">M1</span> <span class="fu">$</span> go (runM1 b s)
+<span class="ot">&gt;</span>        p <span class="ot">-&gt;</span> runM1 b p</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">{-</span>
+<span class="co">&gt; baseLogger :: (LogLevel -&gt; String -&gt; IO ())</span>
+<span class="co">&gt;            -&gt; (LogLevel -&gt; LogObject)</span>
+<span class="co">&gt;            -&gt; LogLevel</span>
+<span class="co">&gt;            -&gt; LogObject</span>
+<span class="co">&gt; baseLogger writeLog newLogger lvl = M1 go where</span></code></pre></div>
+<p>И два конкретных</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkStdErrLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkStdErrLogger <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) mkStdErrLogger</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkFileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
+<span class="ot">&gt;</span> mkFileLogger path <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile path s) (mkFileLogger path)</code></pre></div>
+<p>Пример использования</p>
+<pre><code>*Main&gt; let l1 = mkStdErrLogger Warn
+*Main&gt; runM1 l1 (WriteLog Info &quot;info&quot;)
+*Main&gt; runM1 l1 (WriteLog Error &quot;error&quot;)
+error
+*Main&gt; runM1 l1 GetLevel
+Warn
+*Main&gt; let l2 = runM1 l1 (SetLevel Info)
+*Main&gt; runM1 l2 (WriteLog Info &quot;info&quot;)
+info</code></pre>
+<p>Что тут неудобно:</p>
+<ol style="list-style-type: decimal">
+<li><p>не всегда возвращение нового объекта может быть удобно, есть несколько выходов или завернуть в State, или использовать изменяемые поля. Но в последнем случае доступы к полям тоже будут в <code>IO</code> монаде, заметьте, что сейчас функции, считывающие состояние без его изменения чистые.</p></li>
+<li><p>я не знаю как правильно добавлять наследование в таком подходе, или объекты принимающие доп параметры, например, если в FileLogger хочется иметь запрос <code>GetFilePath</code>, тут надо смотреть статью выше. Наверное в ближайшие дни опишу один из вариантов расширения.</p></li>
+</ol>
+<p>Но для многих задач и этого достаточно.</p>
+<p>Что можно улучшать, можно, например, разделить все запросы на запросы записи, чтения и выполнения, например как <code>data Action = Read | Write | Execute</code> и пример можно найти где-то <a href="https://github.com/YoEight/eventstore/blob/refact/testability/Database/EventStore/Internal/Manager/Subscription/Model.hs#L102-L106">здесь</a>.</p>
+<p>Абсолютно те же трюки можно провести и в других языках, только вместо pattern-matching будет диспетчеризация по типу, например куча <code>if</code> и проверкой <code>typeof</code> и меньше статических гарантий.</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="fu">-</span>}</code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Создание объекта через замыкания (пост ответ)</title>
     <link href="https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html" />
     <id>https://qnikst.github.io/posts/2015-09-15-object-as-automaton.markdown.html</id>
     <published>2015-09-15T00:00:00Z</published>
@@ -402,8 +512,8 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <p>Let <span class="math inline">\(\Phi_h\)</span> be a one-step method of order <span class="math inline">\(p\)</span>. If</p>
 <p><span class="math display">\[
 \begin{eqnarray}
-   \gamma_1 + \ldots + \gamma_s = 1 \\
-   \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
+\gamma_1 + \ldots + \gamma_s = 1 \\
+\gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
 \end{eqnarray}
 \]</span> then the compositional method <span class="math inline">\(\Psi_h\)</span> is at least of the order <span class="math inline">\(p+1\)</span>.</p>
 </blockquote>
@@ -552,14 +662,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math inline">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
 <p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre></div>
-<h2 id="instances">Instances</h2>
+<p>## Instances</p>
 <p>Having a data structure we may define a set of instances.</p>
-<h3 id="functor">Functor</h3>
+<p>### Functor</p>
 <p>Series is a Functor:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre></div>
 <p>An interesting note that <span class="math inline">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math inline">\(a \to a\)</span> to <span class="math inline">\(b \to b\)</span> that may not be a desired behaviour when <span class="math inline">\(a \neq b\)</span>.</p>
-<h3 id="num">Num</h3>
+<p>### Num</p>
 <p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
 <p>A product of scalar and series:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
@@ -594,7 +704,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <li><p><code>fromInteger x = S (fromInteger x) 0</code></p></li>
 </ol>
 <p>For <code>fromInteger</code> we need to select an implemention such that <span class="math inline">\(fromInteger 1 * a == a\)</span> <span class="math inline">\(fromInteger 0 + a = a\)</span> <span class="math inline">\(fromInteger 0 * a == 0\)</span> for any <span class="math inline">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math inline">\(1\)</span> will not hold.</p>
-<h3 id="fractional">Fractional</h3>
+<p>### Fractional</p>
 <p>Now we can add a simple Fractional instance.</p>
 <p>We say that <span class="math inline">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math inline">\((S\, b\, y)\)</span> is the solution of equation <span class="math inline">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
 <p><span class="math display">\[
@@ -733,14 +843,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span>   asinh x <span class="fu">=</span> log (x <span class="fu">+</span> sqrt (x <span class="fu">*</span> x <span class="fu">+</span> <span class="dv">1</span>))
 <span class="ot">&gt;</span>   acosh x <span class="fu">=</span> undefined <span class="co">-- log (x + sqrt (x * x - 1))</span>
 <span class="ot">&gt;</span>   atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></code></pre></div>
-<h2 id="library">Library</h2>
+<p>## Library</p>
 <p>Now we can define mathematic functions on the power series. The derivative:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</code></pre></div>
 <p>And the integral:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</code></pre></div>
-<h3 id="generic-functions">Generic functions:</h3>
+<p>### Generic functions:</p>
 <p>In order to inspect a stream we can introduce a helper function:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
 <span class="ot">&gt;</span> stake <span class="dv">0</span> _       <span class="fu">=</span> []
@@ -794,7 +904,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
 <span class="ot">&gt;</span> eps e s <span class="fu">=</span> snd <span class="fu">.</span> shead <span class="fu">.</span> sdropWhile (\(x,y) <span class="ot">-&gt;</span> abs (x <span class="fu">-</span> y) <span class="fu">&gt;=</span> e)
 <span class="ot">&gt;</span>         <span class="fu">$</span> szipWith (,) s (stail s)</code></pre></div>
-<h2 id="taylor-series-for-some-analytic-functions">Taylor series for some analytic functions</h2>
+<p>## Taylor series for some analytic functions</p>
 <p>Here we defined examples for the functions with analytically known series at 0.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</code></pre></div>
@@ -829,7 +939,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
 <span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
-<h2 id="todo">TODO</h2>
+<p>## TODO</p>
 <p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math inline">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>
 <p>It’s possible to generalize <span class="math inline">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>]]></summary>
@@ -1293,41 +1403,6 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <p>С первым пунктом все важно, второй тоже важен, так как агрессивное использование памяти существенно может изменить поведение программы относительно ожидаемого. То же относится и к ленивости, в этом случае нужно понимать, какие плюсы идут от ленивости, и не может ли произойти каскадное “форсирование” вычислений в тот момент, когда этого допускать нельзя.</p>
 <p>С безопасностью операций дело обстоит интереснее, в том случае если мы передаем выделенную память вне рантайма Haskell, мы не можем гарантировать чистоту данной структуры, так как внешнее окружениме может изменять память как хочет. Обычно для сохранения чистоты в рантайм передается не сама структура, а её копия ’useAs*’. В этом случае нужно понимать, что данный подход приводит к увеличению сложности алгоритма и дополнительной нагрузке на память.</p>
 <p>Картинка кликабельна: <a href="/images/posts/parser-1/1.png" target="_blank"><img src="/images/posts/parser-1/1.png"/></a></p>]]></summary>
-</entry>
-<entry>
-    <title>My ghci</title>
-    <link href="https://qnikst.github.io/posts/2013-09-04-my-ghci.html" />
-    <id>https://qnikst.github.io/posts/2013-09-04-my-ghci.html</id>
-    <published>2013-09-04T00:00:00Z</published>
-    <updated>2013-09-04T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.7em">
-<p><strong>Updates:</strong><br />2013-09-05: add link to dotfile</p>
-</div>
-<p>Here is small collection of my ghci scripts taken from different places. For complete file see my <a href="http://github.com/qnikst/dotfiles/ghc/ghci">dotfiles</a>.</p>
-<h2 id="pointfree">Pointfree</h2>
-<p>Convert expression into <a href="http://www.haskell.org/haskellwiki/Pointfree">pointfree</a> style. You need to have <a href="http://hackage.haskell.org/package/pointfree">pointree package</a> installed in order to use this function (in case of Gentoo run <code>emerge dev-haskell/pointfree</code>).</p>
-<pre><code>-- pointfree
-:def pf \str -&gt; return $ &quot;:! pointfree \&quot;&quot; ++ str ++ &quot;\&quot;&quot;</code></pre>
-<h2 id="haskell-docs">Haskell-docs</h2>
-<p>Show documentation on given function. In order to use it you need to intall <a href="http://hackage.haskell.org/package/haskell-docs">haskell-doc package</a> and built documentation for packages.</p>
-<p>In Gentoo case: 1. echo ‘dev-haskell/* docs’ &gt;&gt; /etc/portage/package.use 2. <code>emerge dev-haskell/haskell-docs</code></p>
-<pre><code>-- documentation
-:def doc \input -&gt; return (&quot;:!haskell-docs &quot; ++ input)</code></pre>
-<p>The format is following: <modulename> <name> [<package name>]</p>
-<blockquote>
-<p>:doc System.IO getContents base The getContents operation returns all user input as a single string, which is read lazily as it is needed (same as hGetContents stdin).</p>
-</blockquote>
-<h2 id="ghc-vis">GHC-Vis</h2>
-<p>A great tool to show how expressions will be presented in memory. You can use it in order to understand your data structure and laziness/strictness of expressions. As usual you need to install <a href="http://hackage.haskell.org/package/ghc-vis">ghc-vis package</a>. Documentation for package (nice pictures included): http://felsin9.de/nnis/ghc-vis/</p>
-<pre><code>-- ghc-vis
-:script //usr/share/ghc-vis-0.7.1/ghc-7.6.3/ghci</code></pre>
-<h2 id="hoogle">Hoogle</h2>
-<p>To enable searching with hoogle (either local or global) you can install <a href="http://hackage.haskell.org/package/hoogle">hoogle package</a>.</p>
-<pre><code>:def hoogle \str -&gt; return $ &quot;:! hoogle --count=15 \&quot;&quot; ++ str ++ &quot;\&quot;&quot;</code></pre>
-<h2 id="prompt">Prompt</h2>
-<p>To hide a big list of imported modules and have a nice look’n’feel you can change you ghci prompt.</p>
-<pre><code>:set prompt &quot;λ&gt; &quot;</code></pre>
-<p>To see list of imported modules you can type: <code>:show imports</code>.</p>]]></summary>
 </entry>
 
 </feed>

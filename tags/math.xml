@@ -31,8 +31,8 @@
 <p>Let <span class="math inline">\(\Phi_h\)</span> be a one-step method of order <span class="math inline">\(p\)</span>. If</p>
 <p><span class="math display">\[
 \begin{eqnarray}
-   \gamma_1 + \ldots + \gamma_s = 1 \\
-   \gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
+\gamma_1 + \ldots + \gamma_s = 1 \\
+\gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
 \end{eqnarray}
 \]</span> then the compositional method <span class="math inline">\(\Psi_h\)</span> is at least of the order <span class="math inline">\(p+1\)</span>.</p>
 </blockquote>
@@ -181,14 +181,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math inline">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
 <p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</code></pre></div>
-<h2 id="instances">Instances</h2>
+<p>## Instances</p>
 <p>Having a data structure we may define a set of instances.</p>
-<h3 id="functor">Functor</h3>
+<p>### Functor</p>
 <p>Series is a Functor:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span>
 <span class="ot">&gt;</span>    fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</code></pre></div>
 <p>An interesting note that <span class="math inline">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math inline">\(a \to a\)</span> to <span class="math inline">\(b \to b\)</span> that may not be a desired behaviour when <span class="math inline">\(a \neq b\)</span>.</p>
-<h3 id="num">Num</h3>
+<p>### Num</p>
 <p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
 <p>A product of scalar and series:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; (^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
@@ -223,7 +223,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <li><p><code>fromInteger x = S (fromInteger x) 0</code></p></li>
 </ol>
 <p>For <code>fromInteger</code> we need to select an implemention such that <span class="math inline">\(fromInteger 1 * a == a\)</span> <span class="math inline">\(fromInteger 0 + a = a\)</span> <span class="math inline">\(fromInteger 0 * a == 0\)</span> for any <span class="math inline">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math inline">\(1\)</span> will not hold.</p>
-<h3 id="fractional">Fractional</h3>
+<p>### Fractional</p>
 <p>Now we can add a simple Fractional instance.</p>
 <p>We say that <span class="math inline">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math inline">\((S\, b\, y)\)</span> is the solution of equation <span class="math inline">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
 <p><span class="math display">\[
@@ -362,14 +362,14 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <span class="ot">&gt;</span>   asinh x <span class="fu">=</span> log (x <span class="fu">+</span> sqrt (x <span class="fu">*</span> x <span class="fu">+</span> <span class="dv">1</span>))
 <span class="ot">&gt;</span>   acosh x <span class="fu">=</span> undefined <span class="co">-- log (x + sqrt (x * x - 1))</span>
 <span class="ot">&gt;</span>   atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></code></pre></div>
-<h2 id="library">Library</h2>
+<p>## Library</p>
 <p>Now we can define mathematic functions on the power series. The derivative:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</code></pre></div>
 <p>And the integral:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</code></pre></div>
-<h3 id="generic-functions">Generic functions:</h3>
+<p>### Generic functions:</p>
 <p>In order to inspect a stream we can introduce a helper function:</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]
 <span class="ot">&gt;</span> stake <span class="dv">0</span> _       <span class="fu">=</span> []
@@ -423,7 +423,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a
 <span class="ot">&gt;</span> eps e s <span class="fu">=</span> snd <span class="fu">.</span> shead <span class="fu">.</span> sdropWhile (\(x,y) <span class="ot">-&gt;</span> abs (x <span class="fu">-</span> y) <span class="fu">&gt;=</span> e)
 <span class="ot">&gt;</span>         <span class="fu">$</span> szipWith (,) s (stail s)</code></pre></div>
-<h2 id="taylor-series-for-some-analytic-functions">Taylor series for some analytic functions</h2>
+<p>## Taylor series for some analytic functions</p>
 <p>Here we defined examples for the functions with analytically known series at 0.</p>
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</code></pre></div>
@@ -458,7 +458,7 @@ buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt"
 <div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a
 <span class="ot">&gt;</span> tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)
 <span class="ot">&gt;</span>          <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</code></pre></div>
-<h2 id="todo">TODO</h2>
+<p>## TODO</p>
 <p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math inline">\(0\)</span>.</p>
 <p>Not all functions from the Floating instance were implemented.</p>
 <p>It’s possible to generalize <span class="math inline">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>]]></summary>
