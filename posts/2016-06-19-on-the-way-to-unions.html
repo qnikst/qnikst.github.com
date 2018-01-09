@@ -11,19 +11,24 @@
     <script src="../js/bootstrap.min.js"></script>
     
     
+<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
+0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
+for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
+mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      QnikstBlog
       </div>
+      <hr />
       <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green">where</font>
+        <a href="../posts.html">Archive</a>
+        <a href="../projects.html">Projects</a>
+        <a href="../rss.xml">RSS</a>
       </div>
+      <hr />
   </div>
 
   <div id="content">
@@ -39,27 +44,27 @@
 <p>Recently on <a href="https://gitter.im/ruHaskell/forall">#ruHakell</a> gitter channel there was a question about how to make compiler happy. I managed to fix the problem, though it was not straightforward. Here I describe a problem and solution.</p>
 <p>As the original code is not mine but <span class="citation">[@int-index]</span>(https://github.com/int-index) I may be not correct in description on an intent. Also I’ll not get deep into the details of the new extensions, because I may be not correct in all details.</p>
 <p>The original code was <a href>https://gist.github.com/int-index/c6b853351912d177cfcefd54678b27ff</a>. Copy here for the history:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE TypeInType, GADTs, TypeFamilies #-}</span>
-
-<span class="kw">import </span><span class="dt">Data.Kind</span> (<span class="dt">Type</span>)
-
-<span class="kw">data</span> <span class="dt">N</span> <span class="fu">=</span> <span class="dt">Z</span> <span class="fu">|</span> <span class="dt">S</span> <span class="dt">N</span>
-
-<span class="kw">data</span> <span class="dt">Fin</span><span class="ot"> ::</span> <span class="dt">N</span> <span class="ot">-&gt;</span> <span class="dt">Type</span> <span class="kw">where</span>
-  <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
-  <span class="dt">FS</span><span class="ot"> ::</span> <span class="dt">Fin</span> n <span class="ot">-&gt;</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)
-
-<span class="kw">type</span> family <span class="dt">FieldCount</span> (<span class="ot">t ::</span> <span class="dt">Type</span>)<span class="ot"> ::</span> <span class="dt">N</span>
-
-<span class="kw">type</span> family <span class="dt">FieldType</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> t))<span class="ot"> ::</span> <span class="dt">Type</span>
-
-<span class="kw">data</span> <span class="dt">T</span>
-
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldCount</span> <span class="dt">T</span> <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>))
-
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">Int</span>
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> <span class="dt">FZ</span>) <span class="fu">=</span> <span class="dt">Bool</span>
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> (<span class="dt">FS</span> <span class="dt">FZ</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">{-# LANGUAGE TypeInType, GADTs, TypeFamilies #-}</span></div>
+<div class="sourceLine" id="2" data-line-number="2"></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="kw">import</span> <span class="dt">Data.Kind</span> (<span class="dt">Type</span>)</div>
+<div class="sourceLine" id="4" data-line-number="4"></div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="kw">data</span> <span class="dt">N</span> <span class="fu">=</span> <span class="dt">Z</span> <span class="fu">|</span> <span class="dt">S</span> <span class="dt">N</span></div>
+<div class="sourceLine" id="6" data-line-number="6"></div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="kw">data</span> <span class="dt">Fin</span><span class="ot"> ::</span> <span class="dt">N</span> <span class="ot">-&gt;</span> <span class="dt">Type</span> <span class="kw">where</span></div>
+<div class="sourceLine" id="8" data-line-number="8">  <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)</div>
+<div class="sourceLine" id="9" data-line-number="9">  <span class="dt">FS</span><span class="ot"> ::</span> <span class="dt">Fin</span> n <span class="ot">-&gt;</span> <span class="dt">Fin</span> (<span class="dt">S</span> n)</div>
+<div class="sourceLine" id="10" data-line-number="10"></div>
+<div class="sourceLine" id="11" data-line-number="11"><span class="kw">type</span> family <span class="dt">FieldCount</span> (<span class="ot">t ::</span> <span class="dt">Type</span>)<span class="ot"> ::</span> <span class="dt">N</span></div>
+<div class="sourceLine" id="12" data-line-number="12"></div>
+<div class="sourceLine" id="13" data-line-number="13"><span class="kw">type</span> family <span class="dt">FieldType</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> t))<span class="ot"> ::</span> <span class="dt">Type</span></div>
+<div class="sourceLine" id="14" data-line-number="14"></div>
+<div class="sourceLine" id="15" data-line-number="15"><span class="kw">data</span> <span class="dt">T</span></div>
+<div class="sourceLine" id="16" data-line-number="16"></div>
+<div class="sourceLine" id="17" data-line-number="17"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldCount</span> <span class="dt">T</span> <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>))</div>
+<div class="sourceLine" id="18" data-line-number="18"></div>
+<div class="sourceLine" id="19" data-line-number="19"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">Int</span></div>
+<div class="sourceLine" id="20" data-line-number="20"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> <span class="dt">FZ</span>) <span class="fu">=</span> <span class="dt">Bool</span></div>
+<div class="sourceLine" id="21" data-line-number="21"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldType</span> <span class="dt">T</span> (<span class="dt">FS</span> (<span class="dt">FS</span> <span class="dt">FZ</span>)) <span class="fu">=</span> <span class="dt">String</span></div></code></pre>
 <p>And type instances didn’t typecheck with a very strange error:</p>
 <pre><code>fieldtype.hs:19:27: error:
     • Expected kind ‘Fin (FieldCount T)’,
@@ -68,22 +73,22 @@
       In the type instance declaration for ‘FieldType’</code></pre>
 <p>I’m not able to explain why we have that error, and it looks like a bug to me, or that some <a href="https://ghc.haskell.org/trac/ghc/wiki/NewAxioms">axioms</a> prevents typechecker from inferring right types.</p>
 <p>So my first solution was to break the task into simpler ones. First, is that it’s easy to write type function that returns field that is needed:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">FiledTypeI</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">N</span>)<span class="ot"> ::</span> <span class="dt">Type</span>
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> <span class="dt">Z</span> <span class="fu">=</span> <span class="dt">Int</span>
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="fu">=</span> <span class="dt">Bool</span>
-<span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>)) <span class="fu">=</span> <span class="dt">String</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="kw">type</span> family <span class="dt">FiledTypeI</span> (<span class="ot">t ::</span> <span class="dt">Type</span>) (<span class="ot">i ::</span> <span class="dt">N</span>)<span class="ot"> ::</span> <span class="dt">Type</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> <span class="dt">Z</span> <span class="fu">=</span> <span class="dt">Int</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="fu">=</span> <span class="dt">Bool</span></div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">S</span> (<span class="dt">S</span> <span class="dt">Z</span>)) <span class="fu">=</span> <span class="dt">String</span></div></code></pre>
 <p>this works fine, we can check in ghci:</p>
 <pre><code>*Main&gt; :kind! FieldTypeI T (S Z)
 FieldTypeI T (S Z) :: *
 = Bool</code></pre>
 <p>Now we need to be able to convert <code>Fin N</code> to the raw <code>N</code>, this can be easily done with a closed type family:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">F2II</span> (<span class="ot">a ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">N</span> <span class="kw">where</span>
-  <span class="dt">F2II</span> (<span class="dt">FS</span> n) <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">F2</span> <span class="dt">II</span> n)
-  <span class="dt">F2II</span> <span class="dt">FZ</span>     <span class="fu">=</span> <span class="dt">Z</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="kw">type</span> family <span class="dt">F2II</span> (<span class="ot">a ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">N</span> <span class="kw">where</span></div>
+<div class="sourceLine" id="2" data-line-number="2">  <span class="dt">F2II</span> (<span class="dt">FS</span> n) <span class="fu">=</span> <span class="dt">S</span> (<span class="dt">F2</span> <span class="dt">II</span> n)</div>
+<div class="sourceLine" id="3" data-line-number="3">  <span class="dt">F2II</span> <span class="dt">FZ</span>     <span class="fu">=</span> <span class="dt">Z</span></div></code></pre>
 <p>so far so good. Now we can check in the repl:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>kind<span class="fu">!</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))
-<span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))<span class="ot"> ::</span> <span class="fu">*</span>
-<span class="fu">=</span> <span class="dt">Bool</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>kind<span class="fu">!</span> <span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))</div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="dt">FieldTypeI</span> <span class="dt">T</span> (<span class="dt">F2II</span> (<span class="dt">FS</span> <span class="dt">FZ</span><span class="ot"> ::</span> <span class="dt">Fin</span> (<span class="dt">FieldCount</span> <span class="dt">T</span>)))<span class="ot"> ::</span> <span class="fu">*</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="fu">=</span> <span class="dt">Bool</span></div></code></pre>
 <p>At this point we may expect that everything is ok, and now we can just write a type synonym to hide ugliness:</p>
 <pre><code>type DoesNotWork (t::Type) (i :: Fin (FieldCount t)) = FieldTypeI t (F2II i)</code></pre>
 <p>Here we have all types known and all requred dependencies. But it doesn’t work:</p>
@@ -95,10 +100,10 @@ DoesNotWork T (FS FZ) :: Type
   DoesNotWork t i = FieldTypeI t (F2II i)</code></pre>
 <p>Later invesigation showed that <code>t</code> and <code>FieldCount t</code> on the same side doesn’t work well.</p>
 <p>So solution here is no remove them. One way is to introduce a <code>cast</code> function:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> family <span class="dt">Cast</span> (<span class="ot">t ::</span> <span class="dt">N</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">Fin</span> t <span class="kw">where</span>
-  <span class="dt">Cast</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
-  <span class="dt">Cast</span> (<span class="dt">S</span> n) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span>
-  <span class="dt">Cast</span> (<span class="dt">S</span> n) (<span class="dt">FS</span> k) <span class="fu">=</span> <span class="dt">FS</span> (<span class="dt">Cast</span> n k)</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="kw">type</span> family <span class="dt">Cast</span> (<span class="ot">t ::</span> <span class="dt">N</span>) (<span class="ot">i ::</span> <span class="dt">Fin</span> n)<span class="ot"> ::</span> <span class="dt">Fin</span> t <span class="kw">where</span></div>
+<div class="sourceLine" id="2" data-line-number="2">  <span class="dt">Cast</span> (<span class="dt">S</span> <span class="dt">Z</span>) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span></div>
+<div class="sourceLine" id="3" data-line-number="3">  <span class="dt">Cast</span> (<span class="dt">S</span> n) <span class="dt">FZ</span> <span class="fu">=</span> <span class="dt">FZ</span></div>
+<div class="sourceLine" id="4" data-line-number="4">  <span class="dt">Cast</span> (<span class="dt">S</span> n) (<span class="dt">FS</span> k) <span class="fu">=</span> <span class="dt">FS</span> (<span class="dt">Cast</span> n k)</div></code></pre>
 <p>Now we can use this cast function to write a nice wrapper:</p>
 <pre><code>type family FieldType (t :: Type) (i :: Fin p) where
   FieldType t i = FieldTypeI t (F2II (Cast (FieldCount t) i))</code></pre>

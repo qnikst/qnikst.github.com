@@ -11,19 +11,24 @@
     <script src="../js/bootstrap.min.js"></script>
     
     
+<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
+0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
+for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
+mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      QnikstBlog
       </div>
+      <hr />
       <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green">where</font>
+        <a href="../posts.html">Archive</a>
+        <a href="../projects.html">Projects</a>
+        <a href="../rss.xml">RSS</a>
       </div>
+      <hr />
   </div>
 
   <div id="content">
@@ -45,12 +50,12 @@
 <ol start="2" style="list-style-type: decimal">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
-<span class="co">#!/bin/sh</span>
-<span class="ot">p=</span>/sys/fs/cgroup/su-log/<span class="ot">${PAM_RUSER}</span>
-<span class="kw">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span><span class="kw"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
-   <span class="kw">mkdir</span> <span class="ot">${p}</span>
-<span class="kw">echo</span> <span class="ot">${PPID}</span> <span class="kw">&gt;</span> <span class="st">&quot;</span><span class="ot">${p}</span><span class="st">&quot;</span>/tasks</code></pre></div>
+<pre class="sourceCode bash"><code class="sourceCode bash"><div class="sourceLine" id="1" data-line-number="1"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="co">#!/bin/sh</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></div>
+<div class="sourceLine" id="5" data-line-number="5">   <span class="fu">mkdir</span> <span class="va">${p}</span></div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</div></code></pre>
 <ol start="3" style="list-style-type: decimal">
 <li>пишем правило для pam.d (логи опциональны)</li>
 </ol>

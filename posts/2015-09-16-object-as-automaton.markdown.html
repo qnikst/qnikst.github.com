@@ -11,19 +11,24 @@
     <script src="../js/bootstrap.min.js"></script>
     
     
+<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
+0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
+for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
+mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      QnikstBlog
       </div>
+      <hr />
       <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green">where</font>
+        <a href="../posts.html">Archive</a>
+        <a href="../projects.html">Projects</a>
+        <a href="../rss.xml">RSS</a>
       </div>
+      <hr />
   </div>
 
   <div id="content">
@@ -40,86 +45,86 @@
 <p>В одном из тредов на <a href="http://umnik.point.im/vhpti">point.im</a> возник вопрос, каким образом можно сделать “объект” (состояние и функции связанные с ним) с помощью функций.</p>
 <p>Здесь и далее будет использоваться haskell и немного комментариев о других языках, так же будет использоваться подход идеоматичный для haskell, другие варианты тоже будут мельком обсуждены.</p>
 <p>Итак нам как обычно потребуется немного расширений языка</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span>
-<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span>
-<span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TypeFamilies #-}</span></code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">System.IO</span></code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE GADTs #-}</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE RankNTypes #-}</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TypeFamilies #-}</span></div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="dt">System.IO</span></div></code></pre>
 <p>Общая идея заключается в том, чтобы создать автомат (mealy machine), который на вход получает запросы, а на выходе дает результат (+ новую версию себя). Рассмотрим сначала простейший вариант:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">M1</span> a <span class="fu">=</span> <span class="dt">M1</span> {<span class="ot"> runM1 ::</span> forall b <span class="fu">.</span> a b <span class="ot">-&gt;</span> b }</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">M1</span> a <span class="fu">=</span> <span class="dt">M1</span> {<span class="ot"> runM1 ::</span> forall b <span class="fu">.</span> a b <span class="ot">-&gt;</span> b }</div></code></pre>
 <p>Тут мы создаем тип обёртку, над замыканием, которое принимает на вход запрос типа <code>a b</code> и отдает результат типа <code>b</code>. Таким образом объекты типизируются видом запросов, которые они могут обрабатывать. Можно записать простой пример запросов для системы логирования:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogLevel</span> <span class="fu">=</span> <span class="dt">Debug</span> <span class="fu">|</span> <span class="dt">Info</span> <span class="fu">|</span> <span class="dt">Warn</span> <span class="fu">|</span> <span class="dt">Error</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Ord</span>)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogRequest</span> a <span class="kw">where</span>
-<span class="ot">&gt;</span>   <span class="dt">WriteLog</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">IO</span> ())
-<span class="ot">&gt;</span>   <span class="dt">SetLevel</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span>   <span class="dt">GetLevel</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> <span class="dt">LogLevel</span></code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">LogRequest</span></code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogLevel</span> <span class="fu">=</span> <span class="dt">Debug</span> <span class="fu">|</span> <span class="dt">Info</span> <span class="fu">|</span> <span class="dt">Warn</span> <span class="fu">|</span> <span class="dt">Error</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Ord</span>)</div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">LogRequest</span> a <span class="kw">where</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>   <span class="dt">WriteLog</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> (<span class="dt">IO</span> ())</div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>   <span class="dt">SetLevel</span><span class="ot"> ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>   <span class="dt">GetLevel</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> <span class="dt">LogLevel</span></div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">LogRequest</span></div></code></pre>
 <p>Здесь мы имеем три типа запроса, первый - записал лог, создает действие типа <code>IO ()</code>, т.е. выполняет какой-то эффект, второе - обновляет уровень логирования возвращая новый обьект из текущего, и третье это чистое действие, получение уровня логирования из текущего.</p>
 <p>Теперь мы можем создавать различне логгеры, например:</p>
 <p>Для того, чтобы не делать копипаст создадим базовый логгер:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; dummyLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> dummyLogger lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
-<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
-<span class="ot">&gt;</span>   go <span class="dt">WriteLog</span>{} <span class="fu">=</span> error <span class="st">&quot;dummy logger: write log is not implemented&quot;</span>
-<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> dummyLogger l
-<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; dummyLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> dummyLogger lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>   go <span class="dt">WriteLog</span>{} <span class="fu">=</span> error <span class="st">&quot;dummy logger: write log is not implemented&quot;</span></div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> dummyLogger l</div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</div></code></pre>
 <p>Пример</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger0 ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> stdoutLogger0 lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
-<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
-<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s)
-<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> hPutStrLn stderr s
-<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
-<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger0 l
-<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span> <span class="fu">=</span> runM1 (dummyLogger lvl) <span class="dt">GetLevel</span></code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; stdoutLogger0 ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> stdoutLogger0 lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s)</div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> hPutStrLn stderr s</div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()</div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger0 l</div>
+<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>   go <span class="dt">GetLevel</span> <span class="fu">=</span> runM1 (dummyLogger lvl) <span class="dt">GetLevel</span></div></code></pre>
 <p>Абстрактные методы:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; baseLogger ::</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ())
-<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogLevel</span>
-<span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> baseLogger writeLog lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span>
-<span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a <span class="co">-- очень важная строчка делающая компилятор счастливым</span>
-<span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s) 
-<span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> writeLog l s
-<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()
-<span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> baseLogger writeLog l
-<span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; baseLogger ::</span> (<span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ())</div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogLevel</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>             <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> baseLogger writeLog lvl <span class="fu">=</span> <span class="dt">M1</span> go <span class="kw">where</span></div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;   go ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a <span class="co">-- очень важная строчка делающая компилятор счастливым</span></div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>   go (<span class="dt">WriteLog</span> l s) </div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>      <span class="fu">|</span> l <span class="fu">&gt;=</span> lvl <span class="fu">=</span> writeLog l s</div>
+<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> return ()</div>
+<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>   go (<span class="dt">SetLevel</span> l) <span class="fu">=</span> baseLogger writeLog l</div>
+<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>   go <span class="dt">GetLevel</span>     <span class="fu">=</span> lvl</div></code></pre>
 <p>Наследование 1:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; stdoutLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> stdoutLogger lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go base <span class="kw">where</span>
-<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) lvl
-<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a
-<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">WriteLog</span> <span class="dt">Error</span> _) <span class="fu">=</span> hPutStrLn stdout <span class="st">&quot;AAAAAAAAAAAAAAA!&quot;</span> <span class="fu">&gt;&gt;</span> runM1 b s
-<span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger l <span class="co">-- не удобно :)</span>
-<span class="ot">&gt;</span>   go b s <span class="fu">=</span> runM1 base s</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; stdoutLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> stdoutLogger lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go base <span class="kw">where</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) lvl</div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">WriteLog</span> <span class="dt">Error</span> _) <span class="fu">=</span> hPutStrLn stdout <span class="st">&quot;AAAAAAAAAAAAAAA!&quot;</span> <span class="fu">&gt;&gt;</span> runM1 b s</div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>   go b s<span class="fu">@</span>(<span class="dt">SetLevel</span> l) <span class="fu">=</span> stdoutLogger l <span class="co">-- не удобно :)</span></div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>   go b s <span class="fu">=</span> runM1 base s</div></code></pre>
 <p>Наследование 2:</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">FileLogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">FileLogRequest</span></code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> family <span class="dt">Outer</span> a <span class="kw">where</span>
-<span class="ot">&gt;</span>   <span class="dt">Outer</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">FileLogObject</span>
-<span class="ot">&gt;</span>   <span class="dt">Outer</span> a         <span class="fu">=</span> a
-<span class="ot">&gt;</span> 
-<span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">FileLogRequest</span> a <span class="kw">where</span>
-<span class="ot">&gt;</span>   <span class="dt">SetFile</span><span class="ot"> ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> <span class="dt">FileLogObject</span>
-<span class="ot">&gt;</span>   <span class="dt">GetFile</span><span class="ot"> ::</span> <span class="dt">FileLogRequest</span> FilePath
-<span class="ot">&gt;</span>   <span class="dt">AsLogObject</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> (<span class="dt">Outer</span> a)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; fileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">FileLogObject</span>
-<span class="ot">&gt;</span> fileLogger fp lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go (base lvl) <span class="kw">where</span>
-<span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile fp s)
-<span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> a <span class="ot">-&gt;</span> a
-<span class="ot">&gt;</span>   go _ (<span class="dt">SetFile</span> fp') <span class="fu">=</span> fileLogger fp' lvl
-<span class="ot">&gt;</span>   go _ <span class="dt">GetFile</span>       <span class="fu">=</span> fp
-<span class="ot">&gt;</span>   go b (<span class="dt">AsLogObject</span> s) <span class="fu">=</span> <span class="kw">case</span> s <span class="kw">of</span>
-<span class="ot">&gt;</span>        (<span class="dt">SetLevel</span> l) <span class="ot">-&gt;</span> <span class="dt">M1</span> <span class="fu">$</span> go (runM1 b s)
-<span class="ot">&gt;</span>        p <span class="ot">-&gt;</span> runM1 b p</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">{-</span>
-<span class="co">&gt; baseLogger :: (LogLevel -&gt; String -&gt; IO ())</span>
-<span class="co">&gt;            -&gt; (LogLevel -&gt; LogObject)</span>
-<span class="co">&gt;            -&gt; LogLevel</span>
-<span class="co">&gt;            -&gt; LogObject</span>
-<span class="co">&gt; baseLogger writeLog newLogger lvl = M1 go where</span></code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">FileLogObject</span> <span class="fu">=</span> <span class="dt">M1</span> <span class="dt">FileLogRequest</span></div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> family <span class="dt">Outer</span> a <span class="kw">where</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>   <span class="dt">Outer</span> <span class="dt">LogObject</span> <span class="fu">=</span> <span class="dt">FileLogObject</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>   <span class="dt">Outer</span> a         <span class="fu">=</span> a</div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> </div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">FileLogRequest</span> a <span class="kw">where</span></div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>   <span class="dt">SetFile</span><span class="ot"> ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> <span class="dt">FileLogObject</span></div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>   <span class="dt">GetFile</span><span class="ot"> ::</span> <span class="dt">FileLogRequest</span> FilePath</div>
+<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>   <span class="dt">AsLogObject</span><span class="ot"> ::</span> <span class="dt">LogRequest</span> a <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> (<span class="dt">Outer</span> a)</div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; fileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">FileLogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> fileLogger fp lvl <span class="fu">=</span> <span class="dt">M1</span> <span class="fu">$</span> go (base lvl) <span class="kw">where</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>   base <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile fp s)</div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;   go ::</span> <span class="dt">LogObject</span> <span class="ot">-&gt;</span> <span class="dt">FileLogRequest</span> a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>   go _ (<span class="dt">SetFile</span> fp') <span class="fu">=</span> fileLogger fp' lvl</div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>   go _ <span class="dt">GetFile</span>       <span class="fu">=</span> fp</div>
+<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>   go b (<span class="dt">AsLogObject</span> s) <span class="fu">=</span> <span class="kw">case</span> s <span class="kw">of</span></div>
+<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>        (<span class="dt">SetLevel</span> l) <span class="ot">-&gt;</span> <span class="dt">M1</span> <span class="fu">$</span> go (runM1 b s)</div>
+<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>        p <span class="ot">-&gt;</span> runM1 b p</div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="co">{-</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="co">&gt; baseLogger :: (LogLevel -&gt; String -&gt; IO ())</span></div>
+<div class="sourceLine" id="3" data-line-number="3"><span class="co">&gt;            -&gt; (LogLevel -&gt; LogObject)</span></div>
+<div class="sourceLine" id="4" data-line-number="4"><span class="co">&gt;            -&gt; LogLevel</span></div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="co">&gt;            -&gt; LogObject</span></div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="co">&gt; baseLogger writeLog newLogger lvl = M1 go where</span></div></code></pre>
 <p>И два конкретных</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkStdErrLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> mkStdErrLogger <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) mkStdErrLogger</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; mkFileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span>
-<span class="ot">&gt;</span> mkFileLogger path <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile path s) (mkFileLogger path)</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; mkStdErrLogger ::</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> mkStdErrLogger <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> hPutStrLn stderr s) mkStdErrLogger</div></code></pre>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; mkFileLogger ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">LogLevel</span> <span class="ot">-&gt;</span> <span class="dt">LogObject</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> mkFileLogger path <span class="fu">=</span> baseLogger (\_ s <span class="ot">-&gt;</span> appendFile path s) (mkFileLogger path)</div></code></pre>
 <p>Пример использования</p>
 <pre><code>*Main&gt; let l1 = mkStdErrLogger Warn
 *Main&gt; runM1 l1 (WriteLog Info &quot;info&quot;)
@@ -138,7 +143,7 @@ info</code></pre>
 <p>Но для многих задач и этого достаточно.</p>
 <p>Что можно улучшать, можно, например, разделить все запросы на запросы записи, чтения и выполнения, например как <code>data Action = Read | Write | Execute</code> и пример можно найти где-то <a href="https://github.com/YoEight/eventstore/blob/refact/testability/Database/EventStore/Internal/Manager/Subscription/Model.hs#L102-L106">здесь</a>.</p>
 <p>Абсолютно те же трюки можно провести и в других языках, только вместо pattern-matching будет диспетчеризация по типу, например куча <code>if</code> и проверкой <code>typeof</code> и меньше статических гарантий.</p>
-<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="fu">-</span>}</code></pre></div>
+<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="fu">-</span>}</div></code></pre>
 
 <hr />
 <div id="sociallinks" class="pull-left">

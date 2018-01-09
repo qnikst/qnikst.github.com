@@ -11,19 +11,24 @@
     <script src="../js/bootstrap.min.js"></script>
     
     
+<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
+0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
+for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
+mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      <font color="green">module</font> <a href="../">QnikstBlog</a>
+      QnikstBlog
       </div>
+      <hr />
       <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green">where</font>
+        <a href="../posts.html">Archive</a>
+        <a href="../projects.html">Projects</a>
+        <a href="../rss.xml">RSS</a>
       </div>
+      <hr />
   </div>
 
   <div id="content">
@@ -45,53 +50,53 @@
 <p>The first part of the problem (having a number) in a type may be interesting if you want to distiguish types assosiated with different numbers.</p>
 <p>For simplicity we will take <a href="https://hackage.haskell.org/package/tagged-0.7.2/docs/Data-Tagged.html">Data.Tagged.Tagged</a> type from <code>tagged</code> package. However it’s possible to create our own type as I did at the beggining (just I did a first time).</p>
 <p>We add helper methods that allow us to extract infomation about the type-parameter from the value:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">toProxy ::</span> <span class="dt">Tagged</span> n a  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n
-toProxy _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">toProxy ::</span> <span class="dt">Tagged</span> n a  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n</div>
+<div class="sourceLine" id="2" data-line-number="2">toProxy _ <span class="fu">=</span> <span class="dt">Proxy</span></div></code></pre>
 <p>And add a constrictor helper that allow to create a type with information about number that is provided by us.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mkT ::</span> proxy n <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Tagged</span> n a
-mkT _ a <span class="fu">=</span> <span class="dt">Tagged</span> a</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">mkT ::</span> proxy n <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Tagged</span> n a</div>
+<div class="sourceLine" id="2" data-line-number="2">mkT _ a <span class="fu">=</span> <span class="dt">Tagged</span> a</div></code></pre>
 <p>Just check that we can create a fancy values:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="ch">'Nothing a</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span></div>
+<div class="sourceLine" id="2" data-line-number="2">mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Nothing</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="ch">'Nothing a</span></div></code></pre>
 <h2 id="naturals">Naturals</h2>
 <p>From this point we can start real fun. At first lest create a value with natural type parameter:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="dv">3</span> a</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span></div>
+<div class="sourceLine" id="2" data-line-number="2">mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> <span class="dv">3</span> a</div></code></pre>
 <p>Now we want to be able to use this information at runtime. Let’s introduce a new method that will use <code>natVal</code> function:</p>
 <pre class="haskel"><code>natVal :: forall n proxy. KnownNat n =&gt; proxy n -&gt; Integer` </code></pre>
 <p>take a type that acts as a type proxy and returns the integer assosiated with a type.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">useT ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> n a <span class="ot">-&gt;</span> a
-useT t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> fromIntegral (natVal (toProxy t)) <span class="fu">+</span> a</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">useT ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> n a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="2" data-line-number="2">useT t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> fromIntegral (natVal (toProxy t)) <span class="fu">+</span> a</div></code></pre>
 <p>Here we are:</p>
 <ol style="list-style-type: decimal">
 <li><p>extracting type information by calling <code>toProxy</code></p></li>
 <li><p>extracting natural number from a proxy by calling <code>natVal</code></p></li>
 <li><p>returning a calculated results</p></li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useT <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span>
-<span class="dv">11</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useT <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">3</span>) <span class="dv">8</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="dv">11</span></div></code></pre>
 <h2 id="positive-rational">Positive rational</h2>
 <p>On the next step we will introduce a code that works for natural numbers, by definition rational number is <code>a % b</code>, where <code>a \in Z</code> and <code>b \in N</code>. Lets lift this information to a type level by introducing a typelevel rational:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> (<span class="fu">:%%</span>) a b</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="kw">data</span> (<span class="fu">:%%</span>) a b</div></code></pre>
 <p>And introduce type extraction mechanisms</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- | extract numerator type</span>
-numerator<span class="ot"> ::</span> proxy (n <span class="fu">:%%</span> m) <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n
-numerator _ <span class="fu">=</span> <span class="dt">Proxy</span>
-
-<span class="co">-- | Extract denomenator type </span>
-<span class="ot">denomenator ::</span> proxy (n <span class="fu">:%%</span> m)  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> m
-denomenator _ <span class="fu">=</span> <span class="dt">Proxy</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="co">-- | extract numerator type</span></div>
+<div class="sourceLine" id="2" data-line-number="2">numerator<span class="ot"> ::</span> proxy (n <span class="fu">:%%</span> m) <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n</div>
+<div class="sourceLine" id="3" data-line-number="3">numerator _ <span class="fu">=</span> <span class="dt">Proxy</span></div>
+<div class="sourceLine" id="4" data-line-number="4"></div>
+<div class="sourceLine" id="5" data-line-number="5"><span class="co">-- | Extract denomenator type </span></div>
+<div class="sourceLine" id="6" data-line-number="6"><span class="ot">denomenator ::</span> proxy (n <span class="fu">:%%</span> m)  <span class="ot">-&gt;</span> <span class="dt">Proxy</span> m</div>
+<div class="sourceLine" id="7" data-line-number="7">denomenator _ <span class="fu">=</span> <span class="dt">Proxy</span></div></code></pre>
 <p>Today we don’t conver math operations over the type-parameters, this may be a topic for another post. So now we may be quite happy as we can create values tagged by something that looks like a rational number.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span>
-mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>) a</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> <span class="fu">:</span>t mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span></div>
+<div class="sourceLine" id="2" data-line-number="2">mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span><span class="ot"> ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>) a</div></code></pre>
 <p>Now we can write a function that will use information about the type at runtime:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">useTF ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">KnownNat</span> m, <span class="dt">Fractional</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (n <span class="fu">:%%</span> m) a <span class="ot">-&gt;</span> a
-useTF t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> v <span class="fu">+</span> a
-  <span class="kw">where</span> v <span class="fu">=</span> fromRational <span class="fu">$</span>
-               natVal (numerator <span class="fu">$</span> toProxy t) <span class="fu">:%</span> natVal (denomenator <span class="fu">$</span> toProxy t)</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">useTF ::</span> (<span class="dt">KnownNat</span> n, <span class="dt">KnownNat</span> m, <span class="dt">Fractional</span> a) <span class="ot">=&gt;</span> <span class="dt">Tagged</span> (n <span class="fu">:%%</span> m) a <span class="ot">-&gt;</span> a</div>
+<div class="sourceLine" id="2" data-line-number="2">useTF t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="fu">=</span> v <span class="fu">+</span> a</div>
+<div class="sourceLine" id="3" data-line-number="3">  <span class="kw">where</span> v <span class="fu">=</span> fromRational <span class="fu">$</span></div>
+<div class="sourceLine" id="4" data-line-number="4">               natVal (numerator <span class="fu">$</span> toProxy t) <span class="fu">:%</span> natVal (denomenator <span class="fu">$</span> toProxy t)</div></code></pre>
 <p>Lets check:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useTF <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span>
-<span class="fl">8.375</span></code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> useTF <span class="fu">$</span> mkT (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dv">3</span> <span class="fu">:%%</span> <span class="dv">8</span>)) <span class="dv">8</span></div>
+<div class="sourceLine" id="2" data-line-number="2"><span class="fl">8.375</span></div></code></pre>
 <h2 id="positive-real.">Positive real.</h2>
 <p>Now we want to solve the following problem: it’s not easy to write types for ratio, the reason that for a complex cases we need somehow to find the ratio that fits. Also we want to support real numbers. Having in mind the fact that real values are not supported on the typelevel, we may be quite happy with Rational approximation.</p>
 <p>In order to solve those 2 problems we need:</p>
@@ -100,10 +105,10 @@ useTF t<span class="fu">@</span>(<span class="dt">Tagged</span> a) <span class="
 <li><p>ability to write code easily</p></li>
 </ol>
 <p>We will introduce a TH function that will find a good approximation and create required type:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mkFloatProxy ::</span> <span class="dt">RealFrac</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span>
-mkFloatProxy x <span class="fu">=</span> [<span class="fu">|</span> <span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="fu">$</span>(nk a) <span class="fu">:%%</span> <span class="fu">$</span>(nk b)) <span class="fu">|</span>]
-  <span class="kw">where</span> (a <span class="fu">:%</span> b) <span class="fu">=</span> toRational x
-          nk x <span class="fu">=</span> sigT (litT (numTyLit x)) (<span class="dt">ConT</span> <span class="fu">$</span> mkName <span class="st">&quot;Nat&quot;</span>)</code></pre></div>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">mkFloatProxy ::</span> <span class="dt">RealFrac</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Q</span> <span class="dt">Exp</span></div>
+<div class="sourceLine" id="2" data-line-number="2">mkFloatProxy x <span class="fu">=</span> [<span class="fu">|</span> <span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="fu">$</span>(nk a) <span class="fu">:%%</span> <span class="fu">$</span>(nk b)) <span class="fu">|</span>]</div>
+<div class="sourceLine" id="3" data-line-number="3">  <span class="kw">where</span> (a <span class="fu">:%</span> b) <span class="fu">=</span> toRational x</div>
+<div class="sourceLine" id="4" data-line-number="4">          nk x <span class="fu">=</span> sigT (litT (numTyLit x)) (<span class="dt">ConT</span> <span class="fu">$</span> mkName <span class="st">&quot;Nat&quot;</span>)</div></code></pre>
 <p>the magic that we have in <code>nk x</code> we need to create a type parameter of kind <code>Nat</code>. Now we can write a code like:</p>
 <blockquote>
 <p>test = mkT $(mkFloatProxy pi) 7.0</p>
