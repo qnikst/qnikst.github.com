@@ -7,6 +7,7 @@ import Control.Category (id)
 import Control.Applicative
 import Text.Pandoc
 import Data.Monoid (mempty, mconcat, mappend, (<>))
+import qualified Hakyll.Core.Metadata as Meta
 import qualified Data.Map as M
 
 import Hakyll
@@ -67,8 +68,8 @@ main = hakyllWith config $ do
        compile $ do
           let ctx =  constField "title" "Posts"
                   <> listField "posts" -- defaultContext
-		                       (teaserField "teaser" "content" <> defaultContext)
-				       (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
+                       (teaserField "teaser" "content" <> defaultContext)
+                       (recentFirst =<< loadAll ("posts/*" .&&. hasNoVersion))
                   <> field "tags" (\_ -> renderTagList tags)
                   <> defaultContext
           makeItem ""
@@ -84,8 +85,8 @@ main = hakyllWith config $ do
     compile $ do
       let ctx = 
                (constField "title" "Posts" `mappend`
-	       listField "posts" (teaserField "teaser" "content" <> defaultContext)
-		                 (recentFirst =<< loadAll (pattern .&&. hasNoVersion))  `mappend`
+                  listField "posts" (teaserField "teaser" "content" <> defaultContext)
+                  (recentFirst =<< loadAll (pattern .&&. hasNoVersion))  `mappend`
                field "tags" (\_ -> renderTagList tags) `mappend`
                mathCtx                    `mappend`
                licenseCtx                 `mappend`
@@ -109,7 +110,7 @@ main = hakyllWith config $ do
                          <> field "tags" (\_ -> renderTagList tags)
                          <> mathCtx
                          <> defaultContext
-	makeItem ""
+        makeItem ""
             >>= loadAndApplyTemplate "templates/index.html" indexContext
             >>= loadAndApplyTemplate "templates/default.html" indexContext
             >>= relativizeUrls
@@ -159,9 +160,9 @@ pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax "" }
 mathCtx :: Context a
 mathCtx = field "mathjax" $ \item -> do
     metadata <- getMetadata $ itemIdentifier item
-    return $ if "mathjax" `M.member` metadata
-                then "<script type=\"text/javascript\" src=\"https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
-                else ""
+    return $ case "mathjax" `Meta.lookupString` metadata of
+               Just{} -> "<script type=\"text/javascript\" src=\"https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+               Nothing -> ""
 
 keywordCtx :: Context String
 keywordCtx = field "metaKeywords" $ \item -> do
@@ -182,11 +183,11 @@ feedConfiguration title = FeedConfiguration
 licenseCtx :: Context a
 licenseCtx = field "license" $ \item -> do
     metadata <- getMetadata $ itemIdentifier item
-    return $ case M.lookup "license" metadata of
-                    Nothing -> ""
-                    Just m -> case M.lookup (trim m) licenses of
-                                      Nothing -> "unknown license"
-                                      Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
+    return $ case Meta.lookupString "license" metadata of
+               Nothing -> ""
+               Just m -> case M.lookup (trim m) licenses of
+                           Nothing -> "unknown license"
+                           Just (u,i) -> "<a href=\""++u++"\"><img src=\""++i++"\"/></a>"
   where
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
