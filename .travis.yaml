@@ -1,0 +1,16 @@
+language: "haskell"
+branches:
+  only:
+   - "raw"
+install:
+  - cabal install
+script:
+  - qnikst-github-com build
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  keep-history: true
+  local-dir:    site
+  on:
+     branch: master
