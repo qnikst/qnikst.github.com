@@ -1,5 +1,5 @@
 ---
-title: Playing with trees: prefix map 
+title: "Playing with trees: prefix map"
 author: Alexander Vershilov
 date: January 1, 2013
 tags: haskell

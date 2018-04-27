@@ -11,13 +11,13 @@ a.annot{
     position:relative; 
     color:#000;
     text-decoration:none
-  }
+}
 
 a.annot:hover{z-index:25; background-color:#ff0}
 
 a.annot span.annottext{display: none}
 
-a.annot:hover span.annottext{ 
+a.annot:hover span.annottext{
   border-radius: 5px 5px;
   
   -moz-border-radius: 5px; 

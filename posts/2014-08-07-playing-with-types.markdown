@@ -1,5 +1,5 @@
 ----
-title: Playing with types: type level numbers
+title: "Playing with types: type level numbers"
 author: Alexander Vershilov
 tags: haskell, typefun, typenats
 date: 2013-12-30

@@ -3,7 +3,7 @@ date: unknown
 author: Alexander Vershilov
 license: by-nc-sa
 date:  2013-09-06
-title: Сериализация структур данных в Haskell.<br/> Часть 1: типы данных
+title: "Сериализация структур данных в Haskell.<br/> Часть 1: типы данных"
 tags: haskell
 -----
 
