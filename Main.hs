@@ -18,6 +18,7 @@ import Debug.Trace
 
 main :: IO ()
 main = hakyllWith config $ do
+
   match "img/**" $ do
      route idRoute
      compile copyFileCompiler
@@ -29,10 +30,12 @@ main = hakyllWith config $ do
      route idRoute
      compile copyFileCompiler
 
-  -- Compress CSS
-  match "css/*" $ do
-    route idRoute
-    compile compressCssCompiler
+  match "css/*" $ compile compressCssCompiler
+  create ["style.css"] $ do
+     route idRoute
+     compile $ do
+       csss <- loadAll "css/*.css"
+       makeItem $ unlines $ map itemBody csss
 
   match "js/*" $ do
     route idRoute
