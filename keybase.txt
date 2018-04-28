@@ -1,0 +1,69 @@
+==================================================================
+https://keybase.io/qnikst
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://qnikst.github.io
+  * I am qnikst (https://keybase.io/qnikst) on keybase.
+  * I have a public key with fingerprint EFAF B695 F51C 6586 9337  44E1 5F9D 9342 5E05 C6C2
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "0101ee97393209cc51b6469257c24c79436375fc8916fce2ef3cb6b33a87afbf3f900a",
+      "fingerprint": "efafb695f51c6586933744e15f9d93425e05c6c2",
+      "host": "keybase.io",
+      "key_id": "5f9d93425e05c6c2",
+      "kid": "0101ee97393209cc51b6469257c24c79436375fc8916fce2ef3cb6b33a87afbf3f900a",
+      "uid": "5ad8f4b50acd85f81cc1dd262f60f000",
+      "username": "qnikst"
+    },
+    "service": {
+      "hostname": "qnikst.github.io",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 1
+  },
+  "ctime": 1524948407,
+  "expire_in": 157680000,
+  "prev": "df6e1d8cc9ed4deb6b48c8a6976a883cba5d7654c3dd83b8c827f8b0a146f2da",
+  "seqno": 28,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+-----BEGIN PGP MESSAGE-----
+Version: GnuPG v2
+
+owGtUm2IVFUYnll3a91SnFwi3VjcG7rrug7nfpxzzx0x3XFWwx8Wie2SynTu+Zg5
+rHPv3Xvvrh/ThsGSBAaCrWUIk/5QFJZdAj9idZMKikSIxLKiIiiyItksEKyhztX8
+EfSz8+dw3vd5nvd5H86BeXNSzemfrs5j1670L05f+tFNPfvdVzNVzfXZbi1X1Qb5
+nYvvYDyKi4OSaTkN6EDn3LFNxzSAQynUXWQhx4A2NSxqO5aJTBsKih0dCcoNLkzq
+Itc0CbaJcIUpHACI1qMJ6ZV4GITSi5UsF6qJHCigThHEyDFN27K4DoXDHNMyIAeQ
+ImooYtmPEoYy55KIZ6WvaupRvGPvP/D/s+/hu3MIw8JyISCUYSiwTqnOmIEMgYAA
+ACTAiIceqXCFHvLkoDI92qOp2oikPIk12eNf/WxJxuVh9+5GQejHPvV3qG45joMo
+l7Dj3UEC38nd4j9CRVd6TCWpGCM8jKTvaTldIWksE2UdGpZjYQvYPRrfFciQF2WC
+gDbCyiVI5vARJckE4vpWhil1OLMYV6tbmGKCHBsRjFUWBDIbQYuajGHTVT3DFtgF
+RLeQMFiSTMSHPF/LGVgZJSUlGsmSR+LhkGujLS+nDzam0s2p0Yc7GtO1o/O3tp15
+4cqRfbfufb+mhuTvFVv3ptTJprpkFA3zcKUIwrWeH5NYbRZl/YB7QSnICinictkP
+I14hXtbjMdCd9b066IN5PZ9Hdl/BdNZhe73d11uAoICsAi6Y0NZ7Uy1zF9ybOBPf
+X1/w89ShD2ffXzlw3wfr6p2PHdpy5Ndry8OB7k0rDl5+otq15MK50qrrmaWZyVtj
+G/5485lzNzvan9oj+5tbXvnsi50vLq3qmSUNm/Z1NxTbTp19ftFf2Qc/fvLLo9Wh
+idsbFlfyc2cvnpzqo/3t3e90XP70wMI5yzOfk/J+f9cyo7HSNN0xtnb1ssZWsibb
+OdlDu2689LWoPQpPzv/htdPvNWyv58kjZz4Zb5OV3PTGS23x1KLDx06s+vbibbZ5
+bKbzJtw/sfnsAwVqvTvxW2186viK6fbr9c6mG0+vbr3wuGa/7dTOn776+rY/12zv
+/33jGw/9Untu8vCe2bf2fm+Mj6FvYEtXPfjo1YHM3w==
+=G7o1
+-----END PGP MESSAGE-----
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/qnikst
+
+==================================================================
