@@ -4,31 +4,24 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Hashmaps usage</title>
     <!-- Bootstrap -->
-    <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
-    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <link href="../style.css" rel="stylesheet" media="screen">
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     
     
-<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
-0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
-for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
-mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      QnikstBlog
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
-      <hr />
       <div id="navigaion">
-        <a href="../posts.html">Archive</a>
-        <a href="../projects.html">Projects</a>
-        <a href="../rss.xml">RSS</a>
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
-      <hr />
   </div>
 
   <div id="content">
@@ -44,74 +37,74 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 <p>Recently I’ve registered on the (exercism.io)[http://exercism.io] site and solved haskell tasks there. I’m recommending that site for both beginers and advanced users, as beginers may learn from the community review and advanced users may review and comment themselve. This post is not very interesting as it doesn’t contain any deep analisys or interesting notes.</p>
 <p>There were to interesting tasks that may be solved with or without hashtables and I wanted to benchmark how hashtables may impact performance of that tasks. If you are going to participate in exercism here will be spoilers</p>
 <p>The first task is Anagram:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TupleSections #-}</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.HashMap.Strict</span> <span class="kw">as</span> <span class="dt">HM</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map.Strict</span> <span class="kw">as</span> <span class="dt">M</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="dt">Data.Char</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="dt">Data.List</span> ( sort )</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="dt">Criterion.Main</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="ot">{-# LANGUAGE TupleSections #-}</span>
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.HashMap.Strict</span> <span class="kw">as</span> <span class="dt">HM</span>
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Map.Strict</span> <span class="kw">as</span> <span class="dt">M</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Data.Char</span>
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Data.List</span> ( sort )
+<span class="ot">&gt;</span> <span class="kw">import </span><span class="dt">Criterion.Main</span></code></pre></div>
 <p>Simple version</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="co">-- by me</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt; anagramsFor ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> anagramsFor x <span class="fu">=</span> filter ((<span class="fu">==</span> xn) <span class="fu">.</span> normalize) <span class="fu">.</span> filter (<span class="fu">/=</span>x)</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>   <span class="kw">where</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>      normalize <span class="fu">=</span> sort <span class="fu">.</span> map toLower</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>      xn <span class="fu">=</span> normalize x</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- by me</span>
+<span class="ot">&gt; anagramsFor ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]
+<span class="ot">&gt;</span> anagramsFor x <span class="fu">=</span> filter ((<span class="fu">==</span> xn) <span class="fu">.</span> normalize) <span class="fu">.</span> filter (<span class="fu">/=</span>x)
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;</span>      normalize <span class="fu">=</span> sort <span class="fu">.</span> map toLower
+<span class="ot">&gt;</span>      xn <span class="fu">=</span> normalize x</code></pre></div>
 <p>HashMap version:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="co">-- by (@ethercrow)[http://exercism.io/ethercrow]</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt; anagramsFor1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> anagramsFor1 term</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>    <span class="fu">=</span> filter (\candidate <span class="ot">-&gt;</span> candidate <span class="fu">/=</span> term</div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>                <span class="fu">&amp;&amp;</span> letterCount candidate <span class="fu">==</span> termLetterCount)</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>  <span class="kw">where</span> termLetterCount <span class="fu">=</span> letterCount term</div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt; letterCount ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span> letterCount <span class="fu">=</span> HM.fromListWith (<span class="fu">+</span>) <span class="fu">.</span> fmap ((, <span class="dv">1</span>) <span class="fu">.</span> toLower)</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- by (@ethercrow)[http://exercism.io/ethercrow]</span>
+<span class="ot">&gt; anagramsFor1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> [<span class="dt">String</span>] <span class="ot">-&gt;</span> [<span class="dt">String</span>]
+<span class="ot">&gt;</span> anagramsFor1 term
+<span class="ot">&gt;</span>    <span class="fu">=</span> filter (\candidate <span class="ot">-&gt;</span> candidate <span class="fu">/=</span> term
+<span class="ot">&gt;</span>                <span class="fu">&amp;&amp;</span> letterCount candidate <span class="fu">==</span> termLetterCount)
+<span class="ot">&gt;</span>  <span class="kw">where</span> termLetterCount <span class="fu">=</span> letterCount term
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; letterCount ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> letterCount <span class="fu">=</span> HM.fromListWith (<span class="fu">+</span>) <span class="fu">.</span> fmap ((, <span class="dv">1</span>) <span class="fu">.</span> toLower)</code></pre></div>
 <p>And anagrams:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; scoresM ::</span> <span class="dt">M.Map</span> <span class="dt">Char</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> scoresM <span class="fu">=</span> M.fromList scores</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt; scoresH ::</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> scoresH <span class="fu">=</span> HM.fromList scores</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt; scores ::</span> [(<span class="dt">Char</span>,<span class="dt">Int</span>)]</div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span> scores <span class="fu">=</span>  [ (l,c) <span class="fu">|</span></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>     (ls,c) <span class="ot">&lt;-</span> [ (<span class="st">&quot;AEIOULNRST&quot;</span>,<span class="dv">1</span>)</div>
-<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>               , (<span class="st">&quot;DG&quot;</span>,<span class="dv">2</span>)</div>
-<div class="sourceLine" id="11" data-line-number="11"><span class="ot">&gt;</span>               , (<span class="st">&quot;BCMP&quot;</span>,<span class="dv">3</span>)</div>
-<div class="sourceLine" id="12" data-line-number="12"><span class="ot">&gt;</span>               , (<span class="st">&quot;FHVWY&quot;</span>,<span class="dv">4</span>)</div>
-<div class="sourceLine" id="13" data-line-number="13"><span class="ot">&gt;</span>               , (<span class="st">&quot;K&quot;</span>,<span class="dv">5</span>)</div>
-<div class="sourceLine" id="14" data-line-number="14"><span class="ot">&gt;</span>               , (<span class="st">&quot;JX&quot;</span>,<span class="dv">8</span>)</div>
-<div class="sourceLine" id="15" data-line-number="15"><span class="ot">&gt;</span>               , (<span class="st">&quot;QZ&quot;</span>,<span class="dv">10</span>)],</div>
-<div class="sourceLine" id="16" data-line-number="16"><span class="ot">&gt;</span>     l <span class="ot">&lt;-</span> ls</div>
-<div class="sourceLine" id="17" data-line-number="17"><span class="ot">&gt;</span>   ]</div>
-<div class="sourceLine" id="18" data-line-number="18"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="19" data-line-number="19"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="20" data-line-number="20"><span class="ot">&gt; scoreWord ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="21" data-line-number="21"><span class="ot">&gt;</span> scoreWord <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter</div>
-<div class="sourceLine" id="22" data-line-number="22"><span class="ot">&gt;</span>   <span class="kw">where</span></div>
-<div class="sourceLine" id="23" data-line-number="23"><span class="ot">&gt;     scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="24" data-line-number="24"><span class="ot">&gt;</span>     scoreLetter <span class="fu">=</span> flip (M.findWithDefault <span class="dv">0</span>) scoresM <span class="fu">.</span> toUpper</div>
-<div class="sourceLine" id="25" data-line-number="25"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="26" data-line-number="26"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="27" data-line-number="27"><span class="ot">&gt; scoreWord1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="28" data-line-number="28"><span class="ot">&gt;</span> scoreWord1 <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter</div>
-<div class="sourceLine" id="29" data-line-number="29"><span class="ot">&gt;</span>    <span class="kw">where</span></div>
-<div class="sourceLine" id="30" data-line-number="30"><span class="ot">&gt;       scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></div>
-<div class="sourceLine" id="31" data-line-number="31"><span class="ot">&gt;</span>       scoreLetter <span class="fu">=</span> flip (findWithDefault <span class="dv">0</span>) scoresH <span class="fu">.</span> toUpper</div>
-<div class="sourceLine" id="32" data-line-number="32"><span class="ot">&gt;</span>       findWithDefault v k m <span class="fu">=</span> <span class="kw">case</span> k <span class="ot">`HM.lookup`</span> m <span class="kw">of</span></div>
-<div class="sourceLine" id="33" data-line-number="33"><span class="ot">&gt;</span>         <span class="dt">Nothing</span> <span class="ot">-&gt;</span> v</div>
-<div class="sourceLine" id="34" data-line-number="34"><span class="ot">&gt;</span>         <span class="dt">Just</span> x  <span class="ot">-&gt;</span> x</div></code></pre>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> main <span class="fu">=</span> defaultMain</div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>  [ bgroup <span class="st">&quot;anagram&quot;</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf (anagramsFor <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf (anagramsFor1 <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]</div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>     ]</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>  , bgroup <span class="st">&quot;scrabble&quot;</span> </div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf scoreWord <span class="st">&quot;cashregister&quot;</span></div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf scoreWord1 <span class="st">&quot;cashregister&quot;</span></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>     ]</div>
-<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>  ]</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; scoresM ::</span> <span class="dt">M.Map</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoresM <span class="fu">=</span> M.fromList scores
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoresH ::</span> <span class="dt">HM.HashMap</span> <span class="dt">Char</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoresH <span class="fu">=</span> HM.fromList scores
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scores ::</span> [(<span class="dt">Char</span>,<span class="dt">Int</span>)]
+<span class="ot">&gt;</span> scores <span class="fu">=</span>  [ (l,c) <span class="fu">|</span>
+<span class="ot">&gt;</span>     (ls,c) <span class="ot">&lt;-</span> [ (<span class="st">&quot;AEIOULNRST&quot;</span>,<span class="dv">1</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;DG&quot;</span>,<span class="dv">2</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;BCMP&quot;</span>,<span class="dv">3</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;FHVWY&quot;</span>,<span class="dv">4</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;K&quot;</span>,<span class="dv">5</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;JX&quot;</span>,<span class="dv">8</span>)
+<span class="ot">&gt;</span>               , (<span class="st">&quot;QZ&quot;</span>,<span class="dv">10</span>)],
+<span class="ot">&gt;</span>     l <span class="ot">&lt;-</span> ls
+<span class="ot">&gt;</span>   ]
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoreWord ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoreWord <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span>     scoreLetter <span class="fu">=</span> flip (M.findWithDefault <span class="dv">0</span>) scoresM <span class="fu">.</span> toUpper
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; scoreWord1 ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span> scoreWord1 <span class="fu">=</span> sum <span class="fu">.</span> map scoreLetter
+<span class="ot">&gt;</span>    <span class="kw">where</span>
+<span class="ot">&gt;       scoreLetter ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+<span class="ot">&gt;</span>       scoreLetter <span class="fu">=</span> flip (findWithDefault <span class="dv">0</span>) scoresH <span class="fu">.</span> toUpper
+<span class="ot">&gt;</span>       findWithDefault v k m <span class="fu">=</span> <span class="kw">case</span> k <span class="ot">`HM.lookup`</span> m <span class="kw">of</span>
+<span class="ot">&gt;</span>         <span class="dt">Nothing</span> <span class="ot">-&gt;</span> v
+<span class="ot">&gt;</span>         <span class="dt">Just</span> x  <span class="ot">-&gt;</span> x</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> main <span class="fu">=</span> defaultMain
+<span class="ot">&gt;</span>  [ bgroup <span class="st">&quot;anagram&quot;</span>
+<span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf (anagramsFor <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]
+<span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf (anagramsFor1 <span class="st">&quot;Orchestra&quot;</span>) [<span class="st">&quot;cashregister&quot;</span>, <span class="st">&quot;Carthorse&quot;</span>, <span class="st">&quot;radishes&quot;</span>]
+<span class="ot">&gt;</span>     ]
+<span class="ot">&gt;</span>  , bgroup <span class="st">&quot;scrabble&quot;</span> 
+<span class="ot">&gt;</span>     [ bench <span class="st">&quot;simple&quot;</span>  <span class="fu">$</span> nf scoreWord <span class="st">&quot;cashregister&quot;</span>
+<span class="ot">&gt;</span>     , bench <span class="st">&quot;hashmap&quot;</span> <span class="fu">$</span> nf scoreWord1 <span class="st">&quot;cashregister&quot;</span>
+<span class="ot">&gt;</span>     ]
+<span class="ot">&gt;</span>  ]</code></pre></div>
 <p>Results:</p>
 <pre><code>warming up
 estimating clock resolution...

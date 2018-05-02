@@ -24,12 +24,12 @@
 <ol start="2" style="list-style-type: decimal">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<pre class="sourceCode bash"><code class="sourceCode bash"><div class="sourceLine" id="1" data-line-number="1"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="co">#!/bin/sh</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></div>
-<div class="sourceLine" id="5" data-line-number="5">   <span class="fu">mkdir</span> <span class="va">${p}</span></div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
+<span class="co">#!/bin/sh</span>
+<span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span>
+<span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
+   <span class="fu">mkdir</span> <span class="va">${p}</span>
+<span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</code></pre></div>
 <ol start="3" style="list-style-type: decimal">
 <li>пишем правило для pam.d (логи опциональны)</li>
 </ol>

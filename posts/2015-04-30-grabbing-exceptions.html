@@ -4,31 +4,24 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Logging all exceptions in ghci</title>
     <!-- Bootstrap -->
-    <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
-    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <link href="../style.css" rel="stylesheet" media="screen">
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     
     
-<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
-0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
-for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
-mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      QnikstBlog
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
-      <hr />
       <div id="navigaion">
-        <a href="../posts.html">Archive</a>
-        <a href="../projects.html">Projects</a>
-        <a href="../rss.xml">RSS</a>
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
-      <hr />
   </div>
 
   <div id="content">
@@ -45,40 +38,40 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 <p>In a normal program you can use <code>-prof</code> compilation option and run program with <code>+RTS -xc</code> in order to get exceptions messages and stack-traces logged. However I assume that most of the ghc users doesn’t have <code>ghc</code> compiled with profiling flags. So we need to find another option.</p>
 <p>And there is a solution. Every forked thread installs a exceptions handler:</p>
 <p>From <a href="https://hackage.haskell.org/package/base-4.8.0.0/docs/src/GHC-Conc-Sync.html#forkIO">GHC.Cons.Sym</a></p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">forkIO ::</span> <span class="dt">IO</span> () <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">ThreadId</span></div>
-<div class="sourceLine" id="2" data-line-number="2">forkIO action <span class="fu">=</span> <span class="dt">IO</span> <span class="fu">$</span> \ s <span class="ot">-&gt;</span></div>
-<div class="sourceLine" id="3" data-line-number="3">   <span class="kw">case</span> (fork<span class="fu">#</span> action_plus s) <span class="kw">of</span> (<span class="fu">#</span> s1, tid <span class="fu">#</span>) <span class="ot">-&gt;</span> (<span class="fu">#</span> s1, <span class="dt">ThreadId</span> tid <span class="fu">#</span>)</div>
-<div class="sourceLine" id="4" data-line-number="4">    <span class="kw">where</span></div>
-<div class="sourceLine" id="5" data-line-number="5">      action_plus <span class="fu">=</span> catchException action childHandler</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">forkIO ::</span> <span class="dt">IO</span> () <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">ThreadId</span>
+forkIO action <span class="fu">=</span> <span class="dt">IO</span> <span class="fu">$</span> \ s <span class="ot">-&gt;</span>
+   <span class="kw">case</span> (fork<span class="fu">#</span> action_plus s) <span class="kw">of</span> (<span class="fu">#</span> s1, tid <span class="fu">#</span>) <span class="ot">-&gt;</span> (<span class="fu">#</span> s1, <span class="dt">ThreadId</span> tid <span class="fu">#</span>)
+    <span class="kw">where</span>
+      action_plus <span class="fu">=</span> catchException action childHandler</code></pre></div>
 <p>From <a href>GHC.IO</a></p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="co">{-</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="co">catchException used to handle the passing around of the state to the</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="co">action and the handler.  This turned out to be a bad idea - it meant</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="co">that we had to wrap both arguments in thunks so they could be entered</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="co">as normal (remember IO returns an unboxed pair...).</span></div>
-<div class="sourceLine" id="6" data-line-number="6"></div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="co">Now catch# has type</span></div>
-<div class="sourceLine" id="8" data-line-number="8"></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="co">catch# :: IO a -&gt; (b -&gt; IO a) -&gt; IO a</span></div>
-<div class="sourceLine" id="10" data-line-number="10"></div>
-<div class="sourceLine" id="11" data-line-number="11"><span class="co">(well almost; the compiler doesn't know about the IO newtype so we</span></div>
-<div class="sourceLine" id="12" data-line-number="12"><span class="co">have to work around that in the definition of catchException below).</span></div>
-<div class="sourceLine" id="13" data-line-number="13"><span class="co">-}</span></div>
-<div class="sourceLine" id="14" data-line-number="14"><span class="ot">catchException ::</span> <span class="dt">Exception</span> e <span class="ot">=&gt;</span> <span class="dt">IO</span> a <span class="ot">-&gt;</span> (e <span class="ot">-&gt;</span> <span class="dt">IO</span> a) <span class="ot">-&gt;</span> <span class="dt">IO</span> a</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">{-</span>
+<span class="co">catchException used to handle the passing around of the state to the</span>
+<span class="co">action and the handler.  This turned out to be a bad idea - it meant</span>
+<span class="co">that we had to wrap both arguments in thunks so they could be entered</span>
+<span class="co">as normal (remember IO returns an unboxed pair...).</span>
+
+<span class="co">Now catch# has type</span>
+
+<span class="co">catch# :: IO a -&gt; (b -&gt; IO a) -&gt; IO a</span>
+
+<span class="co">(well almost; the compiler doesn't know about the IO newtype so we</span>
+<span class="co">have to work around that in the definition of catchException below).</span>
+<span class="co">-}</span>
+<span class="ot">catchException ::</span> <span class="dt">Exception</span> e <span class="ot">=&gt;</span> <span class="dt">IO</span> a <span class="ot">-&gt;</span> (e <span class="ot">-&gt;</span> <span class="dt">IO</span> a) <span class="ot">-&gt;</span> <span class="dt">IO</span> a</code></pre></div>
 <p>In order to set hander we can use:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">setUncaughtExceptionHandler ::</span> (<span class="dt">SomeException</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()) <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">setUncaughtExceptionHandler ::</span> (<span class="dt">SomeException</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()) <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</code></pre></div>
 <p>In order to add something to ghci we can load a script by passing it with <code>-ghci-script</code> option</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">:</span>m <span class="dt">GHC.Conc.Sync</span> <span class="dt">Control.Exception</span></div>
-<div class="sourceLine" id="2" data-line-number="2"></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="fu">:</span>{</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="kw">let</span><span class="ot"> uncaughtExceptionHandler ::</span> <span class="dt">SomeException</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</div>
-<div class="sourceLine" id="5" data-line-number="5">    uncaughtExceptionHandler e <span class="fu">=</span> <span class="kw">do</span></div>
-<div class="sourceLine" id="6" data-line-number="6">        putStrLn <span class="fu">$</span> <span class="st">&quot;Unhandled exception: &quot;</span> <span class="fu">++</span> show e</div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="fu">:</span>}</div>
-<div class="sourceLine" id="8" data-line-number="8"></div>
-<div class="sourceLine" id="9" data-line-number="9">setUncaughtExceptionHandler uncaughtExceptionHandler</div>
-<div class="sourceLine" id="10" data-line-number="10"></div>
-<div class="sourceLine" id="11" data-line-number="11"><span class="fu">:</span>m <span class="fu">-</span><span class="dt">GHC.Conc.Sync</span> <span class="dt">Control.Exception</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">:</span>m <span class="dt">GHC.Conc.Sync</span> <span class="dt">Control.Exception</span>
+
+<span class="fu">:</span>{
+<span class="kw">let</span><span class="ot"> uncaughtExceptionHandler ::</span> <span class="dt">SomeException</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()
+    uncaughtExceptionHandler e <span class="fu">=</span> <span class="kw">do</span>
+        putStrLn <span class="fu">$</span> <span class="st">&quot;Unhandled exception: &quot;</span> <span class="fu">++</span> show e
+<span class="fu">:</span>}
+
+setUncaughtExceptionHandler uncaughtExceptionHandler
+
+<span class="fu">:</span>m <span class="fu">-</span><span class="dt">GHC.Conc.Sync</span> <span class="dt">Control.Exception</span></code></pre></div>
 <p>And load it with <code>ghci -ghci-script script.hs</code>.</p>
 <pre><code>qnikst@localhost ~ $ ghci -ghci-script script.hs 
 GHCi, version 7.8.4: http://www.haskell.org/ghc/  :? for help

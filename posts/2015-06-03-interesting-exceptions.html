@@ -4,31 +4,24 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Things to know about exception handling.</title>
     <!-- Bootstrap -->
-    <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
-    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <link href="../style.css" rel="stylesheet" media="screen">
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     
     
-<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
-0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
-for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
-mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      QnikstBlog
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
-      <hr />
       <div id="navigaion">
-        <a href="../posts.html">Archive</a>
-        <a href="../projects.html">Projects</a>
-        <a href="../rss.xml">RSS</a>
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
-      <hr />
   </div>
 
   <div id="content">
@@ -42,7 +35,7 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </div>
 
 <p>Let’s take a look at the simple pattern, in this pattern we want to write an endless program for some purpose:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</code></pre></div>
 <p>Do you see a huge problem here? And this problem is not with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
 <p>Assume <code>f</code> is some simple function that loops (for example <code>let f = forever yield</code>). Try to answer the following questions</p>
 <ol style="list-style-type: decimal">
@@ -52,23 +45,23 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </ol>
 <p>Now you can try to check your guesses in ghci. If everything is ok then there is nothing new to read for you. However if you are lazy (and didn’t try to answer or run the code), you can continue.</p>
 <p>Let’s try to test:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">&gt;</span> <span class="fu">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="fu">&gt;</span> <span class="kw">let</span> runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="fu">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> runit <span class="fu">$</span> forever yield</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="fu">&gt;</span> x</div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="dt">ThreadId</span> <span class="dv">154</span></div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="fu">&gt;</span> threadStatus x</div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="dt">ThreadRunning</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="fu">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span>
+<span class="fu">&gt;</span> <span class="kw">let</span> runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)
+<span class="fu">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> runit <span class="fu">$</span> forever yield
+<span class="fu">&gt;</span> x
+<span class="dt">ThreadId</span> <span class="dv">154</span>
+<span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
 <p>Ok everything as expected, thread is running and consuming 100% of one CPU. Now go to the step 2.:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</div>
-<div class="sourceLine" id="2" data-line-number="2">exc<span class="fu">&gt;</span> eption<span class="fu">!</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="fu">&gt;</span> threadStatus x</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="dt">ThreadRunning</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)
+exc<span class="fu">&gt;</span> eption<span class="fu">!</span>
+<span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
 <p>Exception is caught, everything is OK. Now go to the 3.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</code></pre></div>
 <p>Hah.. It just hangs!!! We can interrupt it and check thread status</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1"><span class="fu">&gt;</span> threadStatus x</div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="dt">ThreadRunning</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> threadStatus x
+<span class="dt">ThreadRunning</span></code></pre></div>
 <p>This is definitely not what could be expected. Lets try to understand what had happened.</p>
 <p>As you know exception sending is synchronous in a sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or the thread dies).</p>
 <p>Quote from <a href="https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html">haddock</a>:</p>
@@ -98,11 +91,11 @@ MaskedInterruptible</code></pre>
 </blockquote>
 <p>Looks like a reason of our problem. Unfortunatelly it’s not in the documentation that usual user would read, but a nice thing to know.</p>
 <p>And original code should look like the following:</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell"><div class="sourceLine" id="1" data-line-number="1">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span></div>
-<div class="sourceLine" id="2" data-line-number="2">  ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f</div>
-<div class="sourceLine" id="3" data-line-number="3">  <span class="kw">case</span> ev <span class="kw">of</span></div>
-<div class="sourceLine" id="4" data-line-number="4">    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;exception&quot;</span> <span class="fu">&gt;&gt;</span> release (runit f)</div>
-<div class="sourceLine" id="5" data-line-number="5">    <span class="dt">Right</span> x <span class="ot">-&gt;</span> return x</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span>
+  ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f
+  <span class="kw">case</span> ev <span class="kw">of</span>
+    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;exception&quot;</span> <span class="fu">&gt;&gt;</span> release (runit f)
+    <span class="dt">Right</span> x <span class="ot">-&gt;</span> return x</code></pre></div>
 <p>You’ll need to pass exception type you are interested in or use <code>catches</code>.</p>
 <p>I hope you enjoyed reading this, despite a terrible English that I have.</p>
 

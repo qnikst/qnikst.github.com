@@ -4,31 +4,24 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Qnikst blog - Basic pathfinding</title>
     <!-- Bootstrap -->
-    <link href="../css/additional.css" rel="stylesheet" media="screen">
-    <link href="../css/hscolour.css" rel="stylesheet" media="screen">
-    <link href="../css/hakyll.css" rel="stylesheet" media="screen">
+    <link href="../style.css" rel="stylesheet" media="screen">
     <script src="https://code.jquery.com/jquery-latest.js"></script> 
     <script src="../js/bootstrap.min.js"></script>
     
     
-<!-- start Mixpanel --><script type="text/javascript">(function(e,a){if(!a.__SV){var b=window;try{var c,l,i,j=b.location,g=j.hash;c=function(a,b){return(l=a.match(RegExp(b+"=([^&]*)")))?l[1]:null};g&&c(g,"state")&&(i=JSON.parse(decodeURIComponent(c(g,"state"))),"mpeditor"===i.action&&(b.sessionStorage.setItem("_mpcehash",g),history.replaceState(i.desiredHash||"",e.title,j.pathname+j.search)))}catch(m){}var k,h;window.mixpanel=a;a._i=[];a.init=function(b,c,f){function e(b,a){var c=a.split(".");2==c.length&&(b=b[c[0]],a=c[1]);b[a]=function(){b.push([a].concat(Array.prototype.slice.call(arguments,
-0)))}}var d=a;"undefined"!==typeof f?d=a[f]=[]:f="mixpanel";d.people=d.people||[];d.toString=function(b){var a="mixpanel";"mixpanel"!==f&&(a+="."+f);b||(a+=" (stub)");return a};d.people.toString=function(){return d.toString(1)+".people (stub)"};k="disable time_event track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config reset people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user".split(" ");
-for(h=0;h<k.length;h++)e(d,k[h]);a._i.push([b,c,f])};a.__SV=1.2;b=e.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?MIXPANEL_CUSTOM_LIB_URL:"file:"===e.location.protocol&&"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";c=e.getElementsByTagName("script")[0];c.parentNode.insertBefore(b,c)}})(document,window.mixpanel||[]);
-mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 </head>
 
 <body>
   <div id="header">
       <div id="caption">
-      QnikstBlog
+      <font color="green">module</font> <a href="../">QnikstBlog</a>
       </div>
-      <hr />
       <div id="navigaion">
-        <a href="../posts.html">Archive</a>
-        <a href="../projects.html">Projects</a>
-        <a href="../rss.xml">RSS</a>
+      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
+      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
+      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
+      <font color="cyan">)</font> <font color="green">where</font>
       </div>
-      <hr />
   </div>
 
   <div id="content">
@@ -49,26 +42,26 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 <div class="span8">
 <p>On the right you can see example of a simple map.</p>
 <p>Here is a list of imports. I need it because this is pure lhs file that can be <a href="../posts/2013-09-08-pathfinding.lhs">downloaded</a> and executed in ghci, so you can skip it.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">import</span>           <span class="dt">Data.List</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> <span class="kw">import</span>           <span class="dt">Data.Monoid</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> <span class="kw">import</span>           <span class="dt">Data.Map</span> (<span class="dt">Map</span>)</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">Map</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> <span class="kw">import</span>           <span class="dt">Data.Set</span> (<span class="dt">Set</span>)</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span> <span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">Set</span></div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span> <span class="kw">import</span>           <span class="dt">Data.Function</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.List</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Monoid</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Map</span> (<span class="dt">Map</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">Map</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Set</span> (<span class="dt">Set</span>)
+<span class="ot">&gt;</span> <span class="kw">import qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">Set</span>
+<span class="ot">&gt;</span> <span class="kw">import           </span><span class="dt">Data.Function</span></code></pre></div>
 <p>We will solve simple task of finding the shortest path from one location to another (from 5 to 1). As a first step lets introduce some basic types. Most of them are just type synonyms:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">History</span> <span class="fu">=</span> [<span class="dt">Loc</span>]                    <span class="co">-- History</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LMap</span>    <span class="fu">=</span> <span class="dt">Map</span> <span class="dt">Loc</span> [(<span class="dt">Loc</span>,<span class="dt">Dist</span>)]     <span class="co">-- map</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> <span class="co">-- here is example of the map</span></div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt; testMap ::</span> <span class="dt">LMap</span></div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span> testMap <span class="fu">=</span> Map.fromList [(<span class="dv">1</span>,[(<span class="dv">2</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">40</span>),(<span class="dv">5</span>,<span class="dv">100</span>)])</div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>                        ,(<span class="dv">2</span>,[(<span class="dv">1</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">4</span>,<span class="dv">30</span>)])</div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>                        ,(<span class="dv">3</span>,[(<span class="dv">1</span>,<span class="dv">40</span>),(<span class="dv">2</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">10</span>)])</div>
-<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>                        ,(<span class="dv">4</span>,[(<span class="dv">2</span>,<span class="dv">30</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">5</span>)])</div>
-<div class="sourceLine" id="11" data-line-number="11"><span class="ot">&gt;</span>                        ,(<span class="dv">5</span>,[(<span class="dv">1</span>,<span class="dv">100</span>),(<span class="dv">3</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">5</span>)])</div>
-<div class="sourceLine" id="12" data-line-number="12"><span class="ot">&gt;</span>                        ]</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Loc</span>     <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Location</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Dist</span>    <span class="fu">=</span> <span class="dt">Int</span>                      <span class="co">-- Distance</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">History</span> <span class="fu">=</span> [<span class="dt">Loc</span>]                    <span class="co">-- History</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">LMap</span>    <span class="fu">=</span> <span class="dt">Map</span> <span class="dt">Loc</span> [(<span class="dt">Loc</span>,<span class="dt">Dist</span>)]     <span class="co">-- map</span>
+<span class="ot">&gt;</span> <span class="co">-- here is example of the map</span>
+<span class="ot">&gt; testMap ::</span> <span class="dt">LMap</span>
+<span class="ot">&gt;</span> testMap <span class="fu">=</span> Map.fromList [(<span class="dv">1</span>,[(<span class="dv">2</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">40</span>),(<span class="dv">5</span>,<span class="dv">100</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">2</span>,[(<span class="dv">1</span>,<span class="dv">5</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">4</span>,<span class="dv">30</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">3</span>,[(<span class="dv">1</span>,<span class="dv">40</span>),(<span class="dv">2</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">10</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">4</span>,[(<span class="dv">2</span>,<span class="dv">30</span>),(<span class="dv">3</span>,<span class="dv">10</span>),(<span class="dv">5</span>,<span class="dv">5</span>)])
+<span class="ot">&gt;</span>                        ,(<span class="dv">5</span>,[(<span class="dv">1</span>,<span class="dv">100</span>),(<span class="dv">3</span>,<span class="dv">20</span>),(<span class="dv">4</span>,<span class="dv">5</span>)])
+<span class="ot">&gt;</span>                        ]</code></pre></div>
 <br />
 </div>
 <div class="span4">
@@ -78,7 +71,7 @@ mixpanel.init("20cd30e1951cae76218b85f1d5a8af83");</script><!-- end Mixpanel -->
 <p>## Basic algorithm</p>
 <p>The basic idea of our solution is: ‘we need to create a list of the locations that is reachable from initial location sorted by distance’. You can this about this solution like we move in all possible directions at the same time. Then we can filter out final destination and find history related to the correct solution.</p>
 <p>Terms: <code>frontier</code> - a list of possible locations with distance from the starting point, sorted by ascending distance.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Frontier0</span> <span class="fu">=</span> [(<span class="dt">Loc</span>, <span class="dt">Dist</span>)]</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Frontier0</span> <span class="fu">=</span> [(<span class="dt">Loc</span>, <span class="dt">Dist</span>)]</code></pre></div>
 <p>So algorithm of generating result list will look like:</p>
 <ol start="0" style="list-style-type: decimal">
 <li>Add starting point with zero distance to the <code>frontier</code>.</li>
@@ -118,74 +111,74 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <p>Now we can review types that we will use.</p>
 <p>### Candidate</p>
 <p>All elements in a resulting set and a frontier are possible canditas for a solution, so they need to contain all temporary information (Distance) and information that we will need when we’ll filter out this solution (History). So we need to introduce a newtype for a candate, we use newtype here because we will need to redefine some properties otherwise we could use a tuple <code>(,,)</code>:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Candidate</span> <span class="fu">=</span> <span class="dt">Candidate</span> (<span class="dt">Loc</span>,<span class="dt">Dist</span>,<span class="dt">History</span>) <span class="kw">deriving</span> <span class="dt">Eq</span>   <span class="co">-- possible solution</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Candidate</span> <span class="fu">=</span> <span class="dt">Candidate</span> (<span class="dt">Loc</span>,<span class="dt">Dist</span>,<span class="dt">History</span>) <span class="kw">deriving</span> <span class="dt">Eq</span>   <span class="co">-- possible solution</span></code></pre></div>
 <p>And helper functions:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; candidateLoc ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">Loc</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> candidateLoc (<span class="dt">Candidate</span> (x,_,_)) <span class="fu">=</span> x</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt; candidateHist ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">History</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> candidateHist (<span class="dt">Candidate</span> (_,_,x)) <span class="fu">=</span> x</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; candidateLoc ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">Loc</span>
+<span class="ot">&gt;</span> candidateLoc (<span class="dt">Candidate</span> (x,_,_)) <span class="fu">=</span> x
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; candidateHist ::</span> <span class="dt">Candidate</span> <span class="ot">-&gt;</span> <span class="dt">History</span>
+<span class="ot">&gt;</span> candidateHist (<span class="dt">Candidate</span> (_,_,x)) <span class="fu">=</span> x</code></pre></div>
 <p>### Ascending list</p>
 <p>As we have seen in the algorithm resulting list and frontier are ascending lists. So we may introduce special type that will preserve this property. This will help us to avoid additional mistakes, and can help with undestanding of our solution. This type is isomorphic to the List, however we can’t just use a newtype as we shouldn’t unpack pure list from the AscList:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">AscList</span> a <span class="fu">=</span> (<span class="fu">:&lt;</span>) a (<span class="dt">AscList</span> a) <span class="fu">|</span> <span class="dt">Nil</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">AscList</span> a <span class="fu">=</span> (<span class="fu">:&lt;</span>) a (<span class="dt">AscList</span> a) <span class="fu">|</span> <span class="dt">Nil</span></code></pre></div>
 <p>It’s easy to see that AscList forms a monoid with regard to <code>concat</code> operation, so we can use this information:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">AscList</span> a) <span class="kw">where</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>   mempty <span class="fu">=</span> <span class="dt">Nil</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>   mappend <span class="dt">Nil</span> b <span class="fu">=</span> b</div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>   mappend a <span class="dt">Nil</span> <span class="fu">=</span> a</div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>   mappend a'<span class="fu">@</span>(a <span class="fu">:&lt;</span> as) b'<span class="fu">@</span>(b <span class="fu">:&lt;</span> bs)</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>      <span class="fu">|</span> a <span class="fu">&lt;</span> b <span class="fu">=</span> a <span class="fu">:&lt;</span> (as <span class="fu">&lt;&gt;</span> b')</div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> b <span class="fu">:&lt;</span> (a' <span class="fu">&lt;&gt;</span> bs)</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">AscList</span> a) <span class="kw">where</span>
+<span class="ot">&gt;</span>   mempty <span class="fu">=</span> <span class="dt">Nil</span>
+<span class="ot">&gt;</span>   mappend <span class="dt">Nil</span> b <span class="fu">=</span> b
+<span class="ot">&gt;</span>   mappend a <span class="dt">Nil</span> <span class="fu">=</span> a
+<span class="ot">&gt;</span>   mappend a'<span class="fu">@</span>(a <span class="fu">:&lt;</span> as) b'<span class="fu">@</span>(b <span class="fu">:&lt;</span> bs)
+<span class="ot">&gt;</span>      <span class="fu">|</span> a <span class="fu">&lt;</span> b <span class="fu">=</span> a <span class="fu">:&lt;</span> (as <span class="fu">&lt;&gt;</span> b')
+<span class="ot">&gt;</span>      <span class="fu">|</span> otherwise <span class="fu">=</span> b <span class="fu">:&lt;</span> (a' <span class="fu">&lt;&gt;</span> bs)</code></pre></div>
 <p>Introduce two helper functions:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="co">-- | create ascending list from arbitrary list</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt; fromList ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">AscList</span> a</div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span> fromList <span class="fu">=</span> mconcat <span class="fu">.</span> map singleton </div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span> </div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> <span class="co">-- | convert value to Ascending List</span></div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt; singleton ::</span> a <span class="ot">-&gt;</span> <span class="dt">AscList</span> a</div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span> singleton x <span class="fu">=</span> x <span class="fu">:&lt;</span> <span class="dt">Nil</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="co">-- | create ascending list from arbitrary list</span>
+<span class="ot">&gt; fromList ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">AscList</span> a
+<span class="ot">&gt;</span> fromList <span class="fu">=</span> mconcat <span class="fu">.</span> map singleton 
+<span class="ot">&gt;</span> 
+<span class="ot">&gt;</span> <span class="co">-- | convert value to Ascending List</span>
+<span class="ot">&gt; singleton ::</span> a <span class="ot">-&gt;</span> <span class="dt">AscList</span> a
+<span class="ot">&gt;</span> singleton x <span class="fu">=</span> x <span class="fu">:&lt;</span> <span class="dt">Nil</span></code></pre></div>
 <p>In order to use Candidates in an AscList we need to introduce ordering on the Candidates:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> <span class="dt">Candidate</span> <span class="kw">where</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>     compare (<span class="dt">Candidate</span> (_,d1,_)) (<span class="dt">Candidate</span> (_,d2,_)) <span class="fu">=</span> compare d1 d2</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">instance</span> <span class="dt">Ord</span> <span class="dt">Candidate</span> <span class="kw">where</span>
+<span class="ot">&gt;</span>     compare (<span class="dt">Candidate</span> (_,d1,_)) (<span class="dt">Candidate</span> (_,d2,_)) <span class="fu">=</span> compare d1 d2</code></pre></div>
 <p>Now we can guarantee that lists are properly ordered.</p>
 <p>### Builder seed.</p>
 <p>In order to create list we will use <code>unfoldr :: (b -&gt; Maybe (a, b)) -&gt; b -&gt; [a]</code> combinator. On each step we will create one new element and return new seed. So we will need to store frontier in the seed. Additionaly we will use one optimization: we will store a list of visited locations (that exists in result array) and we will filter out locations that we have visited, so we need to store a set of location. So resulting type will look like:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Visited</span> <span class="fu">=</span> <span class="dt">Set</span> <span class="dt">Loc</span>                  <span class="co">-- visited locations</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Seed</span> <span class="fu">=</span> (<span class="dt">AscList</span> <span class="dt">Candidate</span>,<span class="dt">Visited</span>) <span class="co">-- seed of the algorithm</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Visited</span> <span class="fu">=</span> <span class="dt">Set</span> <span class="dt">Loc</span>                  <span class="co">-- visited locations</span>
+<span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">Seed</span> <span class="fu">=</span> (<span class="dt">AscList</span> <span class="dt">Candidate</span>,<span class="dt">Visited</span>) <span class="co">-- seed of the algorithm</span></code></pre></div>
 <p>## Solver</p>
 <p>Now we are ready to introduce our solver:</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt; solve ::</span> <span class="dt">LMap</span>       <span class="co">-- ^ map</span></div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ finish location</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ start location</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">History</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span> solve mp finish <span class="fu">=</span> reverse</div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>                 <span class="fu">.</span> (finish<span class="fu">:</span>)     <span class="co">-- we need to add finish place to the list</span></div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>                 <span class="fu">.</span> candidateHist <span class="co">-- we are interested in history only</span></div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>                 <span class="fu">.</span> head          <span class="co">-- we need only first solution</span></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>                 <span class="fu">.</span> filter ((<span class="fu">==</span>finish) <span class="fu">.</span> candidateLoc)  <span class="co">-- take last result</span></div>
-<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>                 <span class="fu">.</span> unfoldr go    <span class="co">-- generate list of candidates using frontier</span></div>
-<div class="sourceLine" id="11" data-line-number="11"><span class="ot">&gt;</span>                 <span class="fu">.</span> initial       <span class="co">-- initialize frontier using starting point</span></div>
-<div class="sourceLine" id="12" data-line-number="12"><span class="ot">&gt;</span>  <span class="kw">where</span></div>
-<div class="sourceLine" id="13" data-line-number="13"><span class="ot">&gt;</span>     initial i <span class="fu">=</span> (singleton <span class="fu">$</span> <span class="dt">Candidate</span> (i,<span class="dv">0</span>,[]),Set.empty)</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; solve ::</span> <span class="dt">LMap</span>       <span class="co">-- ^ map</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ finish location</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">Loc</span>        <span class="co">-- ^ start location</span>
+<span class="ot">&gt;</span>       <span class="ot">-&gt;</span> <span class="dt">History</span>
+<span class="ot">&gt;</span> solve mp finish <span class="fu">=</span> reverse
+<span class="ot">&gt;</span>                 <span class="fu">.</span> (finish<span class="fu">:</span>)     <span class="co">-- we need to add finish place to the list</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> candidateHist <span class="co">-- we are interested in history only</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> head          <span class="co">-- we need only first solution</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> filter ((<span class="fu">==</span>finish) <span class="fu">.</span> candidateLoc)  <span class="co">-- take last result</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> unfoldr go    <span class="co">-- generate list of candidates using frontier</span>
+<span class="ot">&gt;</span>                 <span class="fu">.</span> initial       <span class="co">-- initialize frontier using starting point</span>
+<span class="ot">&gt;</span>  <span class="kw">where</span>
+<span class="ot">&gt;</span>     initial i <span class="fu">=</span> (singleton <span class="fu">$</span> <span class="dt">Candidate</span> (i,<span class="dv">0</span>,[]),Set.empty)</code></pre></div>
 <p>In go we need to guarantee that current seed in greater (using Candidate’s ordering) that any other element in list. We can guarantee it because:</p>
 <ol start="0" style="list-style-type: decimal">
 <li>when we have no elements in list we use first candidate with zero distance</li>
 <li>all elements in frontier has length &gt; than current location. because we use AscList.</li>
 <li>all possible locations from current location &gt; than current location as their distance is (current location distance + x, where x ≥ 0).</li>
 </ol>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;     go ::</span> <span class="dt">Seed</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Candidate</span>,<span class="dt">Seed</span>)</div>
-<div class="sourceLine" id="2" data-line-number="2"><span class="ot">&gt;</span>     go (<span class="dt">Nil</span>,_) <span class="fu">=</span> <span class="dt">Nothing</span></div>
-<div class="sourceLine" id="3" data-line-number="3"><span class="ot">&gt;</span>     go ((<span class="dt">Candidate</span> (x,d,h) <span class="fu">:&lt;</span> xs),visited) <span class="fu">=</span></div>
-<div class="sourceLine" id="4" data-line-number="4"><span class="ot">&gt;</span>        <span class="kw">case</span> Map.lookup x mp <span class="kw">of</span>  <span class="co">-- read possible locations from map</span></div>
-<div class="sourceLine" id="5" data-line-number="5"><span class="ot">&gt;</span>          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> go (xs,visited)       <span class="co">-- if thre is no destinaction proceed with next element</span></div>
-<div class="sourceLine" id="6" data-line-number="6"><span class="ot">&gt;</span>          <span class="dt">Just</span> ls <span class="ot">-&gt;</span> <span class="kw">let</span> ls'   <span class="fu">=</span> fromList  <span class="co">-- generate AscList from current position</span></div>
-<div class="sourceLine" id="7" data-line-number="7"><span class="ot">&gt;</span>                               <span class="fu">.</span> map (\(yl,yd) <span class="ot">-&gt;</span> <span class="dt">Candidate</span> (yl,yd<span class="fu">+</span>d,x<span class="fu">:</span>h))  <span class="co">-- increment distance (see 2.)</span></div>
-<div class="sourceLine" id="8" data-line-number="8"><span class="ot">&gt;</span>                               <span class="fu">.</span> filter ((<span class="ot">`Set.notMember`</span> visited) <span class="fu">.</span> fst) <span class="fu">$</span> ls <span class="co">-- remove elements that we have visited</span></div>
-<div class="sourceLine" id="9" data-line-number="9"><span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="dt">Just</span> ( <span class="dt">Candidate</span> (x,d,h)</div>
-<div class="sourceLine" id="10" data-line-number="10"><span class="ot">&gt;</span>                               , (ls' <span class="fu">&lt;&gt;</span> xs, Set.insert x visited))</div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;     go ::</span> <span class="dt">Seed</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Candidate</span>,<span class="dt">Seed</span>)
+<span class="ot">&gt;</span>     go (<span class="dt">Nil</span>,_) <span class="fu">=</span> <span class="dt">Nothing</span>
+<span class="ot">&gt;</span>     go ((<span class="dt">Candidate</span> (x,d,h) <span class="fu">:&lt;</span> xs),visited) <span class="fu">=</span>
+<span class="ot">&gt;</span>        <span class="kw">case</span> Map.lookup x mp <span class="kw">of</span>  <span class="co">-- read possible locations from map</span>
+<span class="ot">&gt;</span>          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> go (xs,visited)       <span class="co">-- if thre is no destinaction proceed with next element</span>
+<span class="ot">&gt;</span>          <span class="dt">Just</span> ls <span class="ot">-&gt;</span> <span class="kw">let</span> ls'   <span class="fu">=</span> fromList  <span class="co">-- generate AscList from current position</span>
+<span class="ot">&gt;</span>                               <span class="fu">.</span> map (\(yl,yd) <span class="ot">-&gt;</span> <span class="dt">Candidate</span> (yl,yd<span class="fu">+</span>d,x<span class="fu">:</span>h))  <span class="co">-- increment distance (see 2.)</span>
+<span class="ot">&gt;</span>                               <span class="fu">.</span> filter ((<span class="ot">`Set.notMember`</span> visited) <span class="fu">.</span> fst) <span class="fu">$</span> ls <span class="co">-- remove elements that we have visited</span>
+<span class="ot">&gt;</span>                     <span class="kw">in</span> <span class="dt">Just</span> ( <span class="dt">Candidate</span> (x,d,h)
+<span class="ot">&gt;</span>                               , (ls' <span class="fu">&lt;&gt;</span> xs, Set.insert x visited))</code></pre></div>
 <p>Yachoo! we have a solver. However it will work badly on the big maps and we need to use more advanced methods, like A<up>*</up>. But we need to fix Candidate ordering function.</p>
 <p>I’ve heard that it is possible to use comonad approach to solve this problem however I couldn’t find any example of this approach.</p>
-<pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><div class="sourceLine" id="1" data-line-number="1"><span class="ot">&gt;</span> test <span class="fu">=</span> solve testMap <span class="dv">5</span> <span class="dv">1</span></div></code></pre>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> test <span class="fu">=</span> solve testMap <span class="dv">5</span> <span class="dv">1</span></code></pre></div>
 <p>as a result we will have [5,4,3,2,1]. That is correct solution.</p>
 
 <hr />
