@@ -57,7 +57,14 @@ fac n <span class="fu">=</span> product [<span class="dv">1</span><span class="f
 ~/.cabal/libmylib.so.4 -&gt; libmylib.so.4.2.3
 ~/.cabal/libmylib.so.4.2.3
 ~/.cabal/lib/x86_64-linux-ghc-8.0.2/foreign-0.1.0.0-22cwmsmBVpIHoSDwDYFUR6/include/Lib_stub.h</code></pre>
-<p>Enjoy!</p>]]></summary>
+<p>Enjoy!</p>
+<p>Update: problem with <code>sdist</code> can be workarounded using a buildinfo trick</p>
+<ol style="list-style-type: decimal">
+<li>create <code>foreign.buildinfo</code> file, with contents: <code>install-includes: Lib_stub.h</code></li>
+<li>add section to cabal: <code>extra-tmp-files: foreign.buildinfo</code></li>
+<li>remove <code>install-includes</code> stanza - now sdist works.</li>
+</ol>
+<p>Enjoy again!</p>]]></summary>
 </entry>
 <entry>
     <title>Things to know about exception handling.</title>
