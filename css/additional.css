@@ -65,6 +65,9 @@ ul.haskell-list li:last-child:after {
   content: "]"
 }
 
+dl dt {
+  font-weight: bold;
+}
 
 #header . a {
 }
