@@ -13,14 +13,12 @@
 
 <body>
   <div id="header">
-      <div id="caption">
-      <font color="green">module</font> <a href="../">QnikstBlog</a>
-      </div>
-      <div id="navigaion">
-      <font color="cyan">(</font> <a href="../posts.html">Archive</a>
-      <font color="cyan">,</font> <a href="../projects.html">Projects</a>
-      <font color="cyan">,</font> <a href="../rss.xml">RSS</a>
-      <font color="cyan">)</font> <font color="green">where</font>
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
       </div>
   </div>
 
@@ -34,6 +32,7 @@
     <div class="keywords"><strong>Keywords:</strong> <a href="../tags/hakyll.html">hakyll</a>, <a href="../tags/latex.html">latex</a>, <a href="../tags/web.html">web</a></div>
 </div>
 
+<p>Update: Hakyll API changed in 4.10 version, so the code below would require changes. See <a href="https://github.com/qnikst/qnikst.github.com/commit/5b6673237388c64a194ea9bc264b14c860880f35#diff-98a3ddc5c474fd14c4ee9401c03197a1">commit</a> as example of the changes.</p>
 <p>Recently I’ve checked a list of manuals for pandoc and latex, but they were quite outdated.</p>
 <p>The problems that by default pandoc tries to use utf only to render formulas but it doesn’t work in many cases. Best solution would be <a href="http://www.mathjax.org/">mathjax</a> as it will work in majority of brousers unlike mathml.</p>
 <p>To set up hakyll to use latex one needs to set pandoc compiler options:</p>
