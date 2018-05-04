@@ -1,35 +1,26 @@
-<div style="max-width:600px">
-    <h2>Posts</h2>
-    <div class="sourceCode">
-        <div style="padding: 10px">
-            <ul class="haskell-list">
-	       $for(posts)$
-	       <li> ($date$, <a href="$url$">$title$</a>)
-	       $if(teaser)$
-	       <blockquote>$teaser$</blockquote>
-	       $endif$
-	       </li>
-	       $endfor$
-            </ul>
-	    ++ <a href="/posts.html">archive</a>
-        </div>
-    </div>
-
-    <h2> Tags </h2>
-    <div class="sourceCode">
-        <div style="padding: 10px">
-        tags = <p>[ $tags$ ]</p>
-	</div>
-    </div>
-
-    <h2>Usefull links:</h2>
-    <div class="sourceCode">
-        linkList = 
-        <ul class="haskell-list">
-            <li><a href="http://gentoo.org">Gentoo Linux Project</a></li>
-            <li><a href="http://gentoohaskell.wordpress.com/">Gentoo Haskell Blog</a></li>
+<h2>Posts</h2>
+<div class="sourceCode">
+    <div style="padding: 10px">
+        <ul>
+           $for(posts)$
+           <li> $date$ <a href="$url$">$title$</a>
+           $if(teaser)$
+           <blockquote>$teaser$</blockquote>
+           $endif$
+           </li>
+           $endfor$
         </ul>
-        </p>
-    </div>
 
+        Older posts can be found in <a href="/posts.html">archive</a>.
+    </div>
+</div>
+
+<h2> Tags </h2>
+<div style="padding: 10px"> $tags$ </div>
+
+<h2>Usefull links:</h2>
+<ul>
+  <li><a href="http://gentoo.org">Gentoo Linux Project</a></li>
+  <li><a href="http://gentoohaskell.wordpress.com/">Gentoo Haskell Blog</a></li>
+</ul>
 </div>

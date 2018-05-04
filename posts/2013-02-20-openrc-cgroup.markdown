@@ -1,6 +1,6 @@
 ----
 author: Alexander Vershilov
-date: 2013/02/04
+date: 2013-02-20
 title: OpenRC Extended cgroups support
 keywords: gentoo, openrc, linux
 license: by

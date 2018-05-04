@@ -1,6 +1,6 @@
 ----
 author: Alexander Vershilov
-date: 2012/02/28
+date: 2013-02-28
 title: Resourcet usage
 tags: haskell, resourcet
 license: by-nc-sa

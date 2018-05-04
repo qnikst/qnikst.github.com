@@ -1,6 +1,6 @@
 ---
 title: Cabal foreign libraries
-date: 2010/05/09
+date: 2018-05-02
 author: Alexander Vershilov
 tag: haskell, cabal
 license: by-nc-sa

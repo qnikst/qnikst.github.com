@@ -1,7 +1,7 @@
 ---
 title: Сохранение всех задач su- в свою cgroup.
 author: Alexander Vershilov
-date: 2012/02/04
+date: 2013-02-04
 tags: linux, pam, cgroups
 license: by-nc-sa
 ---

@@ -7,15 +7,25 @@ body {
 
 #caption {
   font-size: 2em;
+  background-color: #DEDEDE;
+  padding: 5px;
 }
 
-#navigaion {
+#caption a {
+  text-decoration: none;
+}
+
+#navigation {
+  background-color: #E0F0E0;
   font-size: 1.3em;
-  margin-left: 40px;
+  padding: 3px 0px 7px 40px;
+}
+
+#navigation a {
+  padding: 0 5px;
 }
 
 #content {
-  margin-top: 25px;
   max-width: 800px;
   padding:  5px;
 }
@@ -51,19 +61,20 @@ footer {
   font-size: 2em;
 }
 
+li {
+  margin: 5px;
+}
 
-ul.haskell-list {
-  list-style: none;padding: 0;margin: 0 0 0 2em;
+li a {
+  text-decoration: none;
+  color: black;
+  background-color: #F0FDF0;
 }
-ul.haskell-list li:before {
-  content: ","
+
+li:nth-child(odd) a {
+  background-color: #E0F0E0;
 }
-ul.haskell-list li:first-child:before {
-  content: "["
-}
-ul.haskell-list li:last-child:after {
-  content: "]"
-}
+
 
 dl dt {
   font-weight: bold;

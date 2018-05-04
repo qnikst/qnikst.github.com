@@ -1,10 +1,9 @@
 ----
 author: Alexander Vershilov
-titile: Automata (draft)
-date: 2012/01/21
+title: Automatons
+date: 2013-01-21
 license: cc-nc-sa
 ----
-
 
 About a half year ago I had a next task: I should run a list of 
 event listeners on a wire and on each handled event that event 
