@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - simple chat server.</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>May  2, 2018</strong>
+    </div>
+    <h1>simple chat server.</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em> <a href="https://creativecommons.org/licenses/by/3.0"><img src="https://i.creativecommons.org/l/by/3.0/88x31.png" /></a> </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>Few months ago one person asked me in twitter how is it possible to write anything in Haskell, and how can it help to write some low level application working with network.</p>
+<p>As a result I’ve ended up with a simple non-complete <code>irc-simple</code> project. This project can’t be used as a real irc server in the real network. But it can be extended to support features. The main intent was to show how server could be written how to deal with communication, parsing, concurrency.</p>
+<p>Unfortunately the project is documented in Russian, as it was written for the Russian non-haskell community. But if anyone would be interested in extending, translation or mistakes correction. That would be awesome.</p>
+<p>Project itself can be found on:</p>
+<p><a href="https://github.com/qnikst/irc-simple.git" class="uri">https://github.com/qnikst/irc-simple.git</a></p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2018-05-05-irc-simple.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2018-05-05-irc-simple.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2018-05-05-irc-simple.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
