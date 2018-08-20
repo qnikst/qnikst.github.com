@@ -19,6 +19,6 @@ executable qnikst-github-com
   main-is:             Main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.9 && <4.10, hakyll, pandoc, containers
+  build-depends:       base >=4.9 && <4.11, hakyll, pandoc, containers
   -- hs-source-dirs:      
   default-language:    Haskell2010
