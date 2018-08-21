@@ -1,13 +1,12 @@
-with import <nixpkgs> {};
-
+# You'll want to ping those
 import <nixpkgs> {
   config = {};
-  overlays = 
+  overlays =
     [ (self: super:
        { haskellPackages =
            super.haskellPackages.extend
            (super.haskell.lib.packageSourceOverrides
-              { qnikst-blog = self.lib.cleanSource ./.; }
+              { qnikst-github-com = self.lib.cleanSource ./.; }
            );
         })
     ];
