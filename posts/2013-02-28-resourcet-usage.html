@@ -45,7 +45,7 @@ withWH0 = undefined</code></pre>
 </blockquote>
 <p>The problem that we should somehow guarantee that user will free resource. One solution use linear types, but we don’t have them (or at least it’s too difficult for me and I don’t know how to do it). Another option is to use some kind of region library: one option is <a href="http://hackage.haskell.org/package/regions">regions</a> originaly proposed by <a href="http://okmij.org/ftp/Haskell/regions.html#light-weight">Oleg</a> but this package doesn’t work in recent ghc`s due some unsolved bugs, another option is <a href="http://hackage.haskell.org/package/resourcet">resourcet</a> package written by Michael Snoyman, this package doesn’t give so much guarantees as regions but at least it works. Resourcet package introduce ResourceT monad that forms a block where all resources that were registered in that blog will be closed as soon as compulation would left a block (there is an api for an early close but will not look at it now).</p>
 <p>So we can guarantee that:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>every resource registered in the block will be freed</li>
 <li>resources freeing will be determinated in time/</li>
 <li>resource will be freed only once (second call to release is noop)</li>
@@ -106,7 +106,7 @@ releaseChan (ChanMVar v) = go =&lt;&lt; tryReadChan v
   where go Nothing = return ()
         go (Just (x,a)) = a &gt;&gt; tryReadChan v {- we have a possible race condition here -} &gt;&gt;= go</code></pre>
 <p>There are many variants each with it’s own tradeoffs so one a free to build a way that matchs his task. But the next things should hold:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Datastructure should either guarantee that other side will read resource atomically or be registered in ResourceT monad</li>
 <li>Read and writes should be exception safe</li>
 </ol>

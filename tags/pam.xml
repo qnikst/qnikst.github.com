@@ -16,25 +16,25 @@
     <published>2013-02-04T00:00:00Z</published>
     <updated>2013-02-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Стоит задача: необходимо все программы запущенные через ‘su’ определить в собственные cgroups. Это можно сделать за три простые шага.</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>инициализируем нужную цгруппу, для этого нам нужна именованная группа, чтобы исключить пересечение с системными группами: (данный шаг желательно делегировать системе инициализации дистрибутива)</li>
 </ol>
 <pre class="shell"><code>  localhost qnikst # mkdir /sys/fs/cgroup/su-log
   localhost qnikst # mount -n -t cgroup -o none,nodev,noexec,nosuid,name=test test /sys/fs/cgroup/su-log</code></pre>
-<ol start="2" style="list-style-type: decimal">
+<ol start="2" type="1">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
-<span class="co">#!/bin/sh</span>
-<span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span>
-<span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
-   <span class="fu">mkdir</span> <span class="va">${p}</span>
-<span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</code></pre></div>
-<ol start="3" style="list-style-type: decimal">
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">#!/bin/sh</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">   <span class="fu">mkdir</span> <span class="va">${p}</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</a></code></pre></div>
+<ol start="3" type="1">
 <li>пишем правило для pam.d (логи опциональны)</li>
 </ol>
 <pre><code>session    optional             pam_exec.so   log=/var/log/pam_test_su.log seteuid /usr/local/bin/pam_exec_test.sh</code></pre>
-<ol start="4" style="list-style-type: decimal">
+<ol start="4" type="1">
 <li>наслаждаемся результатом.</li>
 </ol>
 <p>В данном решении есть проблема: будучи суперпользователем пользователь может перемещать свои задачи по cgroup-ам, для решения этой проблемы нужно писать политику selinux запрещающую переносить задачи выше, чем cgroup породившего их процесса.</p>]]></summary>

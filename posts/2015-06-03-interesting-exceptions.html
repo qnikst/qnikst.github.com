@@ -33,33 +33,33 @@
 </div>
 
 <p>Let’s take a look at the simple pattern, in this pattern we want to write an endless program for some purpose:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1">runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</a></code></pre></div>
 <p>Do you see a huge problem here? And this problem is not with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
 <p>Assume <code>f</code> is some simple function that loops (for example <code>let f = forever yield</code>). Try to answer the following questions</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>what will happen if you run <code>runit f</code> in a separate thread (<code>forkIO $ runit f</code>)?</p></li>
 <li><p>what will happen if you send an exception to the forked thread?</p></li>
 <li><p>what will happen if you send another exception to that thread?</p></li>
 </ol>
 <p>Now you can try to check your guesses in ghci. If everything is ok then there is nothing new to read for you. However if you are lazy (and didn’t try to answer or run the code), you can continue.</p>
 <p>Let’s try to test:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> <span class="fu">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span>
-<span class="fu">&gt;</span> <span class="kw">let</span> runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)
-<span class="fu">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> runit <span class="fu">$</span> forever yield
-<span class="fu">&gt;</span> x
-<span class="dt">ThreadId</span> <span class="dv">154</span>
-<span class="fu">&gt;</span> threadStatus x
-<span class="dt">ThreadRunning</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="fu">&gt;</span> <span class="fu">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="fu">&gt;</span> <span class="kw">let</span> runit f <span class="fu">=</span> f <span class="ot">`onException`</span> (putStrLn <span class="st">&quot;exception!&quot;</span> <span class="fu">&gt;&gt;</span> runit f)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="fu">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="fu">$</span> runit <span class="fu">$</span> forever yield</a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="fu">&gt;</span> x</a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="dt">ThreadId</span> <span class="dv">154</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="fu">&gt;</span> threadStatus x</a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="dt">ThreadRunning</span></a></code></pre></div>
 <p>Ok everything as expected, thread is running and consuming 100% of one CPU. Now go to the step 2.:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)
-exc<span class="fu">&gt;</span> eption<span class="fu">!</span>
-<span class="fu">&gt;</span> threadStatus x
-<span class="dt">ThreadRunning</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">exc<span class="fu">&gt;</span> eption<span class="fu">!</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="fu">&gt;</span> threadStatus x</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="dt">ThreadRunning</span></a></code></pre></div>
 <p>Exception is caught, everything is OK. Now go to the 3.</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="fu">&gt;</span> throwTo x (userError <span class="st">&quot;foo&quot;</span>)</a></code></pre></div>
 <p>Hah.. It just hangs!!! We can interrupt it and check thread status</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="fu">&gt;</span> threadStatus x
-<span class="dt">ThreadRunning</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="fu">&gt;</span> threadStatus x</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="dt">ThreadRunning</span></a></code></pre></div>
 <p>This is definitely not what could be expected. Lets try to understand what had happened.</p>
 <p>As you know exception sending is synchronous in a sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or the thread dies).</p>
 <p>Quote from <a href="https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html">haddock</a>:</p>
@@ -89,11 +89,11 @@ MaskedInterruptible</code></pre>
 </blockquote>
 <p>Looks like a reason of our problem. Unfortunatelly it’s not in the documentation that usual user would read, but a nice thing to know.</p>
 <p>And original code should look like the following:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span>
-  ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f
-  <span class="kw">case</span> ev <span class="kw">of</span>
-    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;exception&quot;</span> <span class="fu">&gt;&gt;</span> release (runit f)
-    <span class="dt">Right</span> x <span class="ot">-&gt;</span> return x</code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">runit f <span class="fu">=</span> mask <span class="fu">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  ev <span class="ot">&lt;-</span> try <span class="fu">$</span> release f</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="kw">case</span> ev <span class="kw">of</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;exception&quot;</span> <span class="fu">&gt;&gt;</span> release (runit f)</a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    <span class="dt">Right</span> x <span class="ot">-&gt;</span> return x</a></code></pre></div>
 <p>You’ll need to pass exception type you are interested in or use <code>catches</code>.</p>
 <p>I hope you enjoyed reading this, despite a terrible English that I have.</p>
 

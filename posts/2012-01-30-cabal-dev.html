@@ -40,14 +40,14 @@ This article become outdated as there is a sandbox support in cabal starting fro
 <p>A: just cabal install cabal-dev</p>
 </blockquote>
 <p>Cabal is a great system of building and packaging Haskell libraries but is has some downsides such as:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>it has very poor handling of library versions and tracking dependecies.</p></li>
 <li><p>it can’t have multiply versions of same library (really it can but then it becomes a pain to use them)</p></li>
 </ol>
 <p>So sometimes it becomes a pain to fix haskell tree.</p>
 <p>Cabal-dev is a cabal-install wrapper that build project and dependencies in sandboxed enviromnent, this allowes to use multiple version of the same library and so chanses to break system are very low. Additionally it generates image of installed application so you can check how it will be installed on your system without real installation.</p>
 <p>Of cause as there are some problems:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>cabal-dev is slow, because you should install all dependencies in sandbox environment (unless they are installed system wide).</p></li>
 <li><p>cabal-dev can’t handle some Setup.hs options at least it was true in Dec-2011.</p></li>
 </ol>

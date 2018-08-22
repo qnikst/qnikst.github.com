@@ -16,7 +16,7 @@
     <published>2013-12-30T00:00:00Z</published>
     <updated>2013-12-30T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
-<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
+<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation" data-cites="maxlapshin">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
 <p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
 <p>Что позволяет ленивость:</p>
 <pre><code>1. Возможность не вычислять значения, которые не используются
@@ -48,16 +48,16 @@
 <p>Следующй шаг это выделение всего что можно в Applicative синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код. Итеративный подход</p>
 <p>Следующий момент в использовании reverse/snoc подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо reverse/snoc, можно использовать go/snoc, где go создает хвост списка.</p>
 <p>Поэтому код</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)
-parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span>
-  stock <span class="ot">&lt;-</span> readRow previous
-  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)</a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  stock <span class="ot">&lt;-</span> readRow previous</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</a></code></pre></div>
 <p>можно переписать как:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []
-parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span>
-  l <span class="ot">&lt;-</span> readRow
-  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)
-  return <span class="fu">$!</span> l<span class="fu">:</span>ls</code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  l <span class="ot">&lt;-</span> readRow</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">  return <span class="fu">$!</span> l<span class="fu">:</span>ls</a></code></pre></div>
 <p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список O(N) по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде Get это не относится).</p>
 <p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода runGetOrFail.</p>
 <p>На самом деле нужно идти дальше и делать composable операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>

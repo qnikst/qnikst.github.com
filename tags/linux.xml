@@ -19,7 +19,7 @@
 <p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
 <h1 id="the-problem.">The problem.</h1>
 <p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Process exited (with non zero EXIT_CODE);</li>
 <li>Process fail to work as expected.</li>
 </ol>
@@ -28,7 +28,7 @@
 <p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
 <p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
 <p>So the solution would be the following:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Let OpenRC know that user may want s-vision for some services and what module he want to use;</li>
 <li>Provide a set of existing modules;</li>
 <li>Give an ability to create new modules.</li>
@@ -38,24 +38,23 @@
 <p>Currently it’s possible to run monit as a standalone daemon and then control supervision via monit itself by calling <code>monit foo start</code>/<code>monit foo stop</code>. However having OpenRC as a common point for services control is a good idea.</p>
 <p>All the code available on s-vision branch (https://github.com/qnikst/openrc/compare/s-vision) and will be merged to mainline after some discussion with other developers and administrators that have a good experience with running monit.</p>
 <p>In order to put service under monit control one need:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>Run monit under inittab control (or other low level s-vision subsystem). This can be done by adding:</p>
-<pre><code>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</code></pre></li>
+<p>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</p></li>
 </ol>
 <p>to inittab</p>
-<ol start="2" style="list-style-type: decimal">
+<ol start="2" type="1">
 <li><p>Add temporary config path under monit control (/etc/monitrc)</p>
-<pre><code>INCLUDE /run/openrc-monit/*</code></pre></li>
+<p>INCLUDE /run/openrc-monit/*</p></li>
 <li><p>Create control file for service under <code>/etc/conf.d/monit-files/servicename</code></p></li>
 <li><p>Add s-vision module to conf.d file, i.e.</p>
-<pre><code>rc_supervise_module=&quot;monit&quot;
-rc_monit_type=&quot;file&quot;</code></pre></li>
+<p>rc_supervise_module=“monit” rc_monit_type=“file”</p></li>
 </ol>
 <p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
 <p><span class="label label-warning"> Update: </span> the idea is just to hook up into <code>start_post</code> all call <code>monit restart</code> and <code>monit monitor</code> from there.</p>
 <h1 id="future-work">Future work</h1>
 <p>There are a couple of work to be done before merging:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>Introduce other <code>monit_types</code> like:</p>
 <ul>
 <li>simple - where basic control file generated automatically on the fly</li>
@@ -76,13 +75,19 @@ rc_monit_type=&quot;file&quot;</code></pre></li>
     <summary type="html"><![CDATA[<div style="float:right;width:200px;font-size:0.5em;">
 Updates:
 <ul>
-<pre><code>  &lt;li&gt; 2008.08.09 - small corrections, acknowledgement section added &lt;/li&gt;
-&lt;/ul&gt;</code></pre>
+<li>
+2008.08.09 - small corrections, acknowledgement section added
+</li>
+</ul>
 Versions:
 <ul>
-<pre><code>  &lt;li&gt; Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10 &lt;/li&gt;
-  &lt;li&gt; Openrc 0.12 &lt;/li&gt;
-&lt;/ul&gt;</code></pre>
+<li>
+Kernel &gt;=2.6.24 &amp;&amp; &lt;=3.10
+</li>
+<li>
+Openrc 0.12
+</li>
+</ul>
 </div>
 <h1 id="abstract">Abstract</h1>
 <p>This post describes how it’s possible to improve cgroup support in OpenRC to support user hooks, and shows how to create a basic supervision daemon based on cgroups.</p>
@@ -99,20 +104,11 @@ Versions:
 <p>Here are improvements and files that should be added to OpenRC to provide the required functionality.</p>
 <h3 id="restart-daemon">Restart daemon</h3>
 <p>First we need to create a daemon to restart a services, because we can’t start service from agent, as it has <code>PF_NO_SETAFFINITY</code> flag and thus cgroups will not work for any of its children. So let’s have a very simple daemon, it will be extended in the next posts</p>
-<pre><code> #!/bin/sh
- if [ $# -lt 1 ] ; then
-    echo &quot;usage is $0 &lt;path to fifo&gt;&quot; 
-    exit 1
- fi
- 
- while [ -p $1 ] ; do 
-    while read line ; do
-       echo &quot;rc-service $line&quot;;
-    done &lt;$1
- done</code></pre>
+<p>#!/bin/sh if [ $# -lt 1 ] ; then echo “usage is $0 <path to fifo>” exit 1 fi</p>
+<p>while [ -p $1 ] ; do while read line ; do echo “rc-service $line”; done &lt;$1 done</p>
 <h3 id="release-notify-agent-improvement">Release notify agent improvement</h3>
 <p>The current release notify agent is very simple; so we extend it to support user hooks. There are some different ways to do it:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Add it to the service state. (Requires hook in the init script)</li>
 <li>Create static structure in a filesystem</li>
 </ol>
@@ -125,70 +121,74 @@ Versions:
 </code></pre>
 <p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will not be deleted after a hook.</p>
 <p>Here is a script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="va">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin
-<span class="va">cgroup=</span>/sys/fs/cgroup/openrc
-<span class="va">cgroup_rmdir=</span>1
-<span class="va">RC_SVCNAME=$1</span>
-<span class="va">RC_CGROUP_CONTINUE=</span>3; 
-<span class="bu">export</span> <span class="va">RC_CGROUP_CONTINUE</span> <span class="va">RC_SVCNAME</span> <span class="va">PATH</span>;
-
-<span class="kw">if</span><span class="bu"> [</span> <span class="ot">-n</span> <span class="st">&quot;</span><span class="va">${RC_SVCNAME}</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span>
-  <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="va">${RC_SVCNAME}</span>.cgroup-release
-  [ <span class="ex">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> ] <span class="kw">||</span> <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;
-  <span class="kw">if</span><span class="bu"> [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span>
-    <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> <span class="ex">cleanup</span> <span class="st">&quot;</span><span class="va">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span> <span class="va">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="va">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;
-  <span class="kw">fi</span>
-<span class="kw">fi</span>
-
-<span class="kw">if</span><span class="bu"> [</span> <span class="va">${cgroup_rmdir}</span> <span class="ot">-eq</span> 1<span class="bu"> ]</span> <span class="kw">&amp;&amp;</span><span class="bu"> [</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${cgroup}</span><span class="st">/</span><span class="va">$1</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span>
-  <span class="kw">for</span> <span class="ex">c</span> in /sys/fs/cgroup/*/<span class="st">&quot;openrc_</span><span class="va">$1</span><span class="st">&quot;</span> <span class="kw">;</span> <span class="kw">do</span>
-    <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">${c}</span><span class="st">&quot;</span>
-  <span class="kw">done</span>;
-  <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">$cgroup</span><span class="st">/</span><span class="va">${1}</span><span class="st">&quot;</span>
-<span class="kw">fi</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="va">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="va">cgroup=</span>/sys/fs/cgroup/openrc</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="va">cgroup_rmdir=</span>1</a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="va">RC_SVCNAME=$1</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="va">RC_CGROUP_CONTINUE=</span>3; </a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="bu">export</span> <span class="va">RC_CGROUP_CONTINUE</span> <span class="va">RC_SVCNAME</span> <span class="va">PATH</span>;</a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">if</span><span class="bu"> [</span> <span class="ot">-n</span> <span class="st">&quot;</span><span class="va">${RC_SVCNAME}</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">  <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="va">${RC_SVCNAME}</span>.cgroup-release</a>
+<a class="sourceLine" id="cb2-10" data-line-number="10">  [ <span class="ex">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> ] <span class="kw">||</span> <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;</a>
+<a class="sourceLine" id="cb2-11" data-line-number="11">  <span class="kw">if</span><span class="bu"> [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12">    <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> <span class="ex">cleanup</span> <span class="st">&quot;</span><span class="va">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span> <span class="va">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="va">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;</a>
+<a class="sourceLine" id="cb2-13" data-line-number="13">  <span class="kw">fi</span></a>
+<a class="sourceLine" id="cb2-14" data-line-number="14"><span class="kw">fi</span></a>
+<a class="sourceLine" id="cb2-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb2-16" data-line-number="16"><span class="kw">if</span><span class="bu"> [</span> <span class="va">${cgroup_rmdir}</span> <span class="ot">-eq</span> 1<span class="bu"> ]</span> <span class="kw">&amp;&amp;</span><span class="bu"> [</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${cgroup}</span><span class="st">/</span><span class="va">$1</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb2-17" data-line-number="17">  <span class="kw">for</span> <span class="ex">c</span> in /sys/fs/cgroup/*/<span class="st">&quot;openrc_</span><span class="va">$1</span><span class="st">&quot;</span> <span class="kw">;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb2-18" data-line-number="18">    <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">${c}</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb2-19" data-line-number="19">  <span class="kw">done</span>;</a>
+<a class="sourceLine" id="cb2-20" data-line-number="20">  <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">$cgroup</span><span class="st">/</span><span class="va">${1}</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb2-21" data-line-number="21"><span class="kw">fi</span></a></code></pre></div>
 <p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/sh</span>
-<span class="co"># This script is run for service that need to be restarted</span>
-<span class="co"># if it&#39;s last process leaves cgroup.</span>
-
-<span class="va">action=$1</span>
-<span class="va">service=$2</span>
-
-<span class="kw">if</span><span class="bu"> [</span> cleanup <span class="ot">=</span> <span class="st">&quot;</span><span class="va">$action</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span>
-
-    <span class="ex">rc-service</span> <span class="va">$service</span> status <span class="op">&gt;</span> /dev/null
-    <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span>
-        32<span class="kw">)</span> 
-        <span class="ex">/etc/init.d/</span><span class="va">${service}</span> <span class="ex">-d</span> restart
-        <span class="bu">exit</span> <span class="va">$RC_CGROUP_CONTINUE</span>
-                <span class="kw">;;</span>
-        *<span class="kw">)</span> 
-            <span class="bu">return</span> 0<span class="kw">;;</span>
-    <span class="kw">esac</span>
-<span class="kw">fi</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="co">#!/bin/sh</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="co"># This script is run for service that need to be restarted</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="co"># if it&#39;s last process leaves cgroup.</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="va">action=$1</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="va">service=$2</span></a>
+<a class="sourceLine" id="cb3-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb3-8" data-line-number="8"><span class="kw">if</span><span class="bu"> [</span> cleanup <span class="ot">=</span> <span class="st">&quot;</span><span class="va">$action</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb3-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">    <span class="ex">rc-service</span> <span class="va">$service</span> status <span class="op">&gt;</span> /dev/null</a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">    <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span></a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">        32<span class="kw">)</span> </a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">        <span class="ex">/etc/init.d/</span><span class="va">${service}</span> <span class="ex">-d</span> restart</a>
+<a class="sourceLine" id="cb3-14" data-line-number="14">        <span class="bu">exit</span> <span class="va">$RC_CGROUP_CONTINUE</span></a>
+<a class="sourceLine" id="cb3-15" data-line-number="15">                <span class="kw">;;</span></a>
+<a class="sourceLine" id="cb3-16" data-line-number="16">        *<span class="kw">)</span> </a>
+<a class="sourceLine" id="cb3-17" data-line-number="17">            <span class="bu">return</span> 0<span class="kw">;;</span></a>
+<a class="sourceLine" id="cb3-18" data-line-number="18">    <span class="kw">esac</span></a>
+<a class="sourceLine" id="cb3-19" data-line-number="19"><span class="kw">fi</span></a></code></pre></div>
 <h2 id="other-solutions">Other solutions</h2>
 <p>Generic supervision is quite a complicated problem as there are many conditions when we may suppose that our service failed, like:</p>
 <ul>
-<li>main process dies;</li>
+<li>main process dies;
+<ul>
 <li>all service children die;</li>
 <li>service does not write logs for some time;</li>
 <li>large resource memory/cpu consuming;</li>
 <li>service does not respond to control call;</li>
 <li>log fd is closed.</li>
+</ul></li>
 </ul>
 <p>Some of the options can be translated to another, like large resource consuming can be translated to process death by setting correct limits. And process death (and in some cases even children deaths) can be tracked by log fd (in case of a process in background).</p>
 <p>More complex hooks may be also needed, when deciding what to do with failed service, e.g. do not restart if it has failed many times in a short period of time.</p>
 <p>So with all required features will be very complicated. So non-specialized subsystems address only a part of a problem domain. Here are some other examples of supervision systems:</p>
 <ul>
-<li>monit (full featured)</li>
+<li>monit (full featured)
+<ul>
 <li>s6 (pid, fd based)</li>
 <li>daemon-tools</li>
 <li>angel</li>
 <li>systemd (pid, cgroups based)</li>
 <li>upstart (pid based)</li>
+</ul></li>
 </ul>
 <h1 id="future-work">Future work</h1>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>work on inclusion of a user hooks to OpenRC release agent.</li>
 <li>improve restart script to track really dead services that can be restarted</li>
 </ol>
@@ -208,25 +208,25 @@ Versions:
     <published>2013-02-04T00:00:00Z</published>
     <updated>2013-02-04T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Стоит задача: необходимо все программы запущенные через ‘su’ определить в собственные cgroups. Это можно сделать за три простые шага.</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>инициализируем нужную цгруппу, для этого нам нужна именованная группа, чтобы исключить пересечение с системными группами: (данный шаг желательно делегировать системе инициализации дистрибутива)</li>
 </ol>
 <pre class="shell"><code>  localhost qnikst # mkdir /sys/fs/cgroup/su-log
   localhost qnikst # mount -n -t cgroup -o none,nodev,noexec,nosuid,name=test test /sys/fs/cgroup/su-log</code></pre>
-<ol start="2" style="list-style-type: decimal">
+<ol start="2" type="1">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span>
-<span class="co">#!/bin/sh</span>
-<span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span>
-<span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
-   <span class="fu">mkdir</span> <span class="va">${p}</span>
-<span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</code></pre></div>
-<ol start="3" style="list-style-type: decimal">
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">#!/bin/sh</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">   <span class="fu">mkdir</span> <span class="va">${p}</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</a></code></pre></div>
+<ol start="3" type="1">
 <li>пишем правило для pam.d (логи опциональны)</li>
 </ol>
 <pre><code>session    optional             pam_exec.so   log=/var/log/pam_test_su.log seteuid /usr/local/bin/pam_exec_test.sh</code></pre>
-<ol start="4" style="list-style-type: decimal">
+<ol start="4" type="1">
 <li>наслаждаемся результатом.</li>
 </ol>
 <p>В данном решении есть проблема: будучи суперпользователем пользователь может перемещать свои задачи по cgroup-ам, для решения этой проблемы нужно писать политику selinux запрещающую переносить задачи выше, чем cgroup породившего их процесса.</p>]]></summary>

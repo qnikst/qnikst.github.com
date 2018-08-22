@@ -19,7 +19,7 @@
 <p><small>(As always I’m sorry for my english and maybe problems in technitial details, so any feedback is apprecated</small></p>
 <h1 id="the-problem.">The problem.</h1>
 <p>The idea of supervision is to take care about running processes and restart them in the case if they fail. It’s interesting to say that ‘fail’ may mean different things:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Process exited (with non zero EXIT_CODE);</li>
 <li>Process fail to work as expected.</li>
 </ol>
@@ -28,7 +28,7 @@
 <p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
 <p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
 <p>So the solution would be the following:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>Let OpenRC know that user may want s-vision for some services and what module he want to use;</li>
 <li>Provide a set of existing modules;</li>
 <li>Give an ability to create new modules.</li>
@@ -38,24 +38,23 @@
 <p>Currently it’s possible to run monit as a standalone daemon and then control supervision via monit itself by calling <code>monit foo start</code>/<code>monit foo stop</code>. However having OpenRC as a common point for services control is a good idea.</p>
 <p>All the code available on s-vision branch (https://github.com/qnikst/openrc/compare/s-vision) and will be merged to mainline after some discussion with other developers and administrators that have a good experience with running monit.</p>
 <p>In order to put service under monit control one need:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>Run monit under inittab control (or other low level s-vision subsystem). This can be done by adding:</p>
-<pre><code>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</code></pre></li>
+<p>MO:2345:respawn:/usr/bin/monit -Ic /etc/monitrc</p></li>
 </ol>
 <p>to inittab</p>
-<ol start="2" style="list-style-type: decimal">
+<ol start="2" type="1">
 <li><p>Add temporary config path under monit control (/etc/monitrc)</p>
-<pre><code>INCLUDE /run/openrc-monit/*</code></pre></li>
+<p>INCLUDE /run/openrc-monit/*</p></li>
 <li><p>Create control file for service under <code>/etc/conf.d/monit-files/servicename</code></p></li>
 <li><p>Add s-vision module to conf.d file, i.e.</p>
-<pre><code>rc_supervise_module=&quot;monit&quot;
-rc_monit_type=&quot;file&quot;</code></pre></li>
+<p>rc_supervise_module=“monit” rc_monit_type=“file”</p></li>
 </ol>
 <p>When you will trigger service start it will check that it is supervised, copy all related files to the temporary config path, and then call <code>monit start service</code>, that will trigger file once again, but init will understand that it is monitored, and start service as usual.</p>
 <p><span class="label label-warning"> Update: </span> the idea is just to hook up into <code>start_post</code> all call <code>monit restart</code> and <code>monit monitor</code> from there.</p>
 <h1 id="future-work">Future work</h1>
 <p>There are a couple of work to be done before merging:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li><p>Introduce other <code>monit_types</code> like:</p>
 <ul>
 <li>simple - where basic control file generated automatically on the fly</li>
