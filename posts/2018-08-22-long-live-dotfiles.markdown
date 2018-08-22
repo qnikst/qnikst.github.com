@@ -7,40 +7,40 @@ tags: nix, configuration
 
 Some time ago I installed [NixOS], and one thing that I had a problem with
 was understanding how to set up user environment. You can can configure NixOS
-declaratively described in a single file `/etc/nixos/configuration.nix`, but
-all applications setup there installed system-wide. Instead, you
+declaratively with a description in a single file `/etc/nixos/configuration.nix`, but
+all applications set up there get installed system-wide. Instead, you
 usually want to have your user environment to be configured per your user.
-Also, you may want to move your environment from one host to another (possibly
-with another distribution or even to another OS). Updating configuration.nix
-looks like a too heavy-weight solution for this task.
+Also you may want to move your environment from one host to another (possibly
+to another distribution or even to another OS). Updating configuration.nix
+looks like a too heavy-weight solution for such a task.
 
-Other solutions that I've seen were building of the own environment or using
+Other solutions that I've seen were building of one's own environment or using
 [nix-env][nix-env-tldr] for installing applications per user. I was not able to
 adopt the former solution, and the latter does not provide declarative config,
 and one may collect lots of garbage of applications she runs once. Besides, it
 would be nice to control dotfiles in the same style.
 
 One day my colleague [Nicolas Mattia][nasm] suggested me to look at the tool he
-uses, called [homies], that he excellently described in his [blog][nasm-blog]. I
-this everyone should read and check that :). Unfortunately, this approach, at least
+uses, called [homies], the one he had excellently described in his [blog][nasm-blog]. I
+think everyone should read and check that :). Unfortunately, this approach, at least
 up to my understanding should exist for each user, because it's not customisable.
-So I've started my project [homster] that is solving the same problem. Currently,
+So I've started my project [homster] that is solving the same problem. Currently
 it's primarily based on the `homies` though in the future it's going to diverge.
 
-The general structure of the project is the follows. We have a `default.nix` file
-that describes all the packages and modified packages that I use. In each modified
-package I passed my config, or it's configured to read system config from
-the nix package directory, so I can configure common options in the homster project
-and update them on the host by the usual means.
+The general structure of the project is as follows. There is a `default.nix` file
+that describes all the packages and the modified ones that I use. In each modified
+package I pass my config, or it's configured to read system config from
+the nix package directory so I can configure common options in the homster project
+and update them on the host by usual means.
 
-So it seems that I have found the solution to all my needs, I can have a declarative
+So it seems that I have found the solution to all my needs and I can have a declarative
 configuration for the user environment. I still can use `nix-env -i` for temporarily
 needed packages, but `nix-env -f homster/default.nix -i --remove-all` command updates
 and cleans my environment. Most of the dotfiles can be kept in the project.
 Also, I can set up my environment anywhere where I can install `nix` package
 manager.
 
-In this way, the most interesting problem was `git`. Git searches for the
+While implementing this the most interesting problem was `git`. Git searches for its
 configuration in 3 places according to the man page:
 
   1. system-wide: `(prefix)/gitconfig`
@@ -66,8 +66,8 @@ strace git config 2>&1 | grep gitconfig
 access("/etc//gitconfig", R_OK)         = -1 ENOENT (No such file or directory)
 ```
 
-Seems not what we were expecting. The story continues, we need to understand where
-does git looks for config. You can find it on GitHub (modulo the version
+Seems not to be what we were expecting. The story continues, we need to understand where
+does git looks for a config. You can find it on GitHub (modulo the version
 that I've used, but it's irrelevant for the code I'm interested in)
 <https://github.com/git/git/blob/7e8bfb0412581daf8f3c89909f1d37844e8610dd/config.c#L1634-L1640>
 
@@ -98,7 +98,7 @@ So now we need to patch nix package for `git` to do that. As usual, we want
 to make it declaratively and easy to change without redoing the work that NixOS maintainers
 already did like applying patches and packaging.
 
-Everything described above can be done pretty qickly in `nix`, in my `homster/git/default.nix`
+Everything described above can be done pretty quickly in `nix`, in my `homster/git/default.nix`
 I can override default package for git as:
 
 ```nix
@@ -107,8 +107,8 @@ git.overrideAttrs (old: {
 })
 ```
 
-`nix` interprets the `$out` variable and substitute exact hash there. Then we can
-copy our file to the right place and get new a system-wide configuration that is
+`nix` interprets the `$out` variable and substitutes exact hash there. Then we can
+copy our file to the right place and get a new system-wide configuration that is
 controlled by us.
 
 ```bash
