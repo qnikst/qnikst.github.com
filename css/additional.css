@@ -75,10 +75,30 @@ li:nth-child(odd) a {
   background-color: #E0F0E0;
 }
 
-
-dl dt {
-  font-weight: bold;
+dl.dl-horizontal {
+  display: flex;
+  flex-flow: row;
+  flex-wrap: wrap;
+  width: 60%;
+  overflow: visible;
+  line-height: 1.7em;
 }
+dl.dl-horizontal dd{
+  flex: 0 0 70%;
+  margin-left: auto;
+  text-align: left;
+  background-color: #F0FDF0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+dl.dl-horizontal dt{
+  flex: 0 0 30%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-weight: bold;
+  background-color: #E0F0E0;
+}
+
 
 #header . a {
 }
