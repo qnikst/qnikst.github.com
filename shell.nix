@@ -5,9 +5,7 @@ in pkgs.haskellPackages.shellFor {
   packages=p: [p.qnikst-github-com];
   shellHook=
     ''
-      alias hello=echo "hello"
-
-      foo_build() {
+      blog_build() {
         pushd ${ROOT}
         cabal new-build
         popd
