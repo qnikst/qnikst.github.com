@@ -10,6 +10,206 @@
     </author>
     <updated>2018-08-22T00:00:00Z</updated>
     <entry>
+    <title>Marrying Haskell and Hyper-Threading</title>
+    <link href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html" />
+    <id>https://qnikst.github.io/posts/2018-08-23-ht-no-more.html</id>
+    <published>2018-08-22T00:00:00Z</published>
+    <updated>2018-08-22T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In this blog post, I’d like to tell one story that had happened with one Haskell application. Then explain how we can assign start threaded RTS, so it is aware of the CPU layout on your system. If you want to skip the story, you can proceed to the solution directly.</p>
+<p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load on the site and build <a href="https://overload.yandex.net/1">fantastic reports</a> (may require GitHub authorization).</p>
+<p>Results were quite interesting. At first, everything went well, and the application was able to process about <code>1k</code> requests per second, and that was enough for the expected load. However, when Yandex Tank gave a pressure about <code>2k</code> RPS, the situation became worse. Application stopped being responsive. The application was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance, and then a period of unresponsiveness.</p>
+<img src="../images/posts/ht-no-more/1.plot.jpg" alt="Spikes on the tank terminal report" />
+<div>
+<img src="../images/posts/ht-no-more/2.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/3.tank.report.png" width="399" style="inline"/>
+</div>
+<p>As it happens the first suspect in such cases is the Garbage Collector. You can always hear lots of scary stories about how GC could ruin your life. Keeping that in mind GC was tunned beforehand, and I prepared some metrics. However, this time situation was quite OK, garbage collector pauses were all &lt;10ms, and 99% of the total time program spent on actual work and not garbage collection. Memory usage was too big ~700Mb, and I didn’t expect that.</p>
+<figure>
+<img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" /><figcaption>GC Information</figcaption>
+</figure>
+<p>On the left plot you can see reports of the last GC, they are not very precise as they may miss some GCs or report the same GC twice. However they still tell us the order of magnutude. On the right plot we see ratio of time spent in mutator to the total running time.</p>
+<p>Other parts of the system were not under stress and were capable of the handling higher load. So the issue was with my program. Although I didn’t spend much time optimising the program, it should behave better.</p>
+<p>Another surprising fact was that the issue didn’t appear on my system that is comparable to the one where stress tests were running, and that could handle higher load. Accidentally I realised the difference, and the following dialogue took place:</p>
+<blockquote>
+<p>Me: What is the CPU on the system?</p>
+<p>Admin: I7 4 cores, eight thread!</p>
+<p>Me: Ah! Add <code>GHCRTS=-N4</code> to the container’s Environment.</p>
+</blockquote>
+<p>After that single change situation drastically changed, the program was able to process 4.5k RPS (comparable to the maximum load that a single instance of Yandex.Tank can generate), now mutator time got &gt;99%, GC pauses were still ~10ms but very rare, and memory usage was about 25Mb.</p>
+<img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" />
+<div>
+<img src="../images/posts/ht-no-more/5.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/6.tank.report.png" width="399" style="inline"/>
+</div>
+<p>Connect time is still terrible here, but it was fixed by reconfiguring and improving network, and is out of the scope.</p>
+<p>So this is just another story about suboptimal defaults for the runtime system. It happens that if you pass <code>+RTS -N</code> option - you tell runtime system to start the same number of capabilities as you have cores. However, <code>RTS</code> makes no difference between real and virtual cores. It appears that <code>RTS</code> could not make enough benefit from the virtual cores, and performance is not good enough in that case.</p>
+<p>While it is pretty impressive, that we can optimise the program without any changes in source code, it’s interesting, what can we do in the general case. It’s problematic that we can not set good options that work on any CPU and have decent performance. To find an answer, I’ve started the project <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">ht-no-more</a>. It lives in my playground for now, but I can extract it to the separate repo. I hope that at some point it will be mature enough to be used as a library or even land to the RTS.</p>
+<h2 id="solution">Solution <a name="solution"></a></h2>
+<p>The idea is to gather information about the architecture during the program startup and then set up the RTS with proper configuration. We want:</p>
+<ol type="1">
+<li>collect information about the CPU (how many real and how many virtual cores do we have);</li>
+<li>do not allow RTS to run work on the virtual cores;</li>
+<li>make it so <code>+RTS -N</code> option still behaves well.</li>
+</ol>
+<p><em>N.B. From this place and now on we assume that we run on <code>Linux</code> only and that we have <code>procfs</code> mounted and that we can write non-portable code. Now our life is comfortable, and we can proceed with the task.</em></p>
+<p>The first question is how can we tie our process to the <code>CPU</code>. There are <a href="https://linux.die.net/man/2/sched_setaffinity">sched_getaffinity()</a> and <a href="https://linux.die.net/man/2/sched_setaffinity">sched_setaffinity()</a> calls. Those methods perform hard wiring of the process and all it’s descendent processes to the given CPUs. So we can use them to mask CPU that we are not interested in.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="dt">int</span> sched_setaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">                      cpu_set_t *mask);</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="dt">int</span> sched_getaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">                      cpu_set_t *mask);</a></code></pre></div>
+<p>First, we let’s write a simple <code>c</code> program that explains the API.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="pp">#define _GNU_SOURCE          </span><span class="co">// allow to use non-portable functions</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="pp">#include </span><span class="im">&lt;sched.h&gt;</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="pp">#include </span><span class="im">&lt;string.h&gt;</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="pp">#include </span><span class="im">&lt;stdlib.h&gt;</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="pp">#include </span><span class="im">&lt;stdio.h&gt;</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> * argv[]) {</a>
+<a class="sourceLine" id="cb2-8" data-line-number="8">  cpu_set_t set;            <span class="co">// define CPU set</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">  CPU_ZERO(&amp;set);           <span class="co">// mark all CPUs as unused</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10">  CPU_SET(<span class="dv">0</span>, &amp;set);         <span class="co">// allow to use first CPU</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11">  sched_setaffinity(<span class="dv">0</span>, <span class="kw">sizeof</span>(cpu_set_t), &amp;set); <span class="co">// wire process to CPU</span></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12">  <span class="dt">int</span> result = system(<span class="st">&quot;bash&quot;</span>); <span class="co">// start bash.</span></a>
+<a class="sourceLine" id="cb2-13" data-line-number="13">  <span class="cf">return</span> result;</a>
+<a class="sourceLine" id="cb2-14" data-line-number="14">}</a></code></pre></div>
+<p>In this first program, we allow an application to run only on the first CPU. We need this program later for testing purposes. I’ve used it to check if my program behaves well in the constrained case.</p>
+<p>The next question is how to check if a processor is real or virtual. The only way I’ve found it is to parse <code>/proc/cpuinfo</code> file. We are interested in <code>core id</code> entry for each processor, it tells what the index of the real core that CPU is set on is. For example on my machine I have:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="fu">grep</span> <span class="st">&#39;core id&#39;</span> /proc/cpuinfo </a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">core</span> id        : 0</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">core</span> id        : 1</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="ex">core</span> id        : 2</a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="ex">core</span> id        : 3</a></code></pre></div>
+<p>As I have Hyper-Threading disabled - all cores are real ones. On digital ocean host, I have:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="fu">grep</span> <span class="st">&#39;core id&#39;</span> /proc/cpuinfo </a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ex">core</span> id        : 0</a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="ex">core</span> id        : 0</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ex">core</span> id        : 0</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="ex">core</span> id        : 0</a></code></pre></div>
+<p>all CPU are on the same core (at least for the container).</p>
+<p>Now we can combine the answers to the questions and write the code. We need to remember that there is an additional case that we want to cover: if the CPU was already disabled for our program – then we don’t want to “unmask” it. As a result, I ended up with the following code:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="dt">int</span> setcpus() {</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">   cpu_set_t set;</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">   <span class="dt">int</span> ret = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">   ret = sched_getaffinity(<span class="dv">0</span>, <span class="kw">sizeof</span>(cpu_set_t), &amp;set);</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">   <span class="cf">if</span> (ret == <span class="dv">-1</span>) {</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">     fprintf(stderr, <span class="st">&quot;Error: failed to get cpu affinity&quot;</span>);</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">     <span class="cf">return</span> <span class="dv">0</span>; <span class="co">// We instruct code that we have failed and it should fallback to the normal procedure.</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">   }</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">   <span class="dt">int</span> current_cpu = <span class="dv">-1</span>;</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">   <span class="dt">int</span> current_core = <span class="dv">-1</span>;</a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">   <span class="dt">FILE</span> *cpuinfo = fopen(<span class="st">&quot;/proc/cpuinfo&quot;</span>, <span class="st">&quot;rb&quot;</span>);</a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">   <span class="dt">char</span> *arg = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb5-14" data-line-number="14">   <span class="dt">size_t</span> size = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb5-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb5-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb5-17" data-line-number="17">   <span class="cf">while</span>(getdelim(&amp;arg, &amp;size, <span class="ch">&#39;\n&#39;</span>, cpuinfo) != <span class="dv">-1</span>)</a>
+<a class="sourceLine" id="cb5-18" data-line-number="18">   {</a>
+<a class="sourceLine" id="cb5-19" data-line-number="19">      <span class="cf">if</span> (strstr(arg, <span class="st">&quot;core id&quot;</span>) != NULL) {</a>
+<a class="sourceLine" id="cb5-20" data-line-number="20">	current_core++;</a>
+<a class="sourceLine" id="cb5-21" data-line-number="21">	<span class="dt">char</span> * found = strchr(arg, <span class="ch">&#39;:&#39;</span>);</a>
+<a class="sourceLine" id="cb5-22" data-line-number="22">	<span class="cf">if</span> (found) {</a>
+<a class="sourceLine" id="cb5-23" data-line-number="23">	   <span class="dt">int</span> cpu = atoi(found+<span class="dv">1</span>);</a>
+<a class="sourceLine" id="cb5-24" data-line-number="24">	   <span class="cf">if</span> (current_cpu != cpu) {</a>
+<a class="sourceLine" id="cb5-25" data-line-number="25">              current_cpu++;</a>
+<a class="sourceLine" id="cb5-26" data-line-number="26">	      <span class="cf">if</span> (CPU_ISSET(current_core, &amp;set)) {</a>
+<a class="sourceLine" id="cb5-27" data-line-number="27">	         CPU_SET(current_core, &amp;set);  <span class="co">// XXX: this is noop.</span></a>
+<a class="sourceLine" id="cb5-28" data-line-number="28">	         fprintf(stderr, <span class="st">&quot;%i real core - enabling</span><span class="sc">\n</span><span class="st">&quot;</span>, current_core);</a>
+<a class="sourceLine" id="cb5-29" data-line-number="29">	      } <span class="cf">else</span> {</a>
+<a class="sourceLine" id="cb5-30" data-line-number="30">	         fprintf(stderr, <span class="st">&quot;%i was disabled - skipping</span><span class="sc">\n</span><span class="st">&quot;</span>, current_core);</a>
+<a class="sourceLine" id="cb5-31" data-line-number="31">	      }</a>
+<a class="sourceLine" id="cb5-32" data-line-number="32">           } <span class="cf">else</span> {</a>
+<a class="sourceLine" id="cb5-33" data-line-number="33">              fprintf(stderr, <span class="st">&quot;%i is virual - skipping</span><span class="sc">\n</span><span class="st">&quot;</span>, current_core);</a>
+<a class="sourceLine" id="cb5-34" data-line-number="34">	      CPU_CLR(current_core, &amp;set);</a>
+<a class="sourceLine" id="cb5-35" data-line-number="35">           }</a>
+<a class="sourceLine" id="cb5-36" data-line-number="36">        } <span class="cf">else</span> {</a>
+<a class="sourceLine" id="cb5-37" data-line-number="37">	   <span class="cf">return</span> <span class="dv">1</span>;</a>
+<a class="sourceLine" id="cb5-38" data-line-number="38">	}</a>
+<a class="sourceLine" id="cb5-39" data-line-number="39">      }</a>
+<a class="sourceLine" id="cb5-40" data-line-number="40">   }</a>
+<a class="sourceLine" id="cb5-41" data-line-number="41">   ret = sched_setaffinity(<span class="dv">0</span>, <span class="kw">sizeof</span>(cpu_set_t), &amp;set);</a>
+<a class="sourceLine" id="cb5-42" data-line-number="42">   <span class="cf">if</span> (ret == <span class="dv">-1</span>) {</a>
+<a class="sourceLine" id="cb5-43" data-line-number="43">     fprintf(stderr, <span class="st">&quot;Error: failed to set affinities - falling back to default procedure</span><span class="sc">\n</span><span class="st">&quot;</span>);</a>
+<a class="sourceLine" id="cb5-44" data-line-number="44">     procno = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb5-45" data-line-number="45">   } <span class="cf">else</span> {</a>
+<a class="sourceLine" id="cb5-46" data-line-number="46">     procno = current_cpu;</a>
+<a class="sourceLine" id="cb5-47" data-line-number="47">   }</a>
+<a class="sourceLine" id="cb5-48" data-line-number="48">   free(arg);</a>
+<a class="sourceLine" id="cb5-49" data-line-number="49">   fclose(cpuinfo);</a>
+<a class="sourceLine" id="cb5-50" data-line-number="50">   <span class="cf">return</span> <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb5-51" data-line-number="51">}</a></code></pre></div>
+<p>Now we are ready to build a cabal project. I’m skipping all irrelevant things, that are generated by <code>cabal init</code></p>
+<pre class="cabal"><code>executable ht-no-more
+  main-is:             wrapper.c
+  other-modules:       Entry 
+  build-depends:       base &gt;=4.10 &amp;&amp; &lt;4.11
+  default-language:    Haskell2010
+  ghc-options:         -no-hs-main</code></pre>
+<p>To highlight the important things: first of all, our main module is a <code>C</code> file. It does not work with old <code>cabal</code>’s that allowed only Haskell modules to be the main one. Then, we add <code>-no-hs-main</code> – an option that tells GHC not to create it’s own “main” and use the “main” function that we define. We define <code>Entry.hs</code> Haskell module that provides an entry function, because we no longer have one. In that module, we create a single function that tells how many capabilities RTS created.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">module</span> <span class="dt">Entry</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Control.Concurrent</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">foreign export ccall<span class="ot"> entry ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7"><span class="ot">entry ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">entry <span class="fu">=</span> print <span class="fu">=&lt;&lt;</span> getNumCapabilities</a></code></pre></div>
+<p>The only non-trivial thing we need is to export a foreign function, compiler generates a <code>C</code> complatible object called <code>entry</code> that we can call from <code>C</code>.</p>
+<p>We follow <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ffi-chap.html#using-your-own-main">GHC User’s Guide</a> to define our main function <em>(sidenote, if you haven’t read GHC User’s Guide, please do, it’s the most authoritative and precise source of information about GHC features and extensions)</em>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="pp">#include </span><span class="im">&quot;HsFFI.h&quot;</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="pp">#ifdef __GLASGOW_HASKELL__</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4"><span class="pp">#include </span><span class="im">&quot;Entry_stub.h&quot;</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5"><span class="pp">#include </span><span class="im">&quot;Rts.h&quot;</span></a>
+<a class="sourceLine" id="cb8-6" data-line-number="6"><span class="pp">#endif</span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8"><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> * argv[]) {</a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">  setcpus();</a>
+<a class="sourceLine" id="cb8-10" data-line-number="10">  <span class="pp">#if __GLASGOW_HASKELL__ &gt;= 703</span></a>
+<a class="sourceLine" id="cb8-11" data-line-number="11">  {</a>
+<a class="sourceLine" id="cb8-12" data-line-number="12">     RtsConfig conf = defaultRtsConfig;</a>
+<a class="sourceLine" id="cb8-13" data-line-number="13">     conf.rts_opts_enabled = RtsOptsAll;</a>
+<a class="sourceLine" id="cb8-14" data-line-number="14">     hs_init_ghc(&amp;argc, &amp;argv, conf);</a>
+<a class="sourceLine" id="cb8-15" data-line-number="15">  }</a>
+<a class="sourceLine" id="cb8-16" data-line-number="16">  <span class="pp">#else</span></a>
+<a class="sourceLine" id="cb8-17" data-line-number="17">     hs_init(&amp;argc, &amp;argv);</a>
+<a class="sourceLine" id="cb8-18" data-line-number="18">  <span class="pp">#endif</span></a>
+<a class="sourceLine" id="cb8-19" data-line-number="19">  hs_init(&amp;argc, &amp;argv);</a>
+<a class="sourceLine" id="cb8-20" data-line-number="20">  entry();</a>
+<a class="sourceLine" id="cb8-21" data-line-number="21">  hs_exit();</a>
+<a class="sourceLine" id="cb8-22" data-line-number="22">  <span class="cf">return</span> <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb8-23" data-line-number="23">}</a></code></pre></div>
+<p>However, we have not done everything. If you try to compile this program and run with <code>RTS +N</code> you’ll see expected logs, but the program report that you are using the number of capabilities equal to the number of virtual cores. It happens because with <code>RTS +N</code> GHC asks the number of configured processors and creates that number of capabilities. Instead, we want the count of capabilities to be equal to the number of real cores. Furthermore, we don’t want to patch GHC just yet because our code is too hacky.</p>
+<p><code>GHC RTS</code> is linked statically with each Haskell project. It means that we can use a linker to make RTS use our method instead of the one provided with <code>GHC</code>, we are interested in redefining <code>uint32_t getNumberOfProcessors(void)</code>. For that reason, we use linker’s <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_node/ld_3.html">wrap feature</a>. If you tell linker <code>-Wl,-wrap, function</code> then for each call to the <code>function</code> it calls <code>__wrap_function</code> instead and generates <code>__real_function</code> that you can call to call the original function.</p>
+<p>So we write</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="dt">static</span> <span class="dt">uint32_t</span> procno = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="dt">uint32_t</span> __real_getNumberOfProcessors(<span class="dt">void</span>);</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5"><span class="dt">uint32_t</span> __wrap_getNumberOfProcessors(<span class="dt">void</span>)</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">{</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">   <span class="cf">if</span> (procno==<span class="dv">0</span>) {</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8">      <span class="cf">return</span> __real_getNumberOfProcessors();</a>
+<a class="sourceLine" id="cb9-9" data-line-number="9">   } <span class="cf">else</span> {</a>
+<a class="sourceLine" id="cb9-10" data-line-number="10">     <span class="cf">return</span> procno;</a>
+<a class="sourceLine" id="cb9-11" data-line-number="11">   }</a>
+<a class="sourceLine" id="cb9-12" data-line-number="12">}</a></code></pre></div>
+<p>So get the desired result. We change cabal to provide required options to the build:</p>
+<pre class="cabal"><code>  ghc-options:         -no-hs-main
+                       -threaded
+                       -optl-Wl,-wrap,getNumberOfProcessors</code></pre>
+<p>You can find the full code on <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">GitHub</a>. There is still much work for this project before you can use it for your application.</p>
+<p>There is some further work.</p>
+<ol type="1">
+<li>the code could be cleared and prettified;</li>
+<li>the code could be made portable and be able to run on all OSes GHC can run on;</li>
+<li>The current approach may be not sub-optimal, maybe it’s enough to redefine <code>getNumberOfProcessors</code> alone without calling <code>sched_setaffinity</code>.</li>
+<li>I didn’t test the interference with other functions; for example, if you run a program with <code>-xm</code> flag (that pins capability to CPU) may fail.</li>
+<li>It’s possible to extend this solution and set better GC options based on CPU info</li>
+<li>I’m curious if it is possible to write this program as a library and reuse in the other projects.</li>
+</ol>
+<p>All feedback is welcome.</p>]]></summary>
+</entry>
+<entry>
     <title>Making personal environment and long live dotfiles</title>
     <link href="https://qnikst.github.io/posts/2018-08-22-long-live-dotfiles.html" />
     <id>https://qnikst.github.io/posts/2018-08-22-long-live-dotfiles.html</id>
@@ -1044,127 +1244,6 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <p>test = mkT $(mkFloatProxy pi) 7.0</p>
 </blockquote>
 <p>This is quite nice, next steps may be support of negative values, using SomeNat and operations on values.</p>]]></summary>
-</entry>
-<entry>
-    <title>О stockdb</title>
-    <link href="https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html" />
-    <id>https://qnikst.github.io/posts/2013-12-30-haskell-laziness.html</id>
-    <published>2013-12-30T00:00:00Z</published>
-    <updated>2013-12-30T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>(Старый пост взятый из исходников блога, так что он может содержать несколько устаревшие данные, кроме бенчмарков сделаных в августе 2014)</p>
-<p>Недавно я столкнулся с задачей оптимизации программы написанной Максом Лапшиным (<span class="citation" data-cites="maxlapshin">@maxlapshin</span>). Программу говорят, что уже смотрели и другие программисты, но все же я решился потратить время и посмотреть, что там не так.</p>
-<p>Первое, что мне первое бросилось в глаза это то, что одно из основных свойств языка “ленивость” совсем не использовалось, в связи с этим я собираюсь акцентировать внимание именно на этом аспекте.</p>
-<p>Что позволяет ленивость:</p>
-<pre><code>1. Возможность не вычислять значения, которые не используются
-
-2. Возможность создания эффективных персистентных структур данных (см. Окасаки)
-
-3. Возможность создания итеративных вычислений</code></pre>
-<p>Естественно, все это дается не бесплатно:</p>
-<pre><code>1. Ленивость приводит к оверхеду по памяти, т.к. нужно хранить больше информации
-
-2. Ленивость может приводить к повторным вычислениям в многопоточных программах
-
-3. Ленивость может приводить к “утечкам”, т.е. случаям, когда вместо результато
-   создаются структуры описывающие отложенные вычисления “thunk” и их накапливается
-   очень большое количество. Часто этот эффект называют memory leak, хотя лично
-   мне не нравится данный термин, поскольку обычно он используется для описания
-   неиспользуемой, но не освобожденной памяти.</code></pre>
-<p>Особенно неприятной является третья проблема, как но её решение, в очень многих случаях, заключается в применении следующего правила:</p>
-<blockquote>
-<p>Не использовать ленивые поля в стуктурах данных, если это специально не требуется.</p>
-</blockquote>
-<h2 id="строгость-структур-данных">Строгость структур данных</h2>
-<p>В этом случае если вы не знаете, нужна ли вам ленивость, делайте поле строгим. Так же если переиспользование не нужно или данные по размеру меньше, чем указатель, то можно их сразу распаковать {-# UNPACK #-} это снимет один уровень индирекции.</p>
-<p>Вместо списков зачастую выгоднее иметь вектора, что уменьшает уровень индирекции и ускоряет работу с ними, особенно это выгодно в случае, если размер вектора известен или он создается целиком и больше не изменяется.</p>
-<p>Стоит отметить, что для данной задачи оптимизации не привносят много плюсов, поскольку создаваемые стуктуры никак не используются.</p>
-<h2 id="неправильные-библиотеки">“Неправильные” библиотеки</h2>
-<p>В коде использовалась очень неэффективная библиотека binary-strict, хотя абсолютно никакой необходимости использовать как строгие байтстроки, так и эту библиотеку не было. В общем-то, в этом была основная проблема и замена библиотеки на binary и binary-bits дало максимальную часть прироста скорости.</p>
-<p>Так же работа на уровне бит для всего разбора это слишком дорого, поскольку битовые операции требуются только для разбора diff записей. Поэтому четкое разделение runBitGet и runGet сильно помогает для разделение операций, так же сделать часть операций полиморфными по монаде.</p>
-<p>Следующй шаг это выделение всего что можно в Applicative синтаксис, что хоть в данном случае и не приводит к заметному ускорению, но упрощает код. Итеративный подход</p>
-<p>Следующий момент в использовании reverse/snoc подхода при создании списков, данный метод является монолитным, т.е. если мы начинаем вычисление, то оно доводится до конца. Но в большинстве случаев этого не хочется, т.к. во-первых не все данные могут быть использованы во-вторых итеративный подход позволяет обрабатывать данные по частям, не держа их все в памяти если это не необходимо. Поскольку haskell язык ленивый, то вместо reverse/snoc, можно использовать go/snoc, где go создает хвост списка.</p>
-<p>Поэтому код</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1">parsePayload&#39; <span class="dv">0</span> acc <span class="fu">=</span> return (reverse acc)</a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">parsePayload&#39; count acc <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">  stock <span class="ot">&lt;-</span> readRow previous</a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">  parsePayload&#39; (count <span class="fu">-</span> <span class="dv">1</span>) (stock <span class="fu">:</span> acc)</a></code></pre></div>
-<p>можно переписать как:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">parsePayload&#39; <span class="dv">0</span> <span class="fu">=</span> return []</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">parsePayload&#39; count <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">  l <span class="ot">&lt;-</span> readRow</a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">  ls <span class="ot">&lt;-</span> parsePayload&#39; (count<span class="fu">-</span><span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">  return <span class="fu">$!</span> l<span class="fu">:</span>ls</a></code></pre></div>
-<p>На самом деле данный код не сильно лучше предыдущего варианта, поскольку тоже является монолитным, но он приведен здесь как промежуточный шаг, и для того, чтобы рассмотреть отличия. В первом случае мы сначала создаем весь список O(N) по памяти и сложности и потом разворачиваем, соответсвенно при том же порядке сложности мы получаем вдвое большую константу, при этом используется куча. Во-втором варианте увеличение костанты не происходит, но вместо кучи используется стек, что имеет свои минусы. Так же в случае ленивой монады, т.е. когда вместо результата мы возвращаем действие производящее результат мы получаем уже инетаривный результат (правда к монаде Get это не относится).</p>
-<p>Дальнейшее улучшение может быть произведено за счет того, что нам не нужно возвращать все данные в монаде, а достаточно обрабатывать одну запись и выходить, при помощи метода runGetOrFail.</p>
-<p>На самом деле нужно идти дальше и делать composable операции создавая сначала поток объектов и diff-ов и объединяя их отдельной операцией. Но об этом в другой раз, если у меня дойдут руки до написания полноценной библиотеки для работы с такими файлами.</p>
-<h2 id="код-и-результаты">Код и результаты:</h2>
-<p>Код можно найти на <a href="https://github.com/maxlapshin/stockdb-hs">github</a>, ветку с изменениями примерно там же.</p>
-<p>В оригинальную программу требуется добавить модификацию позволяющую считывать нужное количество записей, а не только 10000:</p>
-<pre><code>diff --git a/stockdb.hs b/stockdb.hs
-index 75fa7da..8ecf2e1 100644
---- a/stockdb.hs
-+++ b/stockdb.hs
-@@ -81,7 +81,7 @@ runEither (Left e)  = fail e
- readStocks :: BS.ByteString -&gt; Either String [Stock]
- readStocks = parsePayload . BS.drop (289 * 4) . skipHeaders where
-     parsePayload payload = BG.runBitGet payload $
--        parsePayload&#39; 10000 (fail &quot;First row must be full&quot;) []
-+        parsePayload&#39; 167544 (fail &quot;First row must be full&quot;) []
-     parsePayload&#39; 0 previous acc = return (reverse acc)
-     parsePayload&#39; count previous acc = do
-         stock &lt;- readRow previous</code></pre>
-<p>Время работы оригинальной программы:</p>
-<pre><code>qnikst@localhost ~/workspace/myself/stockdb-hs $ \time -v ./stockdb out.stock-2
-167544
-     Command being timed: &quot;./stockdb out.stock-2&quot;
-     User time (seconds): 13.96
-     System time (seconds): 1.00
-     Percent of CPU this job got: 99%
-     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.98
-     Average shared text size (kbytes): 0
-     Average unshared data size (kbytes): 0
-     Average stack size (kbytes): 0
-     Average total size (kbytes): 0
-     Maximum resident set size (kbytes): 15146224
-     Average resident set size (kbytes): 0
-     Major (requiring I/O) page faults: 0
-     Minor (reclaiming a frame) page faults: 945203
-     Voluntary context switches: 1
-     Involuntary context switches: 1550
-     Swaps: 0
-     File system inputs: 0
-     File system outputs: 0
-     Socket messages sent: 0
-     Socket messages received: 0
-     Signals delivered: 0
-     Page size (bytes): 4096
-     Exit status: 0</code></pre>
-<p>Время работы обновленной программы</p>
-<pre><code>167544
-     Command being timed: &quot;./stockdb out.stock-2&quot;
-     User time (seconds): 5.11
-     System time (seconds): 0.27
-     Percent of CPU this job got: 99%
-     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.39
-     Average shared text size (kbytes): 0
-     Average unshared data size (kbytes): 0
-     Average stack size (kbytes): 0
-     Average total size (kbytes): 0
-     Maximum resident set size (kbytes): 783664
-     Average resident set size (kbytes): 0
-     Major (requiring I/O) page faults: 0
-     Minor (reclaiming a frame) page faults: 233956
-     Voluntary context switches: 1
-     Involuntary context switches: 542
-     Swaps: 0
-     File system inputs: 0
-     File system outputs: 0
-     Socket messages sent: 0
-     Socket messages received: 0
-     Signals delivered: 0
-     Page size (bytes): 4096
-     Exit status: 0</code></pre>
-<p>Итого ускорение посчти в 3 раза по скорости, а потребление мапяти уменьшилось в 20 раз.</p>]]></summary>
 </entry>
 
 </feed>
