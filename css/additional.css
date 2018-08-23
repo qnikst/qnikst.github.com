@@ -29,6 +29,9 @@ body {
   max-width: 800px;
   padding:  5px;
 }
+#content p {
+  font-size: 1.8em;
+}
 
 code.sourceCode {
   border: solid black;
@@ -91,6 +94,7 @@ dl.dl-horizontal dd{
   text-overflow: ellipsis;
   overflow: hidden;
 }
+
 dl.dl-horizontal dt{
   flex: 0 0 30%;
   text-overflow: ellipsis;
