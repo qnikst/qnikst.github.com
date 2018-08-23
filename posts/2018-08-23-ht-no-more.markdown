@@ -6,7 +6,7 @@ tags: Haskell, C, RTS, benchmarks
 ----
 
 In this blog post, I'd like to tell one story that had happened with
-one Haskell application. Then explain how we can assign start threaded
+one Haskell application. Then explain how we can start threaded
 RTS, so it is aware of the CPU layout on your system. If you want to
 skip the story, you can proceed to the solution directly.
 
