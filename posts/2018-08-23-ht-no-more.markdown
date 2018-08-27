@@ -10,6 +10,8 @@ one Haskell application. Then explain how we can start threaded
 RTS, so it is aware of the CPU layout on your system. If you want to
 skip the story, you can proceed to the solution directly.
 
+Some updates to this post can be found in the [next one](./2018-08-27-ht-no-more2.html).
+
 Recently I've written a small Haskell application that performs some
 cryptography routines, query management, and communication with Redis.
 We wanted to test the capabilities of the application and RPS that
