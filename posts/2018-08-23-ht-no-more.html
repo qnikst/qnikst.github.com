@@ -33,6 +33,7 @@
 </div>
 
 <p>In this blog post, I’d like to tell one story that had happened with one Haskell application. Then explain how we can start threaded RTS, so it is aware of the CPU layout on your system. If you want to skip the story, you can proceed to the solution directly.</p>
+<p>Some updates to this post can be found in the <a href="./2018-08-27-ht-no-more2.html">next one</a>.</p>
 <p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load on the site and build <a href="https://overload.yandex.net/1">fantastic reports</a> (may require GitHub authorization).</p>
 <p>Results were quite interesting. At first, everything went well, and the application was able to process about <code>1k</code> requests per second, and that was enough for the expected load. However, when Yandex Tank gave a pressure about <code>2k</code> RPS, the situation became worse. Application stopped being responsive. The application was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance, and then a period of unresponsiveness.</p>
 <img src="../images/posts/ht-no-more/1.plot.jpg" alt="Spikes on the tank terminal report" />

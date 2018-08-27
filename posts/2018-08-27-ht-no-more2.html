@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Marrying Haskell and Hyper-Threading (Post Scriptum)</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>August 22, 2018</strong>
+    </div>
+    <h1>Marrying Haskell and Hyper-Threading (Post Scriptum)</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/Haskell.html">Haskell</a>, <a href="../tags/C.html">C</a>, <a href="../tags/RTS.html">RTS</a>, <a href="../tags/benchmarks.html">benchmarks</a></div>
+</div>
+
+<p>After writing of the previous blog <a href="../posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. All feedback is in arbitrary order.</p>
+<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flags, as was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in a blog post, my approach will not work with this option correctly (for some reason I called that <code>-xm</code>, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to the cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of the cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
+<p>The entire thread is very entertaining and if you are interested in the topic then it’s likely that you check all comments as well.</p>
+<p>Secondly, this was a question if my reasoning was incorrect and it’s enough to leave one thread off and have better performance. We used this approach in some projects, however on the particular one results of the <code>N-1</code> threads were very depressing:</p>
+<pre><code>        Cumulative quantiles per tag (N7)
+        99%       98%     95%    90%    85%      80%   75%    50%
+Overall 4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1105ms
+get     4600ms   4390ms   3980ms 3550ms 3410ms 3290ms 3210ms 1145ms
+put     4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1100ms</code></pre>
+<pre><code>        Cumulative quantiles per tag (N4)
+        99%       98%     95%      90%    85%     80%   75%    50%
+Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
+get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
+put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
+<p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
+<p>The third, <span class="citation" data-cites="TerrorJack">[@TerrorJack]</span><a href="https://github.com/TerrorJack">terrorjack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2018-08-27-ht-no-more2.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2018-08-27-ht-no-more2.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2018-08-27-ht-no-more2.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

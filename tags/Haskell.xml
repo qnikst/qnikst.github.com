@@ -10,12 +10,36 @@
     </author>
     <updated>2018-08-22T00:00:00Z</updated>
     <entry>
+    <title>Marrying Haskell and Hyper-Threading (Post Scriptum)</title>
+    <link href="https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html" />
+    <id>https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html</id>
+    <published>2018-08-22T00:00:00Z</published>
+    <updated>2018-08-22T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>After writing of the previous blog <a href="/posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. All feedback is in arbitrary order.</p>
+<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flags, as was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in a blog post, my approach will not work with this option correctly (for some reason I called that <code>-xm</code>, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to the cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of the cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
+<p>The entire thread is very entertaining and if you are interested in the topic then it’s likely that you check all comments as well.</p>
+<p>Secondly, this was a question if my reasoning was incorrect and it’s enough to leave one thread off and have better performance. We used this approach in some projects, however on the particular one results of the <code>N-1</code> threads were very depressing:</p>
+<pre><code>        Cumulative quantiles per tag (N7)
+        99%       98%     95%    90%    85%      80%   75%    50%
+Overall 4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1105ms
+get     4600ms   4390ms   3980ms 3550ms 3410ms 3290ms 3210ms 1145ms
+put     4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1100ms</code></pre>
+<pre><code>        Cumulative quantiles per tag (N4)
+        99%       98%     95%      90%    85%     80%   75%    50%
+Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
+get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
+put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
+<p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
+<p>The third, <span class="citation" data-cites="TerrorJack">[@TerrorJack]</span><a href="https://github.com/TerrorJack">terrorjack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
+</entry>
+<entry>
     <title>Marrying Haskell and Hyper-Threading</title>
     <link href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html" />
     <id>https://qnikst.github.io/posts/2018-08-23-ht-no-more.html</id>
     <published>2018-08-22T00:00:00Z</published>
     <updated>2018-08-22T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>In this blog post, I’d like to tell one story that had happened with one Haskell application. Then explain how we can start threaded RTS, so it is aware of the CPU layout on your system. If you want to skip the story, you can proceed to the solution directly.</p>
+<p>Some updates to this post can be found in the <a href="./2018-08-27-ht-no-more2.html">next one</a>.</p>
 <p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load on the site and build <a href="https://overload.yandex.net/1">fantastic reports</a> (may require GitHub authorization).</p>
 <p>Results were quite interesting. At first, everything went well, and the application was able to process about <code>1k</code> requests per second, and that was enough for the expected load. However, when Yandex Tank gave a pressure about <code>2k</code> RPS, the situation became worse. Application stopped being responsive. The application was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance, and then a period of unresponsiveness.</p>
 <img src="../images/posts/ht-no-more/1.plot.jpg" alt="Spikes on the tank terminal report" />
