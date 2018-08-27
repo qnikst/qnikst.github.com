@@ -30,7 +30,7 @@ Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
 get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
 put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
-<p>The third, <span class="citation" data-cites="TerrorJack">[@TerrorJack]</span><a href="https://github.com/TerrorJack">terrorjack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
+<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
 </entry>
 <entry>
     <title>Marrying Haskell and Hyper-Threading</title>

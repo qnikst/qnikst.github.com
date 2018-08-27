@@ -8,8 +8,113 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2015-04-30T00:00:00Z</updated>
+    <updated>2018-10-29T00:00:00Z</updated>
     <entry>
+    <title>Metric a Haskell application</title>
+    <link href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html" />
+    <id>https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html</id>
+    <published>2018-10-29T00:00:00Z</published>
+    <updated>2018-10-29T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In one of my <a href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html">recept posts</a>, I’ve mentioned gathering metrics for my Haskell application. Some people asked me about my setup, so I will try to describe how I configured and structured my application.</p>
+<p>I will try to split the description in a series of posts, in this one I’ll describe the general setup. After reading this post, you’ll be able to set up the metrics system for your Haskell application (or suggest me how to do that better). At this point, you’ll be able to get some information about your application and set up alerts on that. In the following posts, we will try to go deeper inside each metrics and check if metrics are helpful if there are any missing pieces there, and how that can be improved.</p>
+<h2 id="haskell-and-metrics.">Haskell and metrics.</h2>
+<p>Let’s spend a bit of time on defining the problem that we want to solve and describing solution area. The purpose of the metrics system is to tell if your application is alive and behaves expected. It should not give you more than statistical information about your application. We can split information into two categories:</p>
+<ol type="1">
+<li>general information: memory use, runtime system statistics.</li>
+<li>application specific information.</li>
+</ol>
+<p>The border between those two is quite fuzzy, for example, you may have general web-server statistics, like the number of processed requests or time to reply that is application specific, but applies to all web-servers. So I’d add them to the first group. But the main trap here is not to try to solve an incorrect problem; metrics may not work as an exact information source. Nor be a mechanism for tracing or log server, you need other tools for that purpose.</p>
+<p>In the Haskell ecosystem, there are few packages providing metrics support. One that is the best known and has a long history is <a href="https://hackage.haskell.org/package/ekg-core">EKG</a> this package offers few metrics types and a large variety of the systems that you can integrate with. While EKG is generally a good generic solution, I found that few companies are trying to move from that package. (I was not able to gather concrete reports why that was a problem, so will try to avoid answering that question).</p>
+<p>So we can take a specific solution that works great with a single system. In Tweag we used to use <a href="https://prometheus.io/">Prometheus</a>. With Prometheus, you can dump your metrics to the well-maintained package, that other people usually familiar with. Hackage offers excellent library for working with Prometheus: <a href="https://hackage.haskell.org/package/prometheus-client">prometheus-client</a>. Even if you like EKG more or have projects that are using it, you can use the adapter for EKG <a href="https://hackage.haskell.org/package/ekg-prometheus-adapter">ekg-prometheus-adapter</a>. I have not used that package myself, but I hope that it just works, or at least can be easily fixed.</p>
+<h2 id="setup.">Setup.</h2>
+<p>For the application setup, I’m going to use Docker compose. With this approach, we will be able to cover all details, and this approach may be adapted to the more complex system like kubernetes.</p>
+<p>Let’s start writing the docker compose files. I omitted all irrelevant links and configuration.</p>
+<pre class="docker"><code>version: &quot;3&quot;
+services:
+
+  haskell-app:
+    image: &lt;your-image&gt;
+    ports:
+    - &#39;8080:8080&#39;
+
+  node_exporter:
+    image: prom/node-exporter
+    expose:
+      - 9100
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+    - ./config/prometheus:/etc/prometheus
+    - prometheus_data:/prometheus
+    command:
+    - &#39;--config.file=/etc/prometheus/prometheus.yml&#39;
+    ports:
+    - &#39;9090:9090&#39;
+    links:
+    - haskell-app
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=XxXchangemeXxX
+    depends_on:
+      - prometheus
+    ports:
+      - &quot;3000:3000&quot;
+    links:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    user: &quot;104&quot;    
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}</code></pre>
+<p>Prometheus config:</p>
+<pre class="docker"><code>global:
+    scrape_interval: 5s
+    external_labels:
+      monitor: &#39;my-monitor&#39;
+scrape_configs:
+  - job_name: &#39;myapp&#39;
+    static_configs:
+      - targets: 
+        - haskell-app:8080</code></pre>
+<p>It’s possible to configure graphana declaratively as well, but as I don’t have the final solution that I can use out of the box on any system, I tend to setup Grafana manually. Just log into the instance and go through the onboarding process.</p>
+<p>Now we are ready to set up our Haskell application.</p>
+<p>Setup of the Haskell application may be pretty simple. To dump GHC statistics, you can use <a href="https://hackage.haskell.org/package/prometheus-metrics-ghc">prometheus-metrics-ghc</a>. To make the full use of this package you need to enable the gathering of the runtime statistics:</p>
+<pre class="cabal"><code>  build-depends: prometheus-metrics-ghc
+  ghc-options: &quot;-with-rtsopts=-T&quot;</code></pre>
+<p>Then add to your main:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">import</span>  <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="kw">import</span>  <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">main  ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">   register ghcMetrics</a></code></pre></div>
+<p>At this point, you gather RTS stats, but you don’t export you metrics yet. To export your data, you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span> </a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">   register ghcMetrics</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">   Warp.run <span class="dv">9090</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="fu">$</span>   prometheus def</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">              { prometheusInstrumentPrometheus  <span class="fu">=</span><span class="dt">False</span> }</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">         <span class="fu">$</span> yourApplication</a></code></pre></div>
+<p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point, you’ll have some basic information about endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
+<p>We will cover interesting stats in the next posts, but for now, you may be interested in the following data:</p>
+<ul>
+<li><code>ghc_allocated_bytes_total</code> - to build <code>rate</code> plot based on that</li>
+<li><code>ghc_num_gcs</code> - to build rate of number of GCs</li>
+<li><code>ghc_mutator_wall_seconds_total/(ghc_mutator_wall_seconds_total+ghc_gc_wall_seconds_total)</code> - to understand the proportion of time spent in GC</li>
+<li>information about memory usage split by the type of memory</li>
+<li>and a number of metrics from <code>ghc_gcdetails</code> category. This data may not be very useful as it shows the data since last GC, so you may report the same GC multiple times if no GC happened during the report period, or miss some reports if more that one GC happened.</li>
+</ul>
+<p>I hope that this information will be useful and will try to dig into concrete metrics examples in the following posts.</p>]]></summary>
+</entry>
+<entry>
     <title>Logging all exceptions in ghci</title>
     <link href="https://qnikst.github.io/posts/2015-04-30-grabbing-exceptions.html" />
     <id>https://qnikst.github.io/posts/2015-04-30-grabbing-exceptions.html</id>
@@ -1268,49 +1373,6 @@ And <code>4</code> with distance 5 will be moved to the result list (dashed). <b
 <p>To hide a big list of imported modules and have a nice look’n’feel you can change you ghci prompt.</p>
 <pre><code>:set prompt &quot;λ&gt; &quot;</code></pre>
 <p>To see list of imported modules you can type: <code>:show imports</code>.</p>]]></summary>
-</entry>
-<entry>
-    <title>Adding license notes to blog pages.</title>
-    <link href="https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html" />
-    <id>https://qnikst.github.io/posts/2013-08-23-licenses-notes-in-hakyll.html</id>
-    <published>2013-08-26T00:00:00Z</published>
-    <updated>2013-08-26T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>I’ve finally manged to create configurable license notes for each article:</p>
-<p>To do it you need to add additional context:</p>
-<pre><code>licenseCtx :: Context a
-licenseCtx = field &quot;license&quot; $ \item -&gt; do
-    metadata &lt;- getMetadata $ itemIdentifier item
-    return $ case M.lookup &quot;license&quot; metadata of
-                    Nothing -&gt; &quot;&quot;
-                    Just m -&gt; case M.lookup (trim m) licenses of
-                                      Nothing -&gt; &quot;unknown license&quot;
-                                      Just (u,i) -&gt; &quot;&lt;a href=\&quot;&quot;++u++&quot;\&quot;&gt;&lt;img src=\&quot;&quot;++i++&quot;\&quot;/&gt;&lt;/a&gt;&quot;
-  where
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
-
-licenses = m.fromlist 
-    [ (&quot;by&quot;,       ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-sa&quot;,    ( &quot;http://creativecommons.org/licenses/by-sa/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-sa/3.0/88x31.png&quot;))
-    , (&quot;by-nd&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-nc&quot;,    ( &quot;http://creativecommons.org/licenses/by/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by/3.0/88x31.png&quot;))
-    , (&quot;by-nc-sa&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-sa/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-nc-sa/3.0/88x31.png&quot;))
-    , (&quot;by-nc-nd&quot;, ( &quot;http://creativecommons.org/licenses/by-nc-nd/3.0&quot;
-                   , &quot;http://i.creativecommons.org/l/by-nc-nd/3.0/88x31.png&quot;))]</code></pre>
-<p>Currently only cc-* licenses are added, and but it will be possible to add another.</p>
-<p>To apply license to template just add <code>$license$</code> and add context:</p>
-<pre><code>  loadAndApplyTemplate &quot;templates/post.html&quot; (licenseCtx &lt;&gt; postCtx tags)</code></pre>
-<p>For my blog I’m trying to use:</p>
-<ul>
-<li>by - for announces and physics</li>
-<li>by-nc-sa - for documentation like posts</li>
-<li>by-nc-nd - for personal posts</li>
-</ul>]]></summary>
 </entry>
 
 </feed>

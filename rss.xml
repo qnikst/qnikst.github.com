@@ -8,8 +8,113 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2018-08-22T00:00:00Z</updated>
+    <updated>2018-10-29T00:00:00Z</updated>
     <entry>
+    <title>Metric a Haskell application</title>
+    <link href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html" />
+    <id>https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html</id>
+    <published>2018-10-29T00:00:00Z</published>
+    <updated>2018-10-29T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In one of my <a href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html">recept posts</a>, I’ve mentioned gathering metrics for my Haskell application. Some people asked me about my setup, so I will try to describe how I configured and structured my application.</p>
+<p>I will try to split the description in a series of posts, in this one I’ll describe the general setup. After reading this post, you’ll be able to set up the metrics system for your Haskell application (or suggest me how to do that better). At this point, you’ll be able to get some information about your application and set up alerts on that. In the following posts, we will try to go deeper inside each metrics and check if metrics are helpful if there are any missing pieces there, and how that can be improved.</p>
+<h2 id="haskell-and-metrics.">Haskell and metrics.</h2>
+<p>Let’s spend a bit of time on defining the problem that we want to solve and describing solution area. The purpose of the metrics system is to tell if your application is alive and behaves expected. It should not give you more than statistical information about your application. We can split information into two categories:</p>
+<ol type="1">
+<li>general information: memory use, runtime system statistics.</li>
+<li>application specific information.</li>
+</ol>
+<p>The border between those two is quite fuzzy, for example, you may have general web-server statistics, like the number of processed requests or time to reply that is application specific, but applies to all web-servers. So I’d add them to the first group. But the main trap here is not to try to solve an incorrect problem; metrics may not work as an exact information source. Nor be a mechanism for tracing or log server, you need other tools for that purpose.</p>
+<p>In the Haskell ecosystem, there are few packages providing metrics support. One that is the best known and has a long history is <a href="https://hackage.haskell.org/package/ekg-core">EKG</a> this package offers few metrics types and a large variety of the systems that you can integrate with. While EKG is generally a good generic solution, I found that few companies are trying to move from that package. (I was not able to gather concrete reports why that was a problem, so will try to avoid answering that question).</p>
+<p>So we can take a specific solution that works great with a single system. In Tweag we used to use <a href="https://prometheus.io/">Prometheus</a>. With Prometheus, you can dump your metrics to the well-maintained package, that other people usually familiar with. Hackage offers excellent library for working with Prometheus: <a href="https://hackage.haskell.org/package/prometheus-client">prometheus-client</a>. Even if you like EKG more or have projects that are using it, you can use the adapter for EKG <a href="https://hackage.haskell.org/package/ekg-prometheus-adapter">ekg-prometheus-adapter</a>. I have not used that package myself, but I hope that it just works, or at least can be easily fixed.</p>
+<h2 id="setup.">Setup.</h2>
+<p>For the application setup, I’m going to use Docker compose. With this approach, we will be able to cover all details, and this approach may be adapted to the more complex system like kubernetes.</p>
+<p>Let’s start writing the docker compose files. I omitted all irrelevant links and configuration.</p>
+<pre class="docker"><code>version: &quot;3&quot;
+services:
+
+  haskell-app:
+    image: &lt;your-image&gt;
+    ports:
+    - &#39;8080:8080&#39;
+
+  node_exporter:
+    image: prom/node-exporter
+    expose:
+      - 9100
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+    - ./config/prometheus:/etc/prometheus
+    - prometheus_data:/prometheus
+    command:
+    - &#39;--config.file=/etc/prometheus/prometheus.yml&#39;
+    ports:
+    - &#39;9090:9090&#39;
+    links:
+    - haskell-app
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=XxXchangemeXxX
+    depends_on:
+      - prometheus
+    ports:
+      - &quot;3000:3000&quot;
+    links:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    user: &quot;104&quot;    
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}</code></pre>
+<p>Prometheus config:</p>
+<pre class="docker"><code>global:
+    scrape_interval: 5s
+    external_labels:
+      monitor: &#39;my-monitor&#39;
+scrape_configs:
+  - job_name: &#39;myapp&#39;
+    static_configs:
+      - targets: 
+        - haskell-app:8080</code></pre>
+<p>It’s possible to configure graphana declaratively as well, but as I don’t have the final solution that I can use out of the box on any system, I tend to setup Grafana manually. Just log into the instance and go through the onboarding process.</p>
+<p>Now we are ready to set up our Haskell application.</p>
+<p>Setup of the Haskell application may be pretty simple. To dump GHC statistics, you can use <a href="https://hackage.haskell.org/package/prometheus-metrics-ghc">prometheus-metrics-ghc</a>. To make the full use of this package you need to enable the gathering of the runtime statistics:</p>
+<pre class="cabal"><code>  build-depends: prometheus-metrics-ghc
+  ghc-options: &quot;-with-rtsopts=-T&quot;</code></pre>
+<p>Then add to your main:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">import</span>  <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="kw">import</span>  <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">main  ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">   register ghcMetrics</a></code></pre></div>
+<p>At this point, you gather RTS stats, but you don’t export you metrics yet. To export your data, you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span> </a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">   register ghcMetrics</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">   Warp.run <span class="dv">9090</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="fu">$</span>   prometheus def</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">              { prometheusInstrumentPrometheus  <span class="fu">=</span><span class="dt">False</span> }</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">         <span class="fu">$</span> yourApplication</a></code></pre></div>
+<p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point, you’ll have some basic information about endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
+<p>We will cover interesting stats in the next posts, but for now, you may be interested in the following data:</p>
+<ul>
+<li><code>ghc_allocated_bytes_total</code> - to build <code>rate</code> plot based on that</li>
+<li><code>ghc_num_gcs</code> - to build rate of number of GCs</li>
+<li><code>ghc_mutator_wall_seconds_total/(ghc_mutator_wall_seconds_total+ghc_gc_wall_seconds_total)</code> - to understand the proportion of time spent in GC</li>
+<li>information about memory usage split by the type of memory</li>
+<li>and a number of metrics from <code>ghc_gcdetails</code> category. This data may not be very useful as it shows the data since last GC, so you may report the same GC multiple times if no GC happened during the report period, or miss some reports if more that one GC happened.</li>
+</ul>
+<p>I hope that this information will be useful and will try to dig into concrete metrics examples in the following posts.</p>]]></summary>
+</entry>
+<entry>
     <title>Marrying Haskell and Hyper-Threading (Post Scriptum)</title>
     <link href="https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html" />
     <id>https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html</id>
@@ -30,7 +135,7 @@ Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
 get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
 put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
-<p>The third, <span class="citation" data-cites="TerrorJack">[@TerrorJack]</span><a href="https://github.com/TerrorJack">terrorjack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
+<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
 </entry>
 <entry>
     <title>Marrying Haskell and Hyper-Threading</title>
@@ -885,309 +990,6 @@ but that check was accidentally turned off for 7.8.3, leading to a bogus type er
 <a class="sourceLine" id="cb6-64" data-line-number="64">      o <span class="fu">=</span> natVal k</a>
 <a class="sourceLine" id="cb6-65" data-line-number="65"><span class="ot">      plus2 ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (n<span class="fu">+</span><span class="dv">2</span>)</a>
 <a class="sourceLine" id="cb6-66" data-line-number="66">      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></a></code></pre></div>]]></summary>
-</entry>
-<entry>
-    <title>Formal Power series in haskell</title>
-    <link href="https://qnikst.github.io/posts/2014-08-11-series.markdown.html" />
-    <id>https://qnikst.github.io/posts/2014-08-11-series.markdown.html</id>
-    <published>2014-08-12T00:00:00Z</published>
-    <updated>2014-08-12T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Code and math in this post is done with the great help of Korolyov V. This post is written as a literate haskell file so it’s possible to copy it in a text file and run it in ghci. All sources can be found in <a href="https://github.com/qnikst/haskell-fun/tree/master/series">haskell-fun</a> repository.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE BangPatterns #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Control.Monad.Fix</span></a></code></pre></div>
-<p>We want to implement a with formal series expansion using haskell. Formal series can be expressed as follows:</p>
-<p><span class="math display">\[ f(x) = \sum\limits_{i=0}^\infty a_ix^i \]</span></p>
-<p>And also address a Taylor series as an example. For a function <span class="math inline">\(f\)</span> we can expand it an any given point <span class="math inline">\(x_0\)</span>, then:</p>
-<p><span class="math display">\[ f(x) = f(x_0) + \sum_{k=1}\frac{f^{(k)}}{k!}(x-x_0)^k \]</span></p>
-<p>Here we wanto to introduce a data structure that is capable for representation of such series. For such datastructure we have 2 main candidates:</p>
-<ol type="1">
-<li><p>List - a datastructure with two constructors that represent a possibly infinite single-linked list.</p></li>
-<li><p>Stream - a datastructure with one constructor that represent an infinite stream of values.</p></li>
-</ol>
-<p>We may want to select a list because this way we may represent a finite series (as some functions have all coefficients equal to <span class="math inline">\(0\)</span> starting at some point, or if function diverge than all element will be represented as machine zero starting at some point). But we decide to use ‘Stream’ data type in order not to have a branching in functions.</p>
-<p>It’s possible to use an existing library for <code>Stream</code> – <a href="https://hackage.haskell.org/package/Stream">Stream package</a>. However here we decide to implement our own data type for educational purposes. However if this module will grow to a real library the implementation likely will be changed to the one from the common package.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> <span class="fu">!</span>a (<span class="dt">S</span> a)</a></code></pre></div>
-<p>## Instances</p>
-<p>Having a data structure we may define a set of instances.</p>
-<p>### Functor</p>
-<p>Series is a Functor:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">S</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">   fmap f (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (f a) (fmap f x)</a></code></pre></div>
-<p>An interesting note that <span class="math inline">\(fmap ~ (f :: a \to b)\)</span> moves a function that is represented by a serie from <span class="math inline">\(a \to a\)</span> to <span class="math inline">\(b \to b\)</span> that may not be a desired behaviour when <span class="math inline">\(a \neq b\)</span>.</p>
-<p>### Num</p>
-<p>In order to use series in calculations we need to define a <code>Num</code> instance. But befor we will introduce few helpers:</p>
-<p>A product of scalar and series:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">(^*) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">(<span class="fu">^*</span>) a <span class="fu">=</span> fmap (<span class="fu">*</span>a)</a></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">(*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2">(<span class="fu">*^</span>) <span class="fu">=</span> flip (<span class="fu">^*</span>)</a></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">(/^) ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb6-2" data-line-number="2">(<span class="fu">/^</span>) s a <span class="fu">=</span> fmap (<span class="fu">/</span> a) s</a></code></pre></div>
-<p>And pointwise product for future (see Library section for szipWith implementation):</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">(^*^) ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">(<span class="fu">^*^</span>) <span class="fu">=</span> szipWith (<span class="fu">*</span>)</a></code></pre></div>
-<p>Now we may give a ‘Num’ instance:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">Num</span> (<span class="dt">S</span> a) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">  (<span class="dt">S</span> a x) <span class="fu">+</span> (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (a <span class="fu">+</span> b) (x <span class="fu">+</span> y)</a>
-<a class="sourceLine" id="cb8-3" data-line-number="3">  abs s <span class="fu">=</span> fmap abs s</a>
-<a class="sourceLine" id="cb8-4" data-line-number="4">  negate s <span class="fu">=</span> fmap negate s</a>
-<a class="sourceLine" id="cb8-5" data-line-number="5">  signum s <span class="fu">=</span> fmap signum s</a>
-<a class="sourceLine" id="cb8-6" data-line-number="6">  (<span class="dt">S</span> a x) <span class="fu">*</span> (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (a <span class="fu">*</span> b) (a <span class="fu">^*</span> y <span class="fu">+</span>  b <span class="fu">^*</span> x <span class="fu">+</span> <span class="dt">S</span> <span class="dv">0</span> (x <span class="fu">*</span> y))</a>
-<a class="sourceLine" id="cb8-7" data-line-number="7">  fromInteger x <span class="fu">=</span> <span class="dt">S</span> (fromInteger x) <span class="dv">0</span></a></code></pre></div>
-<p>Here are 2 tricky parts, first one is implementation of <code>*</code> second one is implementation of <code>fromInteger</code>. For <code>*</code> we need to think of an expansion like of polymonial, i.e. <span class="math inline">\(S a b = a + b \cdot p\)</span>. Then we can write the following:</p>
-<p><span class="math display">\[
-\begin{aligned}
- (S~a~x) \cdot (S~b~y) &amp;= (a + x p) \cdot (b + y p) = \\
-  &amp;= (a b + a y p + b x p + x y p^2) = \\
-  &amp;= S~(a b)~(a y + b x + x y p)     = \\
-  &amp;= S~(a b)~(fmap~(*a)~y + fmap~(*b)~x + S~0~(x * y))
-\end{aligned}
-\]</span></p>
-<p>There are 2 possible implementations for fromInteger:</p>
-<ol type="1">
-<li><p><code>fromInteger x = S (fromInteger x) (fromInteger x)</code></p></li>
-<li><p><code>fromInteger x = S (fromInteger x) 0</code></p></li>
-</ol>
-<p>For <code>fromInteger</code> we need to select an implemention such that <span class="math inline">\(fromInteger 1 * a == a\)</span> <span class="math inline">\(fromInteger 0 + a = a\)</span> <span class="math inline">\(fromInteger 0 * a == 0\)</span> for any <span class="math inline">\(a\)</span>. So then we see that we can select only the second one, otherwise properties for <span class="math inline">\(1\)</span> will not hold.</p>
-<p>### Fractional</p>
-<p>Now we can add a simple Fractional instance.</p>
-<p>We say that <span class="math inline">\((S\,b\,y) = \cfrac{1}{(S\, a\, x)}\)</span> iff <span class="math inline">\((S\, b\, y)\)</span> is the solution of equation <span class="math inline">\((S\,b\,y)\,\cdot\,(S\,a\,x) = 1\)</span>. So the following intance is the result of this system of equations:</p>
-<p><span class="math display">\[
-\begin{aligned}
-  b_0 a_0 &amp; = 1,\\
-  b_0 a_1 + b_1 a_0 &amp; = 0,\\
-  b_0 a_2 + b_1 a_1 + a_2 a_0 &amp; = 0,\\
-  \ldots
-\end{aligned}
-\]</span></p>
-<p>These equations can be resursively solved by moving the last term from left-side convolutions to the right side, and dividing by <span class="math inline">\((-a_0)\)</span>. Moreover the rest of terms on the left are convolutions too, then as now series <span class="math inline">\(a\)</span> convolve with the tail of series <span class="math inline">\(b\)</span>. That fact may be used for compact of definition of recursive equations:</p>
-<p><span class="math display">\[
-\begin{aligned}
-  b_0 &amp; = \cfrac{1}{a_0},\\
-  b_i &amp; = \cfrac{-1}{a_0} \sum\limits_{j = 0}^{i - 1} b_{j} a_{j + 1}.
-\end{aligned}
-\]</span></p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">Fractional</span> (<span class="dt">S</span> a) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">  recip (<span class="dt">S</span> a x) <span class="fu">=</span> fix <span class="fu">$</span> fmap (<span class="fu">/</span> (<span class="fu">-</span>a)) <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">.</span> (<span class="fu">*</span> x)</a>
-<a class="sourceLine" id="cb9-3" data-line-number="3">  fromRational x <span class="fu">=</span> <span class="dt">S</span> (fromRational x) <span class="dv">0</span></a></code></pre></div>
-<p>Formulas for composition and inversion. Only series with zeroed head can be composed or reversed. Composition is handled according to Horner’s method:</p>
-<p><span class="math display">\[
-\begin{aligned}
-  f(x) &amp;= \sum\limits_{i=0}^{\infty} a_i x^i =
-           a_0 + x \sum\limits_{i=0}^{\infty} a_{i+1} x^i,\\
-  g(x) &amp;= \sum\limits_{j=1}^{\infty} b_j x^j =
-           x \sum\limits_{j=0}^{\infty} b_{j+1} x^j, \\
-  f(g(x)) &amp;= a_0 + g(x) \sum\limits_{i=0}^{\infty} a_{i+1} g(x)^i = \\
-          &amp;= a_0 + x \left(\sum\limits_{j=0}^{\infty} b_{j+1} x^j\right)
-              \left(\sum\limits_{i=0}^{\infty} a_{i+1} g(x)^i\right).
-\end{aligned}
-\]</span></p>
-<p>The product of two series can be treated recursively, so:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">compose ::</span> (<span class="dt">Num</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">compose (<span class="dt">S</span> a x) (<span class="dt">S</span> <span class="dv">0</span> y) <span class="fu">=</span> <span class="dt">S</span> a (y <span class="fu">*</span> compose x (<span class="dt">S</span> <span class="dv">0</span> y))</a>
-<a class="sourceLine" id="cb10-3" data-line-number="3">compose _ _ <span class="fu">=</span> error <span class="st">&quot;compose: Non-zero head&quot;</span></a></code></pre></div>
-<p>Inversion can be done by the following formula:</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-  f(g(x)) &amp; = x, \\
-  a_1 g(x) + a_2 g^2(x) + \ldots &amp; = x, \\
-  g(x) (a_1 + a_2 g(x) + \ldots) &amp; = x, \\
-  b_1 x + b_2 x^2 + \ldots &amp; = \cfrac{x}{a_1 + a_2 g(x) + \ldots}, \\
-  b_1 + b_2 x + \ldots &amp; = \cfrac{1}{a_1 + a_2 g(x) + \ldots}.
-\end{eqnarray}
-\]</span></p>
-<p>The last equality gives the recursive rule:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">inverse ::</span> (<span class="dt">Fractional</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb11-2" data-line-number="2">inverse (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> <span class="kw">let</span> y <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> (recip <span class="fu">$</span> compose x y) <span class="kw">in</span> y</a>
-<a class="sourceLine" id="cb11-3" data-line-number="3">inverse _ <span class="fu">=</span> error <span class="st">&quot;inverse: Non-zero head&quot;</span></a></code></pre></div>
-<p>According to general theory elementary special functions cannot be evaluated on the non-zero headed series. We try to handle this situaton by breaking the series into two parts: the head and the zero-headed tail.</p>
-<p>The head is treated by classic functions, the tail is treated by composing argument series with classical series of elementary functions, and the combination is done by ad-hoc formulas. The first example of the ad-hoc formula:</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-  \sin \sum\limits_{i = 0}^{\infty} a_i x^i =
-       \sin (a_0 + \sum\limits_{i = 1}^{\infty} a_i x^i) =
-  \sin a_0 \cdot \cos \sum\limits_{i = 1}^{\infty} a_i x^i +
-       \cos a_0 \cdot \sin \sum\limits_{i = 1}^{\infty} a_i x^i.
-\end{eqnarray}
-\]</span></p>
-<p>Here <span class="math inline">\(\cos a_0\)</span> and <span class="math inline">\(\sin a_0\)</span> are sine and cosine of scalar. And the sine/cosine of zero-headed series can be calculated by composition of the argument with well-known series of sine/cosine.</p>
-<p>The second example. Let’s look at the <span class="math inline">\(\arcsin\)</span>, definitions:</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-  \sum\limits_{i = 0}^{\infty} b_i x^i = \arcsin \sum\limits_{i = 0}^{\infty} a_i x^i,\\
-  \sin\sum\limits_{i = 0}^{\infty} b_i x^i = \sum\limits_{i = 0}^{\infty} a_i x^i.
-\end{eqnarray}
-\]</span></p>
-<p>And solution for an ad-hoc formula is obtained as follows (using the fact <span class="math inline">\(b_0 = \arcsin a_0\)</span>):</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-  \sin\sum\limits_{i = 1}^{\infty} b_i x^i =
-    \sin\left(\sum\limits_{i = 0}^{\infty} b_i x^i - b_0 \right) = \\
-  = \cos b_0 \cdot \sin\sum\limits_{i = 0}^{\infty} b_i x^i -
-    \sin b_0 \cdot \cos\sum\limits_{i = 0}^{\infty} b_i x^i = \\
-  = \sqrt{1 - a_0^2} \cdot \sum\limits_{i = 0}^{\infty} a_i x^i -
-    a_0 \cdot \sqrt{1 - \left(\sum\limits_{i = 0}^{\infty} a_i x^i\right)^2}.
-\end{eqnarray}
-\]</span></p>
-<p>The full formula is done by adding <span class="math inline">\(b_0\)</span>:</p>
-<p><span class="math display">\[
-\begin{equation}
-  \sum\limits_{i = 0}^{\infty} b_i x^i =
-    \arcsin a_0 + \arcsin
-       \left[
-       \sqrt{1 - a_0^2} \cdot
-       \sum\limits_{i = 0}^{\infty} a_i x^i -
-       a_0 \cdot \sqrt{1 - \left(\sum\limits_{i = 0}^{\infty} a_i x^i\right)^2}
-       \right].
-\end{equation}
-\]</span></p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">instance</span> (<span class="dt">Floating</span> a, <span class="dt">Eq</span> a) <span class="ot">=&gt;</span> <span class="dt">Floating</span> (<span class="dt">S</span> a) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb12-2" data-line-number="2">  pi <span class="fu">=</span> <span class="dt">S</span> pi <span class="dv">0</span></a>
-<a class="sourceLine" id="cb12-3" data-line-number="3">  exp (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> texp <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb12-4" data-line-number="4">  exp (<span class="dt">S</span> a x) <span class="fu">=</span> exp a <span class="fu">^*</span> exp (<span class="dt">S</span> <span class="dv">0</span> x)</a>
-<a class="sourceLine" id="cb12-5" data-line-number="5">  log (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tlog <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb12-6" data-line-number="6">  log (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="dt">S</span> (log a) <span class="dv">0</span> <span class="fu">+</span> log (<span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> fmap (<span class="fu">/</span> a) x)</a>
-<a class="sourceLine" id="cb12-7" data-line-number="7">  sin (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tsin <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb12-8" data-line-number="8">  sin (<span class="dt">S</span> a x) <span class="fu">=</span> sin a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">+</span> cos a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)</a>
-<a class="sourceLine" id="cb12-9" data-line-number="9">  cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tcos <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb12-10" data-line-number="10">  cos (<span class="dt">S</span> a x) <span class="fu">=</span> cos a <span class="fu">^*</span> cos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">-</span> sin a <span class="fu">^*</span> sin (<span class="dt">S</span> <span class="dv">0</span> x)</a></code></pre></div>
-<p>An interesting example is sqrt, as usual we want to find <span class="math inline">\(b_n\)</span> such that:</p>
-<p><span class="math display">\[ \sum\limits_{n=0}^\infty b_nx^n \cdot \sum\limits_{n=0}^\infty b_nx^n = \sum\limits_{n=0}^n a_i x^n \]</span></p>
-<p>Rewrite the formula in a head-tail form, where <span class="math inline">\(y\)</span> – is a tail of b, and <span class="math inline">\(p\)</span> – is a tail of incomming series:</p>
-<p><span class="math display">\[ (b_0 + x * y) (b_ 0 + x * y) = a0 + x p\]</span></p>
-<p><span class="math display">\[ b_0^2 + 2 x y + x^2 y = a0 + x p\]</span></p>
-<p>by grouping elements with 0 and 1 power of <span class="math inline">\(x\)</span>, we find:</p>
-<p><span class="math display">\[
-\begin{equation}
-  \left\lbrace
-  \begin{matrix}
-     b_0 &amp; = \sqrt{a_0} \\
-     y &amp; = \frac{p-y^2}{2 \sqrt{a_0}}
-  \end{matrix}
-  \right.
-\end{equation}
-\]</span></p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">  sqrt (<span class="dt">S</span> <span class="dv">0</span> (<span class="dt">S</span> <span class="dv">0</span> x)) <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> (sqrt x)</a>
-<a class="sourceLine" id="cb13-2" data-line-number="2">  sqrt (<span class="dt">S</span> <span class="dv">0</span> _) <span class="fu">=</span> <span class="kw">let</span> sq <span class="fu">=</span> <span class="dt">S</span> (<span class="dv">0</span> <span class="fu">/</span> <span class="dv">0</span>) sq <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> sq</a>
-<a class="sourceLine" id="cb13-3" data-line-number="3">  sqrt (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="kw">let</span> sqa <span class="fu">=</span> sqrt a</a>
-<a class="sourceLine" id="cb13-4" data-line-number="4">                     sqx <span class="fu">=</span> (x <span class="fu">-</span> <span class="dt">S</span> <span class="dv">0</span> (sqx <span class="fu">*</span> sqx)) <span class="fu">/^</span> (<span class="dv">2</span> <span class="fu">*</span> sqrt a)</a>
-<a class="sourceLine" id="cb13-5" data-line-number="5">                 <span class="kw">in</span> <span class="dt">S</span> sqa sqx</a>
-<a class="sourceLine" id="cb13-6" data-line-number="6">  asin (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tasin <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb13-7" data-line-number="7">  asin (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="kw">let</span> <span class="dt">S</span> _ y <span class="fu">=</span> sqrt (<span class="dv">1</span> <span class="fu">-</span> a <span class="fu">*</span> a) <span class="fu">^*</span> (<span class="dt">S</span> a x) <span class="fu">-</span></a>
-<a class="sourceLine" id="cb13-8" data-line-number="8">                             a <span class="fu">^*</span> sqrt (<span class="dv">1</span> <span class="fu">-</span> (<span class="dt">S</span> a x) <span class="fu">*</span> (<span class="dt">S</span> a x))</a>
-<a class="sourceLine" id="cb13-9" data-line-number="9">                 <span class="kw">in</span> <span class="dt">S</span> (asin a) <span class="dv">0</span> <span class="fu">+</span> asin (<span class="dt">S</span> <span class="dv">0</span> y)</a>
-<a class="sourceLine" id="cb13-10" data-line-number="10">  acos (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tacos <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb13-11" data-line-number="11">  acos (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="kw">let</span> <span class="dt">S</span> _ y <span class="fu">=</span> a <span class="fu">^*</span> (<span class="dt">S</span> a x) <span class="fu">-</span></a>
-<a class="sourceLine" id="cb13-12" data-line-number="12">                             sqrt (<span class="dv">1</span> <span class="fu">-</span> a <span class="fu">*</span> a) <span class="fu">^*</span> sqrt (<span class="dv">1</span> <span class="fu">-</span> (<span class="dt">S</span> a x) <span class="fu">*</span> (<span class="dt">S</span> a x))</a>
-<a class="sourceLine" id="cb13-13" data-line-number="13">                 <span class="kw">in</span> <span class="dt">S</span> (acos a) <span class="dv">0</span> <span class="fu">+</span> acos (<span class="dt">S</span> <span class="dv">0</span> y)</a>
-<a class="sourceLine" id="cb13-14" data-line-number="14">  atan (<span class="dt">S</span> <span class="dv">0</span> x) <span class="fu">=</span> tatan <span class="ot">`compose`</span> <span class="dt">S</span> <span class="dv">0</span> x</a>
-<a class="sourceLine" id="cb13-15" data-line-number="15">  atan (<span class="dt">S</span> a x) <span class="fu">=</span> <span class="kw">let</span> <span class="dt">S</span> _ y <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> x <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">+</span> a <span class="fu">^*</span> (<span class="dt">S</span> a x))</a>
-<a class="sourceLine" id="cb13-16" data-line-number="16">                 <span class="kw">in</span> <span class="dt">S</span> (atan a) <span class="dv">0</span> <span class="fu">+</span> atan (<span class="dt">S</span> <span class="dv">0</span> y)</a>
-<a class="sourceLine" id="cb13-17" data-line-number="17">  sinh x <span class="fu">=</span> (exp x <span class="fu">-</span> exp (<span class="fu">-</span>x)) <span class="fu">/^</span> <span class="dv">2</span></a>
-<a class="sourceLine" id="cb13-18" data-line-number="18">  cosh x <span class="fu">=</span> (exp x <span class="fu">+</span> exp (<span class="fu">-</span>x)) <span class="fu">/^</span> <span class="dv">2</span></a>
-<a class="sourceLine" id="cb13-19" data-line-number="19">  asinh x <span class="fu">=</span> log (x <span class="fu">+</span> sqrt (x <span class="fu">*</span> x <span class="fu">+</span> <span class="dv">1</span>))</a>
-<a class="sourceLine" id="cb13-20" data-line-number="20">  acosh x <span class="fu">=</span> undefined <span class="co">-- log (x + sqrt (x * x - 1))</span></a>
-<a class="sourceLine" id="cb13-21" data-line-number="21">  atanh x <span class="fu">=</span> log ((<span class="dv">1</span> <span class="fu">+</span> x) <span class="fu">/</span> (<span class="dv">1</span> <span class="fu">-</span> x)) <span class="fu">/^</span> <span class="dv">2</span></a></code></pre></div>
-<p>## Library</p>
-<p>Now we can define mathematic functions on the power series. The derivative:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ot">diff ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb14-2" data-line-number="2">diff s <span class="fu">=</span> fmap fromInteger (fromList [<span class="dv">1</span><span class="fu">..</span>]) <span class="fu">^*^</span> stail s</a></code></pre></div>
-<p>And the integral:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="ot">integral ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb15-2" data-line-number="2">integral c  s <span class="fu">=</span> <span class="dt">S</span> c (s <span class="fu">^*^</span> fmap (recip<span class="fu">.</span>fromInteger) (fromList [<span class="dv">1</span><span class="fu">..</span>]) )</a></code></pre></div>
-<p>### Generic functions:</p>
-<p>In order to inspect a stream we can introduce a helper function:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">stake ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]</a>
-<a class="sourceLine" id="cb16-2" data-line-number="2">stake <span class="dv">0</span> _       <span class="fu">=</span> []</a>
-<a class="sourceLine" id="cb16-3" data-line-number="3">stake n (<span class="dt">S</span> a s) <span class="fu">=</span> a<span class="fu">:</span>stake (n<span class="fu">-</span><span class="dv">1</span>) s</a></code></pre></div>
-<p>Here all functions will be prefixed with <code>s</code> however if you write a module for working with streams you may prefer to not add it and ask user to import module qualified.</p>
-<p>Here is a function that builds a stream from the list (and the other way):</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="ot">fromList ::</span> [a] <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb17-2" data-line-number="2">fromList (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="dt">S</span> x (fromList xs) <span class="co">-- works only on infinite list</span></a>
-<a class="sourceLine" id="cb17-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb17-4" data-line-number="4"><span class="ot">fromListNum ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb17-5" data-line-number="5">fromListNum [] <span class="fu">=</span> <span class="dv">0</span></a>
-<a class="sourceLine" id="cb17-6" data-line-number="6">fromListNum (x<span class="fu">:</span>xs) <span class="fu">=</span> <span class="dt">S</span> x (fromListNum xs)</a>
-<a class="sourceLine" id="cb17-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb17-8" data-line-number="8"><span class="ot">toList ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> [a]</a>
-<a class="sourceLine" id="cb17-9" data-line-number="9">toList (<span class="dt">S</span> x xs) <span class="fu">=</span> x <span class="fu">:</span> toList xs</a></code></pre></div>
-<p>In order to write an usefull functions and series we will introduce a folding:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="ot">sscan ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb18-2" data-line-number="2">sscan f i (<span class="dt">S</span> x s) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb18-3" data-line-number="3"> <span class="kw">let</span> k <span class="fu">=</span> f i x</a>
-<a class="sourceLine" id="cb18-4" data-line-number="4"> <span class="kw">in</span> <span class="dt">S</span> k (sscan f k s)</a></code></pre></div>
-<p>Now lets introduce few functions using <code>sfold</code>. A function that will generate a sum of the Stream, i.e. having a stream <code>ssum &lt;a0:a1:a2:..&gt; = &lt;a0:a0+a1:a0+a1+a2:...&gt;</code></p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="ot">ssum ::</span> <span class="dt">Num</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb19-2" data-line-number="2">ssum <span class="fu">=</span> sscan (<span class="fu">+</span>) <span class="dv">0</span></a></code></pre></div>
-<p>Build a stream by iterating a function</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="ot">siterate ::</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb20-2" data-line-number="2">siterate f x <span class="fu">=</span> <span class="dt">S</span> x (siterate f (f x))</a></code></pre></div>
-<p>Build a serie of powers: <span class="math inline">\(&lt;x,x^2,x^3,...&gt;\)</span></p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">spower x <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> (siterate (<span class="fu">*</span>x) x)</a></code></pre></div>
-<p>Unfold</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">sunfold ::</span> (c <span class="ot">-&gt;</span> (c,a)) <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb22-2" data-line-number="2">sunfold f k <span class="fu">=</span> <span class="kw">let</span> (k&#39;,a) <span class="fu">=</span> f k <span class="kw">in</span> <span class="dt">S</span> a (sunfold f k&#39;)</a></code></pre></div>
-<p>Because we want to implement a teylor serie we want to have a serie of factorials</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="ot">sfac ::</span> (<span class="dt">Enum</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb23-2" data-line-number="2">sfac <span class="fu">=</span> sscan (<span class="fu">*</span>) <span class="dv">1</span> (fromList [<span class="dv">1</span><span class="fu">..</span>]) </a></code></pre></div>
-<p>And now 1/factorials</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="ot">sdfac ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb24-2" data-line-number="2">sdfac <span class="fu">=</span> fmap (\x <span class="ot">-&gt;</span> <span class="dv">1</span> <span class="fu">/</span> (fromIntegral x)) sfac</a></code></pre></div>
-<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="ot">szipWith ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> b <span class="ot">-&gt;</span> <span class="dt">S</span> c</a>
-<a class="sourceLine" id="cb25-2" data-line-number="2">szipWith f (<span class="dt">S</span> a x) (<span class="dt">S</span> b y) <span class="fu">=</span> <span class="dt">S</span> (f a b) (szipWith f x y)</a></code></pre></div>
-<p>This is an actual building of the Taylor serie:</p>
-<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"><span class="ot">build ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb26-2" data-line-number="2">build t s <span class="fu">=</span> ssum <span class="fu">$</span> spower t <span class="fu">^*^</span> s</a></code></pre></div>
-<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1"><span class="ot">shead ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a</a>
-<a class="sourceLine" id="cb27-2" data-line-number="2">shead (<span class="dt">S</span> a s) <span class="fu">=</span> a</a></code></pre></div>
-<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1"><span class="ot">stail ::</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb28-2" data-line-number="2">stail (<span class="dt">S</span> a s) <span class="fu">=</span> s</a></code></pre></div>
-<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1"><span class="ot">sdropWhile ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb29-2" data-line-number="2">sdropWhile p s<span class="fu">@</span>(<span class="dt">S</span> a xs)</a>
-<a class="sourceLine" id="cb29-3" data-line-number="3">  <span class="fu">|</span> p a <span class="fu">=</span> sdropWhile p xs</a>
-<a class="sourceLine" id="cb29-4" data-line-number="4">  <span class="fu">|</span> otherwise <span class="fu">=</span> s</a></code></pre></div>
-<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" data-line-number="1"><span class="ot">eps ::</span> (<span class="dt">Ord</span> a, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">S</span> a <span class="ot">-&gt;</span> a</a>
-<a class="sourceLine" id="cb30-2" data-line-number="2">eps e s <span class="fu">=</span> snd <span class="fu">.</span> shead <span class="fu">.</span> sdropWhile (\(x,y) <span class="ot">-&gt;</span> abs (x <span class="fu">-</span> y) <span class="fu">&gt;=</span> e)</a>
-<a class="sourceLine" id="cb30-3" data-line-number="3">        <span class="fu">$</span> szipWith (,) s (stail s)</a></code></pre></div>
-<p>## Taylor series for some analytic functions</p>
-<p>Here we defined examples for the functions with analytically known series at 0.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" data-line-number="1"><span class="ot">texp ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb31-2" data-line-number="2">texp <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> sdfac</a></code></pre></div>
-<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1"><span class="ot">tlog ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb32-2" data-line-number="2">tlog <span class="fu">=</span> <span class="kw">let</span> go n s <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) (go (n <span class="fu">+</span> <span class="dv">1</span>) (<span class="fu">-</span>s))</a>
-<a class="sourceLine" id="cb32-3" data-line-number="3">       <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</a></code></pre></div>
-<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" data-line-number="1"><span class="ot">tsin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb33-2" data-line-number="2">tsin <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">$</span> s</a>
-<a class="sourceLine" id="cb33-3" data-line-number="3">       <span class="kw">in</span> s <span class="fu">^*^</span> texp</a></code></pre></div>
-<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1"><span class="ot">tcos ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb34-2" data-line-number="2">tcos <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> (<span class="fu">-</span><span class="dv">1</span>) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> s</a>
-<a class="sourceLine" id="cb34-3" data-line-number="3">       <span class="kw">in</span> s <span class="fu">^*^</span> texp</a></code></pre></div>
-<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1"><span class="ot">tasin ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb35-2" data-line-number="2">tasin <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (<span class="dv">1</span> <span class="fu">/</span> n) (fmap (<span class="fu">*</span> (n <span class="fu">/</span> (n <span class="fu">+</span> <span class="dv">1</span>))) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>))</a>
-<a class="sourceLine" id="cb35-3" data-line-number="3">        <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</a></code></pre></div>
-<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1"><span class="ot">tacos ::</span> (<span class="dt">Eq</span> a, <span class="dt">Floating</span> a) <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb36-2" data-line-number="2">tacos <span class="fu">=</span> pi <span class="fu">/</span> <span class="dv">2</span> <span class="fu">-</span> tasin</a></code></pre></div>
-<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1"><span class="ot">tatan ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb37-2" data-line-number="2">tatan <span class="fu">=</span> <span class="kw">let</span> go s n <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (<span class="fu">-</span>s) (n <span class="fu">+</span> <span class="dv">2</span>)</a>
-<a class="sourceLine" id="cb37-3" data-line-number="3">        <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go <span class="dv">1</span> <span class="dv">1</span></a></code></pre></div>
-<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1"><span class="ot">tsinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb38-2" data-line-number="2">tsinh <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">$</span> s</a>
-<a class="sourceLine" id="cb38-3" data-line-number="3">        <span class="kw">in</span> s <span class="fu">^*^</span> texp</a></code></pre></div>
-<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1"><span class="ot">tcosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb39-2" data-line-number="2">tcosh <span class="fu">=</span> <span class="kw">let</span> s <span class="fu">=</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">1</span> <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> s</a>
-<a class="sourceLine" id="cb39-3" data-line-number="3">        <span class="kw">in</span> s <span class="fu">^*^</span> texp</a></code></pre></div>
-<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1"><span class="ot">tasinh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb40-2" data-line-number="2">tasinh <span class="fu">=</span> <span class="kw">let</span> go s n <span class="fu">=</span> <span class="dt">S</span> (s <span class="fu">/</span> n) (fmap (<span class="fu">*</span> (n <span class="fu">/</span> (n <span class="fu">+</span> <span class="dv">1</span>))) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (<span class="fu">-</span>s) (n <span class="fu">+</span> <span class="dv">2</span>))</a>
-<a class="sourceLine" id="cb40-3" data-line-number="3">         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span> <span class="dv">1</span>)</a></code></pre></div>
-<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" data-line-number="1"><span class="ot">tacosh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb41-2" data-line-number="2">tacosh <span class="fu">=</span> undefined</a></code></pre></div>
-<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1"><span class="ot">tatanh ::</span> <span class="dt">Fractional</span> a <span class="ot">=&gt;</span> <span class="dt">S</span> a</a>
-<a class="sourceLine" id="cb42-2" data-line-number="2">tatanh <span class="fu">=</span> <span class="kw">let</span> go n <span class="fu">=</span> <span class="dt">S</span> (recip n) <span class="fu">.</span> <span class="dt">S</span> <span class="dv">0</span> <span class="fu">$</span> go (n <span class="fu">+</span> <span class="dv">2</span>)</a>
-<a class="sourceLine" id="cb42-3" data-line-number="3">         <span class="kw">in</span> <span class="dt">S</span> <span class="dv">0</span> (go <span class="dv">1</span>)</a></code></pre></div>
-<p>## TODO</p>
-<p>Some things were not covered in this file, taylor series were not statically protected agains calling actions on the series build at the different points, so we assume that every Taylor serie is built at <span class="math inline">\(0\)</span>.</p>
-<p>Not all functions from the Floating instance were implemented.</p>
-<p>It’s possible to generalize <span class="math inline">\(asin/sin\)</span> approach for a wider class of functions, but it was not done yet.</p>]]></summary>
 </entry>
 
 </feed>
