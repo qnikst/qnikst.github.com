@@ -52,7 +52,7 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
 There is 1 to 3 order of magnitude difference in response times,
 without going deeper I have decided to stick with `-N4` for now.
 
-The third, [@TerrorJack][terrorjack] adviced me to improve [teardown][teardown]
+The third, @[TerrorJack][terrorjack] adviced me to improve [teardown][teardown]
 procedure in the `wrapper.c`, as it should check that` RTS` stopped and report 
 its status. So I have rechecked the sources and introduced few updates
 that let report status of running haskell command (the same way as RTS does),
