@@ -1,7 +1,7 @@
 -----
 author: Alexander Vershilov
 title: Metric a Haskell application
-date: 2018-10-29
+date: 2018-09-29
 tags: haskell
 license: cc-by
 -----
