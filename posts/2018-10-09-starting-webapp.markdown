@@ -1,7 +1,7 @@
 -----
 author: Alexander Vershilov
 title: Writing a simple web-application
-date: 2018-09-29
+date: 2018-10-09
 tags: haskell, web, metrics
 -----
 
