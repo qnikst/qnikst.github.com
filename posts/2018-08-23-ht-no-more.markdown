@@ -5,27 +5,27 @@ date: 2018-08-22
 tags: Haskell, C, RTS, benchmarks
 ----
 
-In this blog post, I'd like to tell one story that had happened with
-one Haskell application. Then explain how we can start threaded
-RTS, so it is aware of the CPU layout on your system. If you want to
-skip the story, you can proceed to the solution directly.
+In this blog post I'd like to tell one story that had happened with
+one Haskell application. Then I'll explain how can we start threaded
+RTS in a way so it is aware of the CPU layout of your system. If you want to
+skip the story you may proceed to the solution directly.
 
 Some updates to this post can be found in the [next one](./2018-08-27-ht-no-more2.html).
 
 Recently I've written a small Haskell application that performs some
 cryptography routines, query management, and communication with Redis.
-We wanted to test the capabilities of the application and RPS that
+We wanted to test the capabilities of the application and measure RPS that
 application can support. We used Yandex Tank for this purpose.
-[Yandex tank][tank] can generate a load on the site and build
-[fantastic reports][report-0] (may require GitHub authorization).
+[Yandex tank][tank] can generate a load for a site and build some
+[fantastic reports][report-0] (it could require GitHub authorization).
 
-Results were quite interesting. At first, everything went well, and
-the application was able to process about `1k` requests per second,
+Results were quite interesting. At first everything went well:
+the application was able to process about `1k` requests per second
 and that was enough for the expected load. However, when Yandex Tank
-gave a pressure about `2k` RPS, the situation became worse.
-Application stopped being responsive. The application was able to
+gave a pressure of about `2k` RPS the situation became worse.
+The application stopped being responsive. It was able to
 process only `200` requests per second. That was troublesome.
-On the Yandex tank plots there was a period of reasonable performance,
+On the Yandex tank plots there was a period of reasonable performance
 and then a period of unresponsiveness.
 
 ![Spikes on the tank terminal report](../images/posts/ht-no-more/1.plot.jpg)
@@ -33,26 +33,26 @@ and then a period of unresponsiveness.
 
 As it happens the first suspect in such cases is the Garbage Collector.
 You can always hear lots of scary stories about how GC could ruin your
-life. Keeping that in mind GC was tunned beforehand, and I prepared
-some metrics. However, this time situation was quite OK, garbage
-collector pauses were all <10ms, and 99% of the total time program
-spent on actual work and not garbage collection. Memory usage was too
-big ~700Mb, and I didn't expect that.
+life. Keeping that in mind GC was tuned beforehand and I had prepared
+some metrics. However this time the situation was quite OK: garbage
+collector pauses were all below 10ms and 99% of the total program time
+was spent on actual work and not on garbage collection. Memory usage was too
+big - around 700Mb and I didn't expect that.
 
 ![GC Information](../images/posts/ht-no-more/4.gc-info.jpg)
 
 On the left plot you can see reports of the last GC, they are not very
 precise as they may miss some GCs or report the same GC twice. However
 they still tell us the order of magnutude. On the right plot we see
-ratio of time spent in mutator to the total running time.
+the ratio of the time spent in mutator to the total running time.
 
-Other parts of the system were not under stress and were capable of
-the handling higher load. So the issue was with my program.
+Other parts of the system were not under a stress and were capable of
+handling higher loads. So the issue was in my program.
 Although I didn't spend much time optimising the program, it should
 behave better.
 
 Another surprising fact was that the issue didn't appear on my system
-that is comparable to the one where stress tests were running, and that
+which is comparable to the one where stress tests were running, and the one that
 could handle higher load. Accidentally I realised the difference, and
 the following dialogue took place:
 
@@ -62,42 +62,42 @@ the following dialogue took place:
 >
 > Me: Ah! Add `GHCRTS=-N4` to the container's Environment.
 
-After that single change situation drastically changed, the program was
+After that single adjustment the situation changed drastically: the program was now
 able to process 4.5k RPS (comparable to the maximum load that a single
 instance of Yandex.Tank can generate), now mutator time got >99%,
-GC pauses were still ~10ms but very rare, and memory usage was about 25Mb.
+GC pauses were still ~10ms but very rare and memory usage was about 25Mb.
 
 ![GC Information](../images/posts/ht-no-more/4.gc-info.jpg)
 <div><img src="../images/posts/ht-no-more/5.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/6.tank.report.png" width="399" style="inline"/></div>
 
-Connect time is still terrible here, but it was fixed by reconfiguring
-and improving network, and is out of the scope.
+Connect time was still terrible in that case but it was fixed by reconfiguring
+and improving network which is out of scope here.
 
 So this is just another story about suboptimal defaults for the
 runtime system. It happens that if you pass `+RTS -N` option -
 you tell runtime system to start the same number of capabilities
-as you have cores. However, `RTS` makes no difference between real
+as the number of cores you have. However, `RTS` makes no difference between real
 and virtual cores. It appears that `RTS` could not make enough
-benefit from the virtual cores, and performance is not good enough
+benefit from virtual cores and performance is not good enough
 in that case.
 
-While it is pretty impressive, that we can optimise the program
-without any changes in source code, it's interesting, what can we
-do in the general case. It's problematic that we can not set good
-options that work on any CPU and have decent performance. To find
-an answer, I've started the project [ht-no-more]. It lives in my
-playground for now, but I can extract it to the separate repo. I
+While it is pretty impressive that we can optimise a program
+without any changes in source code, it's interesting what can we
+do in general case. It's problematic that we can not set good
+options which work on any CPU and have a decent performance. To find
+an answer I've started the project [ht-no-more]. It lives in my
+playground for now but I can extract it to a separate repo. I
 hope that at some point it will be mature enough to be used as a
-library or even land to the RTS.
+library or even land to into the RTS source code.
 
 ## Solution <a name="solution"></a>
 
 The idea is to gather information about the architecture during
-the program startup and then set up the RTS with proper
+a program startup and then set up an RTS with a proper
 configuration. We want:
 
-1. collect information about the CPU (how many real and how many virtual cores do we have);
-2. do not allow RTS to run work on the virtual cores;
+1. collect information about a CPU (how many real and how many virtual cores do we have);
+2. do not allow RTS to run work on virtual cores;
 3. make it so `+RTS -N` option still behaves well.
 
 *N.B. From this place and now on we assume that we run on `Linux`
@@ -105,11 +105,11 @@ only and that we have `procfs` mounted and that we can write
 non-portable code. Now our life is comfortable, and we can
 proceed with the task.*
 
-The first question is how can we tie our process to the `CPU`.
+The first question is how can we tie our process to a `CPU`.
 There are [sched_getaffinity()][sched-affinity] and
 [sched_setaffinity()][sched-affinity] calls. Those methods
-perform hard wiring of the process and all it's descendent
-processes to the given CPUs. So we can use them to mask CPU
+perform hard wiring of a process and all it's descendent
+processes to given CPUs. So we can use them to mask CPUs
 that we are not interested in.
 
 ```c
@@ -120,7 +120,7 @@ int sched_getaffinity(pid_t pid, size_t cpusetsize,
                       cpu_set_t *mask);
 ```
 
-First, we let's write a simple `c` program that explains the API.
+First let's write a simple `c` program that explains the API.
 
 ```c
 #define _GNU_SOURCE          // allow to use non-portable functions
@@ -139,13 +139,13 @@ int main(int argc, char * argv[]) {
 }
 ```
 
-In this first program, we allow an application to run only on the
+In this first program we allow an application to run only on the
 first CPU. We need this program later for testing purposes. I've used
 it to check if my program behaves well in the constrained case. 
 
 The next question is how to check if a processor is real or virtual.
 The only way I've found it is to parse `/proc/cpuinfo` file. 
-We are interested in `core id` entry for each processor, it tells
+We are interested in `core id` entry for each processor: it tells
 what the index of the real core that CPU is set on is. For example
 on my machine I have:
 
@@ -230,7 +230,7 @@ int setcpus() {
 ```
 
 Now we are ready to build a cabal project.
-I'm skipping all irrelevant things, that are generated by `cabal init`
+I'm skipping all irrelevant things that are generated by `cabal init`
 
 ```cabal
 executable ht-no-more
@@ -243,12 +243,12 @@ executable ht-no-more
 
 To highlight the important things: first of all, our main module is a
 `C` file. It does not work with old `cabal`'s that allowed only
-Haskell modules to be the main one. Then, we add `-no-hs-main` -- an
-option that tells GHC not to create it's own "main" and use the "main"
+Haskell modules to be the main one. Then we add `-no-hs-main` -- an
+option that tells GHC not to create its own "main" and use the "main"
 function that we define.
-We define `Entry.hs` Haskell module that provides an entry function,
-because we no longer have one. In that module, we create a single
-function that tells how many capabilities RTS created.
+We define `Entry.hs` Haskell module that provides an entry function
+because we no longer have one. In that module we create a single
+function that tells how many capabilities RTS have created.
 
 ```haskell
 module Entry where
@@ -261,7 +261,7 @@ entry :: IO ()
 entry = print =<< getNumCapabilities
 ```
 
-The only non-trivial thing we need is to export a foreign function, compiler
+The only non-trivial thing we need is to export a foreign function. Compiler
 generates a `C` complatible object called `entry` that we can call from `C`.
 
 We follow [GHC User's Guide][user-manual-main] to define our main function
@@ -296,17 +296,17 @@ int main(int argc, char * argv[]) {
 ```
 
 However, we have not done everything. If you try to compile this program
-and run with `RTS +N` you'll see expected logs, but the program report
+and run it with `RTS +N` you'll see expected logs but the program reports
 that you are using the number of capabilities equal to the number of
 virtual cores. It happens because with `RTS +N` GHC asks the number of
-configured processors and creates that number of capabilities. Instead,
+configured processors and creates that number of capabilities. Instead of this
 we want the count of capabilities to be equal to the number of real cores.
 Furthermore, we don't want to patch GHC just yet because our code is too hacky.
 
 `GHC RTS` is linked statically with each Haskell project. It means that we
 can use a linker to make RTS use our method instead of the one provided
 with `GHC`, we are interested in redefining
-`uint32_t getNumberOfProcessors(void)`. For that reason, we use linker's
+`uint32_t getNumberOfProcessors(void)`. For that reason we use linker's
 [wrap feature][linker-wrap].  If you tell linker `-Wl,-wrap, function` then
 for each call to the `function` it calls `__wrap_function` instead and
 generates `__real_function` that you can call to call the original function.
@@ -328,7 +328,7 @@ uint32_t __wrap_getNumberOfProcessors(void)
 }
 ```
 
-So get the desired result. We change cabal to provide required
+to get the desired result. We change cabal to provide required
 options to the build:
 
 ```cabal
@@ -340,19 +340,19 @@ options to the build:
 You can find the full code on [GitHub][ht-no-more]. There is still much
 work for this project before you can use it for your application. 
 
-There is some further work.
+There is some further work which could be done:
 
-1. the code could be cleared and prettified;
-2. the code could be made portable and be able to run on all OSes
+1. The code could be cleaned and prettified;
+2. The code could be made portable and be able to run on all OSes
 GHC can run on;
 3. The current approach may be not sub-optimal, maybe it's enough to
 redefine `getNumberOfProcessors` alone without calling `sched_setaffinity`.
 4. I didn't test the interference with other functions; for example,
-if you run a program with `-xm` flag (that pins capability to CPU) may fail.
+if you run a program with `-xm` flag (that pins capability to CPU) it may fail.
 5. It's possible to extend this solution and set better GC options
 based on CPU info
 6. I'm curious if it is possible to write this program as a library
-and reuse in the other projects.
+and reuse in other projects.
 
 All feedback is welcome.
 
