@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Resticting servant query parameters</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>December 28, 2019</strong>
+    </div>
+    <h1>Resticting servant query parameters</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a></div>
+</div>
+
+<p>In this post, I’d like to share one solution to the problem I had at work. It is split into three parts, <a href="#problem">the definition of the problem</a>, <a href="#boring">boring part</a> (how we can achieve the goal), and then something <a href="#fancy">fancy</a> that we can have if we go a big forward with the solution.</p>
+<h2 id="the-problem-definition"><a name="problem">The problem definition</a></h2>
+<p>TLDR we want to make our servant service to reply <code>404</code> whenever we see query part in some endpoints subtree. If you are not interested in why do I need that you can proceed to the <a href="#boring">solution</a> directly.</p>
+<p>I’m working on building a few web services. One of them provides service to run contents. On such contests, lots of people come at once to solve some tasks. Thus we have a severe load in bounded time (It’s not entirely true as those contests are running all the time, but most of them are quite small). However, we have some significant events with up to 20k unique people passing in 3 hours, generating a load a bit higher than 500rps. It is not high value, but the main problem here is that any issue with availability or responsiveness hit our reputation a lot. Additionally, in the past, we had experienced DDOS attacks during such events. Currently, our services can handle at least three times higher load even in the worth case, but still, we are interested in reducing the surface of the possible attacks. Yet we can handle many requests the network in the cluster is not very wide, so it’s possible to introduce a denial of service if you’ll use all the network by for example loading large data.</p>
+<p>The usual solution for such sort of issues is offloading static and large content to a CDN service. Such services are distributed enough can easily manage a high load. There are two kinds of CDN services we can use: external CDN service transparent CDN service.</p>
+<p>External CDN service (pic.1) is just a 3rd party service that provides API for uploading and removing files. Such service takes all responsibilities for distributing data and providing the required quality of service. All you do in your user-facing service is giving links to the third-party one. The cost is that you need to upload and control files on that service explicitly.</p>
+<p><img src="../images/posts/servant/external.png" /></p>
+<p>Transparent CDN service (pic2.) is a service that acts as a distributed proxy for your service. In addition to proxying requests, it stores and propagates files on its nodes based on the response headers. This way, you can control all the data on CDN. Besides, such services often provide firewall and anti-DDOS services.</p>
+<p><img src="../images/posts/servant/transparent.png" /></p>
+<p>We took the transparent CDN service because our patterns of working with the contest are quite intricate: until frozen files are not expected to be cached and may mutate, but once frozen file can never mutate and should be persisted. Additionally, we get DDOS protection and a firewall for free.</p>
+<p>But, just plugging transparent CDN service in front of yours will not work. CDN is very simple, it does not and can’t analyse actual traffic, so if a malicious user asks for <code>https://our.service/content/big_image</code>, and then <code>https://our.service/content/big_image?foobar</code> both requests will pass through CDN and fall on our service. This way attacker can generate infinite amount of URLs and be able to attack the service no matter if there is CDN or not.</p>
+<p>But what to do? One option is to forbid access to content if there is a query part of the URL. It looks like a sane option as “valid” clients never access content while adding query parameters. For other parts of the service, it’s done by NGINX rules. But for some parts of the service, it is responsible for generating contents and setting proper headers, and we want it to be accountable to replying 404 on such queries.</p>
+<h2 id="solution."><a name="boring">Solution</a>.</h2>
+<p>We use <a href="https://hackage.haskell.org/package/servant">servant</a> as a framework to write a server. It allows writing a declarative description of the service structure on the type level. More details on that may be found in the servant <a href="http://docs.servant.dev/en/stable/tutorial/index.html">tutorial</a>, or a very basic <a href="https://qnikst.github.io/posts/2018-10-09-starting-webapp.html">howto</a>.</p>
+<p>We want to restrict query parameters on some part of the endpoints tree. It may look like:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">type</span> <span class="dt">MyService</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="fu">=</span> <span class="st">&quot;content&quot;</span> <span class="fu">:&gt;</span> <span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> <span class="dt">ContentEndpoint</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">  <span class="fu">&lt;|&gt;</span> other<span class="fu">..</span>end<span class="fu">..</span>points</a></code></pre></div>
+<p>This way, <code>ContentEndpoint</code> doesn’t know that it was restricted and can implement its logic without knowing how is it called. It is a crucial point that provides a necessary abstraction level.</p>
+<p>We are going to implement <code>RestrictQueryParam</code> now. To achieve it, we need to introduce a new servant combinator the one like (Capture, QueryParam or other from the <a href="https://hackage.haskell.org/package/servant-0.16.2/docs/Servant-API.html">Servant.API</a> hierarchy). It’s not particularly well documented, but there are enough examples in the servant itself.</p>
+<p>The first thing we need is to introduce the type for</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="co">-- | Forbid passing any query parameter.</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">-- If the parameter is given, then we throw 404</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="kw">data</span> <span class="dt">RestrictQueryParams</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="kw">deriving</span> <span class="dt">Typeable</span></a></code></pre></div>
+<p>Note it doesn’t have type constructor there this construction may live on the type level only.</p>
+<p>Nest step is implementing <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server.html#t:HasServer"><code>HasServer</code></a> instance. This instance describes how we parse the request and how we work with the response.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"> (<span class="dt">HasServer</span> api context) <span class="co">{-1-}</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"> <span class="ot">=&gt;</span> <span class="dt">HasServer</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) context <span class="kw">where</span> <span class="co">{-2-}</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"> <span class="kw">type</span> <span class="dt">ServerT</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) m <span class="fu">=</span> <span class="dt">ServerT</span> api m <span class="co">{-3-}</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"> hoistServerWithContext <span class="fu">=</span> undefined</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"> route <span class="fu">=</span> undefined</a></code></pre></div>
+<p>The instance is very straighforward it tells that internal server (<code>{-1-}</code>) wrapped in the <code>RestrictQueryParams</code> (<code>{-2-}</code>) is also a server. Type <code>ServerT</code> tells that resulting server type. In our case it’s the same as for the internal server: RestrictQueryParams doesn’t change it. <code>hoistServerWithContext</code> tells how to change underlying monad if needed, you skip it and see how it’s implemented in the other combinators:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">  hoistServerWithContext _ pc nt s</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">    <span class="fu">=</span> hoistServerWithContext (<span class="dt">Proxy</span><span class="ot">::</span> <span class="dt">Proxy</span> api) pc nt s</a></code></pre></div>
+<p>And the last but not the least method is the route, that describes routing itself.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">  route <span class="dt">Proxy</span> context subserver <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">     route (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) context <span class="fu">$</span> add subserver</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">      add <span class="dt">Delayed</span>{<span class="fu">..</span>} <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">        <span class="dt">Delayed</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">          { paramsD <span class="fu">=</span> withRequest check <span class="fu">*&gt;</span> paramsD</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">          , <span class="fu">..</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">          }</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"><span class="ot">      check ::</span> <span class="dt">Request</span> <span class="ot">-&gt;</span> <span class="dt">DelayedIO</span> ()</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">      check req</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">        <span class="fu">|</span> not <span class="fu">$</span> B.null <span class="fu">$</span> rawQueryString req <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">          delayedFailFatal err404</a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">        <span class="fu">|</span> otherwise <span class="fu">=</span> pure ()</a></code></pre></div>
+<p>Here we add parameters check to the internal server checks (<code>add subserver</code>). It checks the <code>Wai.Request</code> (<code>withRequest check</code>) to the checks added by internal server (<code>*&gt; paramsD</code>), keeping other checks untouched. In the <code>check</code> function we check <code>rawQueryString</code> and reply with 404 if it’s not emoty. Description of the request checks is given in the <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server-Internal-Delayed.html#t:Delayed">docs</a>.</p>
+<p>Instances for client and swagger are trivial; they pass all the work to the internal API.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">instance</span> (<span class="dt">HasSwagger</span> api) <span class="ot">=&gt;</span> <span class="dt">HasSwagger</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> <span class="dt">API</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">  toSwagger _ <span class="fu">=</span> toSwagger (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api)</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">HasClient</span> m api <span class="ot">=&gt;</span> <span class="dt">HasClient</span> m (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="kw">type</span> <span class="dt">Client</span> m (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) <span class="fu">=</span> <span class="dt">Client</span> m api</a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">  clientWithRoute pm <span class="dt">Proxy</span> req <span class="fu">=</span> clientWithRoute pm (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) req</a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">  hoistClientMonad pm _ f cl <span class="fu">=</span> hoistClientMonad pm (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) f cl</a></code></pre></div>
+<p>This way, it has landed in our codebase because it just solves the problem. Adding this check solves our problem and can be reused in other projects.</p>
+<h2 id="more-checks"><a name="fancy">More checks</a></h2>
+<p>But there is a problem. Sub server doesn’t know about that it runs in the restricted context, but the server itself should know if this restriction can be safely applied. It can’t be used if the server uses query parameters. So we want to prove that we doesn’t have this problem. It can be achieved using <a href="http://hackage.haskell.org/package/base-4.12.0.0/docs/GHC-TypeLits.html#t:TypeError">custom type erros</a> more on docs on the <a href="https://gitlab.haskell.org/ghc/ghc/wikis/proposal/custom-type-errors">ghc wiki</a>.</p>
+<p>To use it, we need to introduce additional type family. You may think of type family as a function on types, that can perform pattern matching on types and return some result. This function should either return a error or the same type. We need to traverse servant endpoint structure and return a type error.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">type</span> family <span class="dt">CheckNoParams</span> e <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  <span class="dt">CheckNoParams</span> (f <span class="fu">:&gt;</span> g) <span class="fu">=</span> f <span class="fu">:&gt;</span> (<span class="dt">CheckNoParams</span> g)</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="dt">CheckNoParams</span> (f <span class="fu">:&lt;|&gt;</span> g) <span class="fu">=</span> <span class="dt">CheckNoParams</span> f <span class="fu">:&lt;|&gt;</span> <span class="dt">CheckNoParams</span> g</a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="dt">CheckNoParams</span> (<span class="dt">QueryParam</span> sym x <span class="fu">:&gt;</span> y) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    <span class="dt">TypeError</span> ('<span class="dt">Text</span> <span class="st">&quot;can't use QueryParam under RestrictQueryParams&quot;</span>)</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">  <span class="dt">CheckNoParams</span> a <span class="fu">=</span> a</a></code></pre></div>
+<p>This way we recursively go through all endpoints (lines 1 and 2), return a error if see a query param (line 3), and type as it was if it’s not QueryParam (line 5)</p>
+<p>If you’ll use <code>RestrictQueryParam</code> on the endpoint that uses query you get following error message:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">src<span class="fu">/</span>Server.hs<span class="fu">:</span><span class="dv">124</span><span class="fu">:</span><span class="dv">9</span><span class="fu">:</span> error<span class="fu">:</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">    • can't use <span class="dt">QueryParam</span> under <span class="dt">RestrictQueryParams</span></a></code></pre></div>
+<p>I think after the post it will land in the codebase as well.</p>
+<p>But it’s possible to go even further and allow the headers that are used in the internal site. Unfortunately this problem is much more complex and I’m not sure if the checks will not be too expensive, but if anyone has a solution I’ll be happy to check it.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2019-09-28-restricting-servant.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2019-09-28-restricting-servant.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2019-09-28-restricting-servant.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

@@ -8,27 +8,216 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2018-10-29T00:00:00Z</updated>
+    <updated>2019-12-28T00:00:00Z</updated>
     <entry>
+    <title>Resticting servant query parameters</title>
+    <link href="https://qnikst.github.io/posts/2019-09-28-restricting-servant.html" />
+    <id>https://qnikst.github.io/posts/2019-09-28-restricting-servant.html</id>
+    <published>2019-12-28T00:00:00Z</published>
+    <updated>2019-12-28T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In this post, I’d like to share one solution to the problem I had at work. It is split into three parts, <a href="#problem">the definition of the problem</a>, <a href="#boring">boring part</a> (how we can achieve the goal), and then something <a href="#fancy">fancy</a> that we can have if we go a big forward with the solution.</p>
+<h1 id="the-problem-definition"><a name="problem">The problem definition</a></h1>
+<p>TLDR we want to make our servant service to reply <code>404</code> whenever we see query part in some endpoints subtree. If you are not interested in why do I need that you can proceed to the <a href="#boring">solution</a> directly.</p>
+<p>I’m working on building a few web services. One of them provides service to run contents. On such contests, lots of people come at once to solve some tasks. Thus we have a severe load in bounded time (It’s not entirely true as those contests are running all the time, but most of them are quite small). However, we have some significant events with up to 20k unique people passing in 3 hours, generating a load a bit higher than 500rps. It is not high value, but the main problem here is that any issue with availability or responsiveness hit our reputation a lot. Additionally, in the past, we had experienced DDOS attacks during such events. Currently, our services can handle at least three times higher load even in the worth case, but still, we are interested in reducing the surface of the possible attacks. Yet we can handle many requests the network in the cluster is not very wide, so it’s possible to introduce a denial of service if you’ll use all the network by for example loading large data.</p>
+<p>The usual solution for such sort of issues is offloading static and large content to a CDN service. Such services are distributed enough can easily manage a high load. There are two kinds of CDN services we can use: external CDN service transparent CDN service.</p>
+<p>External CDN service (pic.1) is just a 3rd party service that provides API for uploading and removing files. Such service takes all responsibilities for distributing data and providing the required quality of service. All you do in your user-facing service is giving links to the third-party one. The cost is that you need to upload and control files on that service explicitly.</p>
+<p><img src="/images/posts/servant/external.png"/></p>
+<p>Transparent CDN service (pic2.) is a service that acts as a distributed proxy for your service. In addition to proxying requests, it stores and propagates files on its nodes based on the response headers. This way, you can control all the data on CDN. Besides, such services often provide firewall and anti-DDOS services.</p>
+<p><img src="/images/posts/servant/transparent.png"/></p>
+<p>We took the transparent CDN service because our patterns of working with the contest are quite intricate: until frozen files are not expected to be cached and may mutate, but once frozen file can never mutate and should be persisted. Additionally, we get DDOS protection and a firewall for free.</p>
+<p>But, just plugging transparent CDN service in front of yours will not work. CDN is very simple, it does not and can’t analyse actual traffic, so if a malicious user asks for <code>https://our.service/content/big_image</code>, and then <code>https://our.service/content/big_image?foobar</code> both requests will pass through CDN and fall on our service. This way attacker can generate infinite amount of URLs and be able to attack the service no matter if there is CDN or not.</p>
+<p>But what to do? One option is to forbid access to content if there is a query part of the URL. It looks like a sane option as “valid” clients never access content while adding query parameters. For other parts of the service, it’s done by NGINX rules. But for some parts of the service, it is responsible for generating contents and setting proper headers, and we want it to be accountable to replying 404 on such queries.</p>
+<h1 id="solution."><a name="boring">Solution</a>.</h1>
+<p>We use <a href="https://hackage.haskell.org/package/servant">servant</a> as a framework to write a server. It allows writing a declarative description of the service structure on the type level. More details on that may be found in the servant <a href="http://docs.servant.dev/en/stable/tutorial/index.html">tutorial</a>, or a very basic <a href="https://qnikst.github.io/posts/2018-10-09-starting-webapp.html">howto</a>.</p>
+<p>We want to restrict query parameters on some part of the endpoints tree. It may look like:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">type</span> <span class="dt">MyService</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="fu">=</span> <span class="st">&quot;content&quot;</span> <span class="fu">:&gt;</span> <span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> <span class="dt">ContentEndpoint</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">  <span class="fu">&lt;|&gt;</span> other<span class="fu">..</span>end<span class="fu">..</span>points</a></code></pre></div>
+<p>This way, <code>ContentEndpoint</code> doesn’t know that it was restricted and can implement its logic without knowing how is it called. It is a crucial point that provides a necessary abstraction level.</p>
+<p>We are going to implement <code>RestrictQueryParam</code> now. To achieve it, we need to introduce a new servant combinator the one like (Capture, QueryParam or other from the <a href="https://hackage.haskell.org/package/servant-0.16.2/docs/Servant-API.html">Servant.API</a> hierarchy). It’s not particularly well documented, but there are enough examples in the servant itself.</p>
+<p>The first thing we need is to introduce the type for</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="co">-- | Forbid passing any query parameter.</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">-- If the parameter is given, then we throw 404</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="kw">data</span> <span class="dt">RestrictQueryParams</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="kw">deriving</span> <span class="dt">Typeable</span></a></code></pre></div>
+<p>Note it doesn’t have type constructor there this construction may live on the type level only.</p>
+<p>Nest step is implementing <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server.html#t:HasServer"><code>HasServer</code></a> instance. This instance describes how we parse the request and how we work with the response.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"> (<span class="dt">HasServer</span> api context) <span class="co">{-1-}</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"> <span class="ot">=&gt;</span> <span class="dt">HasServer</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) context <span class="kw">where</span> <span class="co">{-2-}</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"> <span class="kw">type</span> <span class="dt">ServerT</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) m <span class="fu">=</span> <span class="dt">ServerT</span> api m <span class="co">{-3-}</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"> hoistServerWithContext <span class="fu">=</span> undefined</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"> route <span class="fu">=</span> undefined</a></code></pre></div>
+<p>The instance is very straighforward it tells that internal server (<code>{-1-}</code>) wrapped in the <code>RestrictQueryParams</code> (<code>{-2-}</code>) is also a server. Type <code>ServerT</code> tells that resulting server type. In our case it’s the same as for the internal server: RestrictQueryParams doesn’t change it. <code>hoistServerWithContext</code> tells how to change underlying monad if needed, you skip it and see how it’s implemented in the other combinators:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">  hoistServerWithContext _ pc nt s</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">    <span class="fu">=</span> hoistServerWithContext (<span class="dt">Proxy</span><span class="ot">::</span> <span class="dt">Proxy</span> api) pc nt s</a></code></pre></div>
+<p>And the last but not the least method is the route, that describes routing itself.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">  route <span class="dt">Proxy</span> context subserver <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">     route (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) context <span class="fu">$</span> add subserver</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">      add <span class="dt">Delayed</span>{<span class="fu">..</span>} <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">        <span class="dt">Delayed</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">          { paramsD <span class="fu">=</span> withRequest check <span class="fu">*&gt;</span> paramsD</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">          , <span class="fu">..</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">          }</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"><span class="ot">      check ::</span> <span class="dt">Request</span> <span class="ot">-&gt;</span> <span class="dt">DelayedIO</span> ()</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">      check req</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">        <span class="fu">|</span> not <span class="fu">$</span> B.null <span class="fu">$</span> rawQueryString req <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">          delayedFailFatal err404</a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">        <span class="fu">|</span> otherwise <span class="fu">=</span> pure ()</a></code></pre></div>
+<p>Here we add parameters check to the internal server checks (<code>add subserver</code>). It checks the <code>Wai.Request</code> (<code>withRequest check</code>) to the checks added by internal server (<code>*&gt; paramsD</code>), keeping other checks untouched. In the <code>check</code> function we check <code>rawQueryString</code> and reply with 404 if it’s not emoty. Description of the request checks is given in the <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server-Internal-Delayed.html#t:Delayed">docs</a>.</p>
+<p>Instances for client and swagger are trivial; they pass all the work to the internal API.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">instance</span> (<span class="dt">HasSwagger</span> api) <span class="ot">=&gt;</span> <span class="dt">HasSwagger</span> (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> <span class="dt">API</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">  toSwagger _ <span class="fu">=</span> toSwagger (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api)</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">HasClient</span> m api <span class="ot">=&gt;</span> <span class="dt">HasClient</span> m (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="kw">type</span> <span class="dt">Client</span> m (<span class="dt">RestrictQueryParams</span> <span class="fu">:&gt;</span> api) <span class="fu">=</span> <span class="dt">Client</span> m api</a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">  clientWithRoute pm <span class="dt">Proxy</span> req <span class="fu">=</span> clientWithRoute pm (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) req</a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">  hoistClientMonad pm _ f cl <span class="fu">=</span> hoistClientMonad pm (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> api) f cl</a></code></pre></div>
+<p>This way, it has landed in our codebase because it just solves the problem. Adding this check solves our problem and can be reused in other projects.</p>
+<h1 id="more-checks"><a name="fancy">More checks</a></h1>
+<p>But there is a problem. Sub server doesn’t know about that it runs in the restricted context, but the server itself should know if this restriction can be safely applied. It can’t be used if the server uses query parameters. So we want to prove that we doesn’t have this problem. It can be achieved using <a href="http://hackage.haskell.org/package/base-4.12.0.0/docs/GHC-TypeLits.html#t:TypeError">custom type erros</a> more on docs on the <a href="https://gitlab.haskell.org/ghc/ghc/wikis/proposal/custom-type-errors">ghc wiki</a>.</p>
+<p>To use it, we need to introduce additional type family. You may think of type family as a function on types, that can perform pattern matching on types and return some result. This function should either return a error or the same type. We need to traverse servant endpoint structure and return a type error.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">type</span> family <span class="dt">CheckNoParams</span> e <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  <span class="dt">CheckNoParams</span> (f <span class="fu">:&gt;</span> g) <span class="fu">=</span> f <span class="fu">:&gt;</span> (<span class="dt">CheckNoParams</span> g)</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="dt">CheckNoParams</span> (f <span class="fu">:&lt;|&gt;</span> g) <span class="fu">=</span> <span class="dt">CheckNoParams</span> f <span class="fu">:&lt;|&gt;</span> <span class="dt">CheckNoParams</span> g</a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="dt">CheckNoParams</span> (<span class="dt">QueryParam</span> sym x <span class="fu">:&gt;</span> y) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    <span class="dt">TypeError</span> (&#39;<span class="dt">Text</span> <span class="st">&quot;can&#39;t use QueryParam under RestrictQueryParams&quot;</span>)</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">  <span class="dt">CheckNoParams</span> a <span class="fu">=</span> a</a></code></pre></div>
+<p>This way we recursively go through all endpoints (lines 1 and 2), return a error if see a query param (line 3), and type as it was if it’s not QueryParam (line 5)</p>
+<p>If you’ll use <code>RestrictQueryParam</code> on the endpoint that uses query you get following error message:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">src<span class="fu">/</span>Server.hs<span class="fu">:</span><span class="dv">124</span><span class="fu">:</span><span class="dv">9</span><span class="fu">:</span> error<span class="fu">:</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">    • can&#39;t use <span class="dt">QueryParam</span> under <span class="dt">RestrictQueryParams</span></a></code></pre></div>
+<p>I think after the post it will land in the codebase as well.</p>
+<p>But it’s possible to go even further and allow the headers that are used in the internal site. Unfortunately this problem is much more complex and I’m not sure if the checks will not be too expensive, but if anyone has a solution I’ll be happy to check it.</p>]]></summary>
+</entry>
+<entry>
+    <title>Writing a simple web-application</title>
+    <link href="https://qnikst.github.io/posts/2018-10-09-starting-webapp.html" />
+    <id>https://qnikst.github.io/posts/2018-10-09-starting-webapp.html</id>
+    <published>2018-10-09T00:00:00Z</published>
+    <updated>2018-10-09T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In the <a href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html">last post</a>, I’ve talked about adding metrics to a Haskell application. Unfortunately that post didn’t have a full code example and contained only minor pieces of the code. So it could be hard to write your own application based on that post. So I decided to prepare a full example that can be looked at and reused in later posts and projects. You can find the source code on <a href="https://github.com/qnikst/sample-site">GitHub</a>. The app is a very simple skeleton so if you have experience with writing those feel free to skip this post.</p>
+<p>I’ll take <a href="https://www.techempower.com/benchmarks/">the techempower benchmark</a> as a site specification. The API is simple enough to represent exciting features and doesn’t take much time to write. I’m not going to compete against other implementations of that benchmark (at least I think so at the time of writing this post). Today I’m going to make a skeleton of the site and one endpoint only.</p>
+<p>I’ll take servant as a web framework, to my taste it is the best framework you can use unless you have exceptional needs. The main feature of the servant framework is that it allows to generate and test much code for free, without much extra cost.</p>
+<p>Servant framework has a very nice tutorial and documentation that can be found at <a href="https://haskell-servant.readthedocs.io/en/stable/">read-the-doc site</a> .</p>
+<p>When writing an application using servant you first need to define its API:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">type</span> <span class="dt">Api</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">JsonApi</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">type</span> <span class="dt">JsonApi</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  <span class="fu">=</span> <span class="dt">Description</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">    <span class="st">&quot;Raw JSON output API \</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="st">    \ For each request, an object mapping the key message \</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="st">    \ to \&quot;Hello, World!\&quot; must be instantiated.&quot;</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  <span class="fu">:&gt;</span> <span class="st">&quot;json&quot;</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">  <span class="fu">:&gt;</span> <span class="dt">Get</span> &#39;[<span class="dt">JSON</span>] <span class="dt">Message</span></a></code></pre></div>
+<p>I prefer to keep a type synonym for each endpoint (or endpoint structure) as that would allow using that type in the other parts of the program for code generation.</p>
+<p>This type explains how a handler does its work and <code>:&gt;</code> splits the type into URL pieces. This type tells that application can handle Get requests to the URL <code>/json</code> if accept type is <code>application/json</code> and when doing that it returns a <code>Message.</code></p>
+<p>The additional <code>Description</code> part comes from the <a href="http://hackage.haskell.org/package/servant-swagger">servant-swagger</a> package. A few more extra lines provide additional information about our API:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ot">apiVersion ::</span> <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">apiVersion <span class="fu">=</span> <span class="st">&quot;0.0.1&quot;</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="ot">swagger ::</span> <span class="dt">Swagger</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">swagger <span class="fu">=</span> toSwagger (<span class="dt">Proxy</span> <span class="fu">@</span> <span class="dt">Api</span>)</a>
+<a class="sourceLine" id="cb2-6" data-line-number="6">  <span class="fu">&amp;</span> info<span class="fu">.</span>title <span class="fu">.~</span> <span class="st">&quot;Experimental API&quot;</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7">  <span class="fu">&amp;</span> info<span class="fu">.</span>description <span class="fu">?~</span></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8">    <span class="st">&quot;This is a benchmark site, and used for general \</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="st">    \ experiments and blog examples.&quot;</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10">  <span class="fu">&amp;</span> info<span class="fu">.</span>version <span class="fu">.~</span> apiVersion</a></code></pre></div>
+<p>Now we can run the server. Our sever consists of the swagger UI and our application.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">type</span> <span class="dt">API</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">SwaggerSchemaUI</span> <span class="st">&quot;swagger-ui&quot;</span> <span class="st">&quot;swagger.json&quot;</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  <span class="fu">:&lt;|&gt;</span> <span class="dt">Api</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="ot">run ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">run <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">  Warp.run configPort</a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">    <span class="fu">$</span> prometheus def {</a>
+<a class="sourceLine" id="cb3-9" data-line-number="9">        prometheusInstrumentPrometheus <span class="fu">=</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">        }</a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">    <span class="fu">$</span> serve (<span class="dt">Proxy</span> <span class="fu">@</span><span class="dt">API</span>)</a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">    <span class="fu">$</span> swaggerSchemaUIServer swagger </a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">        <span class="fu">:&lt;|&gt;</span> server</a>
+<a class="sourceLine" id="cb3-14" data-line-number="14">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-15" data-line-number="15"><span class="ot">    configPort ::</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb3-16" data-line-number="16">    configPort <span class="fu">=</span> <span class="dv">8080</span></a>
+<a class="sourceLine" id="cb3-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb3-18" data-line-number="18"><span class="ot">server ::</span> <span class="dt">Handler</span> <span class="dt">Message</span></a>
+<a class="sourceLine" id="cb3-19" data-line-number="19">server <span class="fu">=</span> pure <span class="fu">$</span> <span class="dt">Message</span> <span class="st">&quot;Hello World!&quot;</span></a></code></pre></div>
+<p>Remember <code>prometheus def</code> lines from the previous post. And the application runner is:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Sample.Server</span> (run)</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">  _ <span class="ot">&lt;-</span> register ghcMetrics</a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">  run</a></code></pre></div>
+<p>Now we can have an application that returns us <code>{message:&quot;Hello, World!&quot;}</code> on <code>json</code> URL and swagger UI on <code>swagger-ui/</code>. With that interface you can explore site API:</p>
+<div>
+<img src="../images/posts/web-app-1/0.swagger-ui-1.png" width="80%" style="inline"/>
+</div>
+<p>Send requests and observe results</p>
+<div>
+<img src="../images/posts/web-app-1/1.swagger-ui-2.png" width="80%" style="inline"/>
+</div>
+<p>And all that comes for free.</p>
+<p>There are a few more things I’d like to discuss before moving to metrics:</p>
+<ol type="1">
+<li><p><a href="https://github.com/qnikst/sample-site/blob/2d6bb3b39ce6a6e5afe9de055cda73d6babcce0c/sample-site/src/Data/Aeson/Extended.hs#L11-L21">Naming conventions</a> - it’s worth to define common conventions for converting Haskell data types into their JSON representation and use them across the project.</p></li>
+<li><p><a href="https://github.com/qnikst/sample-site/blob/master/sample-site/test/spec/Sample/ApiSpec.hs#L23-L35">Encoding tests</a> with servant and swagger you can automatically test serialisation of values for all the types used in the API. Also tests check that specification is up to date.</p></li>
+</ol>
+<p>Now we have a simple site with helper interface and specification. There are many missing pieces, for example: a. configuration parsing; b. logging; c. more autogenerated tests; d. nice defaults for RTS options.</p>
+<p>All of them will be covered in the following posts.</p>
+<p>In order to build everything I prefer to use <code>nix</code> package manager. Both <code>stack</code> and <code>cabal-install</code> are nice tools to do that but with nix you can add more features to the build system. For example building of docker containers, building packages written in other languages and setting up a development environment. Build scripts for the package can be found at <a href="https://github.com/qnikst/sample-site/blob/2d6bb3b39ce6a6e5afe9de055cda73d6babcce0c/nix/overlays.nix#L15-L19">overlays.nix</a>. Build scripts for its docker container are in <a href="https://github.com/qnikst/sample-site/blob/2d6bb3b39ce6a6e5afe9de055cda73d6babcce0c/nix/docker.nix#L8-L28">docker.nix</a>.</p>
+<p>At this point we are ready to setup our environment with Grafana and Prometheus. Configs are the same as the ones described earlier or they can be found at <a href="https://github.com/qnikst/sample-site/tree/2d6bb3b39ce6a6e5afe9de055cda73d6babcce0c/deploy/docker">GitHub</a>.</p>
+<p>Graphana reports are looking like:</p>
+<ol type="1">
+<li>Main screen: <br /> main screen lists all instances with Haskell application to filter on. If specific instance is chosen then all the following plots show information for that instance only.
+<div style="margin: 10px 0;">
+<img src="../images/posts/web-app-1/3.grafana-1.png" width="100%" style="inline"/>
+</div></li>
+<li>CPU panel:<br /> shows rate of CPU seconds spent by the program. Basically it says whaf fraction of a secod the program worked during 1s of clock time. You can realize how active your application was. <code>Mutator CPU time</code> shows how much CPU time you’ve spent doing actual work. If total CPU time is much higher than Mutator CPU time, then you are likely to have problems with GC.
+<div style="margin: 10px 0; ">
+<img src="../images/posts/web-app-1/4.grafana-1.png" width="100%" style="inline"/>
+</div></li>
+<li>Memory panel:<br /> shows the rate of allocations and copying data during GC. This panel is for general information because it’s not easier to use other controller to get information about memory usage of the given instance.
+<div style="margin: 10px 0;">
+<img src="../images/posts/web-app-1/5.grafana-1.png" width="100%" style="inline"/>
+</div></li>
+<li>GC information:<br /> data that shows GC information that is provided by the runtime system. It provides total number of GCs and major GCs and their rate. Proportion of time spent in GC to the total running time, if this metric grows higher than 0.1 then it means that you are spending one tenth of your time in GCs and that is not good. Proportion of the time that capabilities spent synchronising to the time they did actual work, if this value grows high then you have problems.
+<div style="margin: 10px 0;">
+<img src="../images/posts/web-app-1/6.grafana-1.png" width="100%" style="inline"/>
+</div>
+In addition the structure of the heap is explained and we plot how many values of different types (from GC perspective) we have.
+<div style="margin: 10px 0;">
+<img src="../images/posts/web-app-1/7.grafana-1.png" width="100%" style="inline"/>
+</div></li>
+</ol>
+<p>Config itself can be taken from <a href="https://raw.githubusercontent.com/qnikst/sample-site/master/deploy/docker/rts.json">GitHub</a>.</p>
+<p>Unfortunately GC information tells us information about the last GC only so everything that had happened between scribe intervals will be missing from our data. In the next post I’m going to run some benchmarks of the application (and potentially introduce other endpoints) and discuss if missing information is actually a problem and what can be done about that.</p>]]></summary>
+</entry>
+<entry>
     <title>Metric a Haskell application</title>
-    <link href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html" />
-    <id>https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html</id>
-    <published>2018-10-29T00:00:00Z</published>
-    <updated>2018-10-29T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>In one of my <a href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html">recept posts</a>, I’ve mentioned gathering metrics for my Haskell application. Some people asked me about my setup, so I will try to describe how I configured and structured my application.</p>
-<p>I will try to split the description in a series of posts, in this one I’ll describe the general setup. After reading this post, you’ll be able to set up the metrics system for your Haskell application (or suggest me how to do that better). At this point, you’ll be able to get some information about your application and set up alerts on that. In the following posts, we will try to go deeper inside each metrics and check if metrics are helpful if there are any missing pieces there, and how that can be improved.</p>
+    <link href="https://qnikst.github.io/posts/2018-09-29-metrics-haskell.html" />
+    <id>https://qnikst.github.io/posts/2018-09-29-metrics-haskell.html</id>
+    <published>2018-09-29T00:00:00Z</published>
+    <updated>2018-09-29T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In one of my <a href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html">recept posts</a>, I’ve mentioned gathering metrics of my Haskell application. Some people asked me about my setup so I will try to describe how I configure and structure my applications.</p>
+<p>I will try to split the description in a series of posts, in this one I’ll describe the general setup. After reading this post you’ll be able to set up the metrics system of your Haskell application (or suggest me how to do that better). At this point you’ll be able to get some information about your application and set up alerts based on that. In the following posts we will try to go deeper into each metric, check if those metrics are helpful, look if any pieces are missing and how that could be improved.</p>
 <h2 id="haskell-and-metrics.">Haskell and metrics.</h2>
-<p>Let’s spend a bit of time on defining the problem that we want to solve and describing solution area. The purpose of the metrics system is to tell if your application is alive and behaves expected. It should not give you more than statistical information about your application. We can split information into two categories:</p>
+<p>Let’s spend a bit of time defining the problem we want to solve and describing its solution area. The purpose of a metrics system is to tell if your application is alive and behaves as expected. It should not give you more than statistical information about your application. We can split information into two categories:</p>
 <ol type="1">
 <li>general information: memory use, runtime system statistics.</li>
 <li>application specific information.</li>
 </ol>
-<p>The border between those two is quite fuzzy, for example, you may have general web-server statistics, like the number of processed requests or time to reply that is application specific, but applies to all web-servers. So I’d add them to the first group. But the main trap here is not to try to solve an incorrect problem; metrics may not work as an exact information source. Nor be a mechanism for tracing or log server, you need other tools for that purpose.</p>
-<p>In the Haskell ecosystem, there are few packages providing metrics support. One that is the best known and has a long history is <a href="https://hackage.haskell.org/package/ekg-core">EKG</a> this package offers few metrics types and a large variety of the systems that you can integrate with. While EKG is generally a good generic solution, I found that few companies are trying to move from that package. (I was not able to gather concrete reports why that was a problem, so will try to avoid answering that question).</p>
-<p>So we can take a specific solution that works great with a single system. In Tweag we used to use <a href="https://prometheus.io/">Prometheus</a>. With Prometheus, you can dump your metrics to the well-maintained package, that other people usually familiar with. Hackage offers excellent library for working with Prometheus: <a href="https://hackage.haskell.org/package/prometheus-client">prometheus-client</a>. Even if you like EKG more or have projects that are using it, you can use the adapter for EKG <a href="https://hackage.haskell.org/package/ekg-prometheus-adapter">ekg-prometheus-adapter</a>. I have not used that package myself, but I hope that it just works, or at least can be easily fixed.</p>
+<p>The border line between those two is quite fuzzy: for example, you may have a general web-server statistics, like number of processed requests or time to reply which are application specific but applicable to any web-server. So I’d add them to the first group. But the main trap here is not to try to solve an incorrect problem; metrics may not work as an exact source of information. Nor could they be a mechanism for tracing or log server, you need other tools for thse purposes.</p>
+<p>In the Haskell ecosystem, there are a few packages providing metrics support. The one that is the best known and has a long history is <a href="https://hackage.haskell.org/package/ekg-core">EKG</a> - this package offers few metrics types and a large variety of systems that you can integrate with. While EKG is generally a good generic solution, I found that some companies are trying to move from that package. (I was not able to gather concrete reports what was a problem with it, so I will try to avoid answering that question).</p>
+<p>Otherwise we can take a specific solution that works great with a single system. In Tweag we’re used to use <a href="https://prometheus.io/">Prometheus</a>. With Prometheus you can dump your metrics to the well-maintained package that other people usually familiar with. Hackage offers an excellent library for working with Prometheus: <a href="https://hackage.haskell.org/package/prometheus-client">prometheus-client</a>. Even if you like EKG more or have projects that are using it you can use the adapter for EKG <a href="https://hackage.haskell.org/package/ekg-prometheus-adapter">ekg-prometheus-adapter</a>. I have not used that package myself but I hope that it just works, or at least it could be easily fixed.</p>
 <h2 id="setup.">Setup.</h2>
-<p>For the application setup, I’m going to use Docker compose. With this approach, we will be able to cover all details, and this approach may be adapted to the more complex system like kubernetes.</p>
-<p>Let’s start writing the docker compose files. I omitted all irrelevant links and configuration.</p>
+<p>For an application setup I’m going to use Docker compose. With this approach we will be able to cover all the details and this approach may be adapted to a more complex system like Kubernetes.</p>
+<p>Let’s start writing docker compose files. I omitted all irrelevant links and configuration.</p>
 <pre class="docker"><code>version: &quot;3&quot;
 services:
 
@@ -80,9 +269,9 @@ scrape_configs:
     static_configs:
       - targets: 
         - haskell-app:8080</code></pre>
-<p>It’s possible to configure graphana declaratively as well, but as I don’t have the final solution that I can use out of the box on any system, I tend to setup Grafana manually. Just log into the instance and go through the onboarding process.</p>
+<p>It’s possible to configure Grafana declaratively as well but as I don’t have a final solution that I can use out of the box on any system I tend to setup Grafana manually. Just log into your instance and go through the onboarding process.</p>
 <p>Now we are ready to set up our Haskell application.</p>
-<p>Setup of the Haskell application may be pretty simple. To dump GHC statistics, you can use <a href="https://hackage.haskell.org/package/prometheus-metrics-ghc">prometheus-metrics-ghc</a>. To make the full use of this package you need to enable the gathering of the runtime statistics:</p>
+<p>Setup of a Haskell application may be pretty simple. To dump GHC statistics you may use <a href="https://hackage.haskell.org/package/prometheus-metrics-ghc">prometheus-metrics-ghc</a>. To make the full use of this package you need to enable gathering of runtime statistics with:</p>
 <pre class="cabal"><code>  build-depends: prometheus-metrics-ghc
   ghc-options: &quot;-with-rtsopts=-T&quot;</code></pre>
 <p>Then add to your main:</p>
@@ -92,7 +281,7 @@ scrape_configs:
 <a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">main  ::</span> <span class="dt">IO</span> ()</a>
 <a class="sourceLine" id="cb4-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb4-6" data-line-number="6">   register ghcMetrics</a></code></pre></div>
-<p>At this point, you gather RTS stats, but you don’t export you metrics yet. To export your data, you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
+<p>At this point you gather RTS stats but you don’t export you metrics yet. To export your data you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></a>
 <a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
 <a class="sourceLine" id="cb5-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
@@ -103,14 +292,14 @@ scrape_configs:
 <a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="fu">$</span>   prometheus def</a>
 <a class="sourceLine" id="cb5-9" data-line-number="9">              { prometheusInstrumentPrometheus  <span class="fu">=</span><span class="dt">False</span> }</a>
 <a class="sourceLine" id="cb5-10" data-line-number="10">         <span class="fu">$</span> yourApplication</a></code></pre></div>
-<p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point, you’ll have some basic information about endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
-<p>We will cover interesting stats in the next posts, but for now, you may be interested in the following data:</p>
+<p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point you’ll have some basic information about your endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
+<p>We will cover interesting stats in the next posts but for now you may be interested in the following data:</p>
 <ul>
-<li><code>ghc_allocated_bytes_total</code> - to build <code>rate</code> plot based on that</li>
-<li><code>ghc_num_gcs</code> - to build rate of number of GCs</li>
+<li><code>ghc_allocated_bytes_total</code> - to build a <code>rate</code> plot based on that metric</li>
+<li><code>ghc_num_gcs</code> - to build a rate plot of GCs</li>
 <li><code>ghc_mutator_wall_seconds_total/(ghc_mutator_wall_seconds_total+ghc_gc_wall_seconds_total)</code> - to understand the proportion of time spent in GC</li>
 <li>information about memory usage split by the type of memory</li>
-<li>and a number of metrics from <code>ghc_gcdetails</code> category. This data may not be very useful as it shows the data since last GC, so you may report the same GC multiple times if no GC happened during the report period, or miss some reports if more that one GC happened.</li>
+<li>and a number of metrics from <code>ghc_gcdetails</code> category. This data may not be very useful as it shows data since last GC, so you may report the same GC multiple times if no GC happened during the report period, or miss some reports if more that one GC happens.</li>
 </ul>
 <p>I hope that this information will be useful and will try to dig into concrete metrics examples in the following posts.</p>]]></summary>
 </entry>
@@ -120,10 +309,10 @@ scrape_configs:
     <id>https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html</id>
     <published>2018-08-22T00:00:00Z</published>
     <updated>2018-08-22T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>After writing of the previous blog <a href="/posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. All feedback is in arbitrary order.</p>
-<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flags, as was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in a blog post, my approach will not work with this option correctly (for some reason I called that <code>-xm</code>, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to the cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of the cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
-<p>The entire thread is very entertaining and if you are interested in the topic then it’s likely that you check all comments as well.</p>
-<p>Secondly, this was a question if my reasoning was incorrect and it’s enough to leave one thread off and have better performance. We used this approach in some projects, however on the particular one results of the <code>N-1</code> threads were very depressing:</p>
+    <summary type="html"><![CDATA[<p>After writing of the previous blog <a href="/posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. Feedback order is arbitrary.</p>
+<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flag, as it was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in the previous blog post, my approach will not work with this option correctly (for some reason I have used <code>-xm</code> instead of <code>-qa</code> in that post, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of our cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
+<p>The entire thread is very entertaining and if you are interested in the topic then I recommend to check out ther comments as well.</p>
+<p>Secondly, there was a question if my reasoning was incorrect and it’s enough to leave one thread off and still have better performance. We used this approach in some projects, however for one particular case the results with <code>N-1</code> threads were very depressing:</p>
 <pre><code>        Cumulative quantiles per tag (N7)
         99%       98%     95%    90%    85%      80%   75%    50%
 Overall 4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1105ms
@@ -134,8 +323,8 @@ put     4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1100ms</code></pre>
 Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
 get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
 put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
-<p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
-<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
+<p>There is 1 to 3 orders of magnitude differences in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
+<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check if<code>RTS</code> was stopped and report its status. So I have rechecked the sources and introduced few updates that allow to report status of running haskell command (the same way as RTS does), and which do not require using FFI extension in the Haskell code.</p>]]></summary>
 </entry>
 <entry>
     <title>Marrying Haskell and Hyper-Threading</title>
@@ -143,49 +332,49 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
     <id>https://qnikst.github.io/posts/2018-08-23-ht-no-more.html</id>
     <published>2018-08-22T00:00:00Z</published>
     <updated>2018-08-22T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>In this blog post, I’d like to tell one story that had happened with one Haskell application. Then explain how we can start threaded RTS, so it is aware of the CPU layout on your system. If you want to skip the story, you can proceed to the solution directly.</p>
+    <summary type="html"><![CDATA[<p>In this blog post I’d like to tell one story that had happened with one Haskell application. Then I’ll explain how can we start threaded RTS in a way so it is aware of the CPU layout of your system. If you want to skip the story you may proceed to the solution directly.</p>
 <p>Some updates to this post can be found in the <a href="./2018-08-27-ht-no-more2.html">next one</a>.</p>
-<p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load on the site and build <a href="https://overload.yandex.net/1">fantastic reports</a> (may require GitHub authorization).</p>
-<p>Results were quite interesting. At first, everything went well, and the application was able to process about <code>1k</code> requests per second, and that was enough for the expected load. However, when Yandex Tank gave a pressure about <code>2k</code> RPS, the situation became worse. Application stopped being responsive. The application was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance, and then a period of unresponsiveness.</p>
+<p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and measure RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load for a site and build some <a href="https://overload.yandex.net/1">fantastic reports</a> (it could require GitHub authorization).</p>
+<p>Results were quite interesting. At first everything went well: the application was able to process about <code>1k</code> requests per second and that was enough for the expected load. However, when Yandex Tank gave a pressure of about <code>2k</code> RPS the situation became worse. The application stopped being responsive. It was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance and then a period of unresponsiveness.</p>
 <img src="../images/posts/ht-no-more/1.plot.jpg" alt="Spikes on the tank terminal report" />
 <div>
 <img src="../images/posts/ht-no-more/2.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/3.tank.report.png" width="399" style="inline"/>
 </div>
-<p>As it happens the first suspect in such cases is the Garbage Collector. You can always hear lots of scary stories about how GC could ruin your life. Keeping that in mind GC was tunned beforehand, and I prepared some metrics. However, this time situation was quite OK, garbage collector pauses were all &lt;10ms, and 99% of the total time program spent on actual work and not garbage collection. Memory usage was too big ~700Mb, and I didn’t expect that.</p>
+<p>As it happens the first suspect in such cases is the Garbage Collector. You can always hear lots of scary stories about how GC could ruin your life. Keeping that in mind GC was tuned beforehand and I had prepared some metrics. However this time the situation was quite OK: garbage collector pauses were all below 10ms and 99% of the total program time was spent on actual work and not on garbage collection. Memory usage was too big - around 700Mb and I didn’t expect that.</p>
 <figure>
 <img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" /><figcaption>GC Information</figcaption>
 </figure>
-<p>On the left plot you can see reports of the last GC, they are not very precise as they may miss some GCs or report the same GC twice. However they still tell us the order of magnutude. On the right plot we see ratio of time spent in mutator to the total running time.</p>
-<p>Other parts of the system were not under stress and were capable of the handling higher load. So the issue was with my program. Although I didn’t spend much time optimising the program, it should behave better.</p>
-<p>Another surprising fact was that the issue didn’t appear on my system that is comparable to the one where stress tests were running, and that could handle higher load. Accidentally I realised the difference, and the following dialogue took place:</p>
+<p>On the left plot you can see reports of the last GC, they are not very precise as they may miss some GCs or report the same GC twice. However they still tell us the order of magnutude. On the right plot we see the ratio of the time spent in mutator to the total running time.</p>
+<p>Other parts of the system were not under a stress and were capable of handling higher loads. So the issue was in my program. Although I didn’t spend much time optimising the program, it should behave better.</p>
+<p>Another surprising fact was that the issue didn’t appear on my system which is comparable to the one where stress tests were running, and the one that could handle higher load. Accidentally I realised the difference, and the following dialogue took place:</p>
 <blockquote>
 <p>Me: What is the CPU on the system?</p>
 <p>Admin: I7 4 cores, eight thread!</p>
 <p>Me: Ah! Add <code>GHCRTS=-N4</code> to the container’s Environment.</p>
 </blockquote>
-<p>After that single change situation drastically changed, the program was able to process 4.5k RPS (comparable to the maximum load that a single instance of Yandex.Tank can generate), now mutator time got &gt;99%, GC pauses were still ~10ms but very rare, and memory usage was about 25Mb.</p>
+<p>After that single adjustment the situation changed drastically: the program was now able to process 4.5k RPS (comparable to the maximum load that a single instance of Yandex.Tank can generate), now mutator time got &gt;99%, GC pauses were still ~10ms but very rare and memory usage was about 25Mb.</p>
 <img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" />
 <div>
 <img src="../images/posts/ht-no-more/5.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/6.tank.report.png" width="399" style="inline"/>
 </div>
-<p>Connect time is still terrible here, but it was fixed by reconfiguring and improving network, and is out of the scope.</p>
-<p>So this is just another story about suboptimal defaults for the runtime system. It happens that if you pass <code>+RTS -N</code> option - you tell runtime system to start the same number of capabilities as you have cores. However, <code>RTS</code> makes no difference between real and virtual cores. It appears that <code>RTS</code> could not make enough benefit from the virtual cores, and performance is not good enough in that case.</p>
-<p>While it is pretty impressive, that we can optimise the program without any changes in source code, it’s interesting, what can we do in the general case. It’s problematic that we can not set good options that work on any CPU and have decent performance. To find an answer, I’ve started the project <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">ht-no-more</a>. It lives in my playground for now, but I can extract it to the separate repo. I hope that at some point it will be mature enough to be used as a library or even land to the RTS.</p>
+<p>Connect time was still terrible in that case but it was fixed by reconfiguring and improving network which is out of scope here.</p>
+<p>So this is just another story about suboptimal defaults for the runtime system. It happens that if you pass <code>+RTS -N</code> option - you tell runtime system to start the same number of capabilities as the number of cores you have. However, <code>RTS</code> makes no difference between real and virtual cores. It appears that <code>RTS</code> could not make enough benefit from virtual cores and performance is not good enough in that case.</p>
+<p>While it is pretty impressive that we can optimise a program without any changes in source code, it’s interesting what can we do in general case. It’s problematic that we can not set good options which work on any CPU and have a decent performance. To find an answer I’ve started the project <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">ht-no-more</a>. It lives in my playground for now but I can extract it to a separate repo. I hope that at some point it will be mature enough to be used as a library or even land to into the RTS source code.</p>
 <h2 id="solution">Solution <a name="solution"></a></h2>
-<p>The idea is to gather information about the architecture during the program startup and then set up the RTS with proper configuration. We want:</p>
+<p>The idea is to gather information about the architecture during a program startup and then set up an RTS with a proper configuration. We want:</p>
 <ol type="1">
-<li>collect information about the CPU (how many real and how many virtual cores do we have);</li>
-<li>do not allow RTS to run work on the virtual cores;</li>
+<li>collect information about a CPU (how many real and how many virtual cores do we have);</li>
+<li>do not allow RTS to run work on virtual cores;</li>
 <li>make it so <code>+RTS -N</code> option still behaves well.</li>
 </ol>
 <p><em>N.B. From this place and now on we assume that we run on <code>Linux</code> only and that we have <code>procfs</code> mounted and that we can write non-portable code. Now our life is comfortable, and we can proceed with the task.</em></p>
-<p>The first question is how can we tie our process to the <code>CPU</code>. There are <a href="https://linux.die.net/man/2/sched_setaffinity">sched_getaffinity()</a> and <a href="https://linux.die.net/man/2/sched_setaffinity">sched_setaffinity()</a> calls. Those methods perform hard wiring of the process and all it’s descendent processes to the given CPUs. So we can use them to mask CPU that we are not interested in.</p>
+<p>The first question is how can we tie our process to a <code>CPU</code>. There are <a href="https://linux.die.net/man/2/sched_setaffinity">sched_getaffinity()</a> and <a href="https://linux.die.net/man/2/sched_setaffinity">sched_setaffinity()</a> calls. Those methods perform hard wiring of a process and all it’s descendent processes to given CPUs. So we can use them to mask CPUs that we are not interested in.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="dt">int</span> sched_setaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
 <a class="sourceLine" id="cb1-2" data-line-number="2">                      cpu_set_t *mask);</a>
 <a class="sourceLine" id="cb1-3" data-line-number="3"></a>
 <a class="sourceLine" id="cb1-4" data-line-number="4"><span class="dt">int</span> sched_getaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
 <a class="sourceLine" id="cb1-5" data-line-number="5">                      cpu_set_t *mask);</a></code></pre></div>
-<p>First, we let’s write a simple <code>c</code> program that explains the API.</p>
+<p>First let’s write a simple <code>c</code> program that explains the API.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="pp">#define _GNU_SOURCE          </span><span class="co">// allow to use non-portable functions</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="pp">#include </span><span class="im">&lt;sched.h&gt;</span></a>
 <a class="sourceLine" id="cb2-3" data-line-number="3"><span class="pp">#include </span><span class="im">&lt;string.h&gt;</span></a>
@@ -200,8 +389,8 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb2-12" data-line-number="12">  <span class="dt">int</span> result = system(<span class="st">&quot;bash&quot;</span>); <span class="co">// start bash.</span></a>
 <a class="sourceLine" id="cb2-13" data-line-number="13">  <span class="cf">return</span> result;</a>
 <a class="sourceLine" id="cb2-14" data-line-number="14">}</a></code></pre></div>
-<p>In this first program, we allow an application to run only on the first CPU. We need this program later for testing purposes. I’ve used it to check if my program behaves well in the constrained case.</p>
-<p>The next question is how to check if a processor is real or virtual. The only way I’ve found it is to parse <code>/proc/cpuinfo</code> file. We are interested in <code>core id</code> entry for each processor, it tells what the index of the real core that CPU is set on is. For example on my machine I have:</p>
+<p>In this first program we allow an application to run only on the first CPU. We need this program later for testing purposes. I’ve used it to check if my program behaves well in the constrained case.</p>
+<p>The next question is how to check if a processor is real or virtual. The only way I’ve found it is to parse <code>/proc/cpuinfo</code> file. We are interested in <code>core id</code> entry for each processor: it tells what the index of the real core that CPU is set on is. For example on my machine I have:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="fu">grep</span> <span class="st">&#39;core id&#39;</span> /proc/cpuinfo </a>
 <a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">core</span> id        : 0</a>
 <a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">core</span> id        : 1</a>
@@ -266,14 +455,14 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb5-49" data-line-number="49">   fclose(cpuinfo);</a>
 <a class="sourceLine" id="cb5-50" data-line-number="50">   <span class="cf">return</span> <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb5-51" data-line-number="51">}</a></code></pre></div>
-<p>Now we are ready to build a cabal project. I’m skipping all irrelevant things, that are generated by <code>cabal init</code></p>
+<p>Now we are ready to build a cabal project. I’m skipping all irrelevant things that are generated by <code>cabal init</code></p>
 <pre class="cabal"><code>executable ht-no-more
   main-is:             wrapper.c
   other-modules:       Entry 
   build-depends:       base &gt;=4.10 &amp;&amp; &lt;4.11
   default-language:    Haskell2010
   ghc-options:         -no-hs-main</code></pre>
-<p>To highlight the important things: first of all, our main module is a <code>C</code> file. It does not work with old <code>cabal</code>’s that allowed only Haskell modules to be the main one. Then, we add <code>-no-hs-main</code> – an option that tells GHC not to create it’s own “main” and use the “main” function that we define. We define <code>Entry.hs</code> Haskell module that provides an entry function, because we no longer have one. In that module, we create a single function that tells how many capabilities RTS created.</p>
+<p>To highlight the important things: first of all, our main module is a <code>C</code> file. It does not work with old <code>cabal</code>’s that allowed only Haskell modules to be the main one. Then we add <code>-no-hs-main</code> – an option that tells GHC not to create its own “main” and use the “main” function that we define. We define <code>Entry.hs</code> Haskell module that provides an entry function because we no longer have one. In that module we create a single function that tells how many capabilities RTS have created.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">module</span> <span class="dt">Entry</span> <span class="kw">where</span></a>
 <a class="sourceLine" id="cb7-2" data-line-number="2"></a>
 <a class="sourceLine" id="cb7-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Control.Concurrent</span></a>
@@ -282,7 +471,7 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb7-6" data-line-number="6"></a>
 <a class="sourceLine" id="cb7-7" data-line-number="7"><span class="ot">entry ::</span> <span class="dt">IO</span> ()</a>
 <a class="sourceLine" id="cb7-8" data-line-number="8">entry <span class="fu">=</span> print <span class="fu">=&lt;&lt;</span> getNumCapabilities</a></code></pre></div>
-<p>The only non-trivial thing we need is to export a foreign function, compiler generates a <code>C</code> complatible object called <code>entry</code> that we can call from <code>C</code>.</p>
+<p>The only non-trivial thing we need is to export a foreign function. Compiler generates a <code>C</code> complatible object called <code>entry</code> that we can call from <code>C</code>.</p>
 <p>We follow <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ffi-chap.html#using-your-own-main">GHC User’s Guide</a> to define our main function <em>(sidenote, if you haven’t read GHC User’s Guide, please do, it’s the most authoritative and precise source of information about GHC features and extensions)</em>.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="pp">#include </span><span class="im">&quot;HsFFI.h&quot;</span></a>
 <a class="sourceLine" id="cb8-2" data-line-number="2"></a>
@@ -307,8 +496,8 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb8-21" data-line-number="21">  hs_exit();</a>
 <a class="sourceLine" id="cb8-22" data-line-number="22">  <span class="cf">return</span> <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb8-23" data-line-number="23">}</a></code></pre></div>
-<p>However, we have not done everything. If you try to compile this program and run with <code>RTS +N</code> you’ll see expected logs, but the program report that you are using the number of capabilities equal to the number of virtual cores. It happens because with <code>RTS +N</code> GHC asks the number of configured processors and creates that number of capabilities. Instead, we want the count of capabilities to be equal to the number of real cores. Furthermore, we don’t want to patch GHC just yet because our code is too hacky.</p>
-<p><code>GHC RTS</code> is linked statically with each Haskell project. It means that we can use a linker to make RTS use our method instead of the one provided with <code>GHC</code>, we are interested in redefining <code>uint32_t getNumberOfProcessors(void)</code>. For that reason, we use linker’s <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_node/ld_3.html">wrap feature</a>. If you tell linker <code>-Wl,-wrap, function</code> then for each call to the <code>function</code> it calls <code>__wrap_function</code> instead and generates <code>__real_function</code> that you can call to call the original function.</p>
+<p>However, we have not done everything. If you try to compile this program and run it with <code>RTS +N</code> you’ll see expected logs but the program reports that you are using the number of capabilities equal to the number of virtual cores. It happens because with <code>RTS +N</code> GHC asks the number of configured processors and creates that number of capabilities. Instead of this we want the count of capabilities to be equal to the number of real cores. Furthermore, we don’t want to patch GHC just yet because our code is too hacky.</p>
+<p><code>GHC RTS</code> is linked statically with each Haskell project. It means that we can use a linker to make RTS use our method instead of the one provided with <code>GHC</code>, we are interested in redefining <code>uint32_t getNumberOfProcessors(void)</code>. For that reason we use linker’s <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_node/ld_3.html">wrap feature</a>. If you tell linker <code>-Wl,-wrap, function</code> then for each call to the <code>function</code> it calls <code>__wrap_function</code> instead and generates <code>__real_function</code> that you can call to call the original function.</p>
 <p>So we write</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="dt">static</span> <span class="dt">uint32_t</span> procno = <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb9-2" data-line-number="2"></a>
@@ -322,19 +511,19 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb9-10" data-line-number="10">     <span class="cf">return</span> procno;</a>
 <a class="sourceLine" id="cb9-11" data-line-number="11">   }</a>
 <a class="sourceLine" id="cb9-12" data-line-number="12">}</a></code></pre></div>
-<p>So get the desired result. We change cabal to provide required options to the build:</p>
+<p>to get the desired result. We change cabal to provide required options to the build:</p>
 <pre class="cabal"><code>  ghc-options:         -no-hs-main
                        -threaded
                        -optl-Wl,-wrap,getNumberOfProcessors</code></pre>
 <p>You can find the full code on <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">GitHub</a>. There is still much work for this project before you can use it for your application.</p>
-<p>There is some further work.</p>
+<p>There is some further work which could be done:</p>
 <ol type="1">
-<li>the code could be cleared and prettified;</li>
-<li>the code could be made portable and be able to run on all OSes GHC can run on;</li>
+<li>The code could be cleaned and prettified;</li>
+<li>The code could be made portable and be able to run on all OSes GHC can run on;</li>
 <li>The current approach may be not sub-optimal, maybe it’s enough to redefine <code>getNumberOfProcessors</code> alone without calling <code>sched_setaffinity</code>.</li>
-<li>I didn’t test the interference with other functions; for example, if you run a program with <code>-xm</code> flag (that pins capability to CPU) may fail.</li>
+<li>I didn’t test the interference with other functions; for example, if you run a program with <code>-xm</code> flag (that pins capability to CPU) it may fail.</li>
 <li>It’s possible to extend this solution and set better GC options based on CPU info</li>
-<li>I’m curious if it is possible to write this program as a library and reuse in the other projects.</li>
+<li>I’m curious if it is possible to write this program as a library and reuse in other projects.</li>
 </ol>
 <p>All feedback is welcome.</p>]]></summary>
 </entry>
@@ -583,413 +772,6 @@ Prelude&gt; :m +Control.Exception Control.Concurrent
 Prelude Control.Exception Control.Concurrent&gt; forkIO $ threadDelay 10000 &gt;&gt; error &quot;yo!&quot;
 ThreadId 28
 Prelude Control.Exception Control.Concurrent&gt; Unhandled exception: yo!</code></pre>]]></summary>
-</entry>
-<entry>
-    <title>Approaches to carry a proof for typelevel natural</title>
-    <link href="https://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html" />
-    <id>https://qnikst.github.io/posts/2014-12-16-fun-with-typelevel-naturals.markdown.html</id>
-    <published>2014-12-16T00:00:00Z</published>
-    <updated>2014-12-16T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>For time ago Bas van Dijk asked a question on glasgow-haskell-users mailing list about <a href="https://www.haskell.org/pipermail/glasgow-haskell-users/2014-November/025451.html">proving the properties of type-level natural numbers obtained by user</a>. That lead to an interesting discussion, that you can read in the list archives.</p>
-<p>The problem was that we want to impose a constraint on some typelevel natural and then read value from user and guarantee that we have that constraint. For such constraint we took (&lt;=255).</p>
-<p>Here is a file that describe few approaches to solve this problem.</p>
-<p>At first we need to use a HUGE list of pragmas.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE DataKinds #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE GADTs #-}</span></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE TypeOperators #-}</span></a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE KindSignatures #-}</span></a>
-<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE ExistentialQuantification #-}</span></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">{-# LANGUAGE ViewPatterns #-}</span></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="ot">{-# LANGUAGE PolyKinds #-}</span></a>
-<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></a>
-<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></a>
-<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="ot">{-# LANGUAGE ConstraintKinds #-}</span></a>
-<a class="sourceLine" id="cb1-12" data-line-number="12"><span class="ot">{-# LANGUAGE RankNTypes #-}</span></a>
-<a class="sourceLine" id="cb1-13" data-line-number="13"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span></a>
-<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span></a></code></pre></div>
-<p>And relax compiler options a bit.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ot">{-# OPTIONS_GHC -ftype-function-depth=1024 #-}</span></a>
-<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ot">{-# OPTIONS_GHC -fcontext-stack=1024 #-}</span></a>
-<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="kw">import</span> <span class="dt">GHC.TypeLits</span></a>
-<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="kw">import</span> <span class="dt">GHC.Exts</span> </a>
-<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
-<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="kw">import</span> <span class="dt">Data.Constraint</span></a>
-<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Data.Type.Bool</span></a>
-<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Data.Type.Equality</span></a>
-<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="kw">import</span> <span class="dt">System.Environment</span></a>
-<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Unsafe.Coerce</span></a>
-<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">import</span> <span class="dt">Data.Singletons</span></a>
-<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Control.Monad</span></a></code></pre></div>
-<h2 id="attempt-1-tagged-value">Attempt-1: Tagged value</h2>
-<p>We can keep a proof together with value, so we can introduce a new type:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Proof</span> n  (<span class="ot">c ::</span> <span class="dt">Constraint</span>) <span class="kw">where</span> <span class="dt">Proof</span><span class="ot"> ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof</span> n c</a></code></pre></div>
-<p>In mailing list I provide following code:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">fromSomeError ::</span> <span class="dt">SomeNat</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Proof</span> n (n <span class="fu">&lt;=</span> <span class="dv">255</span>))</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">fromSomeError (<span class="dt">SomeNat</span> p)</a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">   <span class="fu">|</span> natVal p <span class="fu">&lt;=</span> <span class="dv">255</span> <span class="fu">=</span> <span class="dt">Just</span> (<span class="dt">Proof</span> (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> n))</a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">   <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="dt">Nothing</span></a></code></pre></div>
-<p>This is obviously a bug as we check natVal p, but return Proxy n. And correct version fails, as there is no way to simply inject a constraint.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="co">{-</span></a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="co">fromSome :: SomeNat -&gt; Maybe (Proof n (n &lt;= 255))</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="co">fromSome (SomeNat p)</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="co">  | natVal p &lt;= 255 = Just (Proof p)</span></a>
-<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="co">  | otherwise = Nothing</span></a>
-<a class="sourceLine" id="cb5-6" data-line-number="6"><span class="co">-}</span></a></code></pre></div>
-<pre><code> Proof.lhs:53:37:
-    Could not deduce (n1 ~ n)
-    from the context (KnownNat n1)
-    bound by a pattern with constructor
-        SomeNat :: forall (n :: Nat). KnownNat n =&gt; Proxy n -&gt; SomeNat,
-	in an equation for ‘fromSome’
-	at Proof.lhs:52:13-21</code></pre>
-<h2 id="attempt-2-type-carrier">Attempt-2: Type carrier</h2>
-<p>Now we want to have the following constraint on out Nat</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Proof2</span><span class="ot"> ::</span> (<span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="dt">Constraint</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">  <span class="dt">Proof2</span><span class="ot"> ::</span> c n <span class="ot">=&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof2</span> c</a></code></pre></div>
-<p>In order to have a ‘curried’ version of our constaint we can introduce a type family</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">type</span> family <span class="dt">LessThan255</span><span class="ot"> n ::</span> <span class="dt">Constraint</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">    <span class="dt">LessThan255</span> f <span class="fu">=</span> (f <span class="fu">&lt;=</span> <span class="dv">255</span>)</a></code></pre></div>
-<p>Now lets try to create a proof from known natural:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="co">{-</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="co">strange :: (LessThan255 n) =&gt; Proxy n -&gt; Proof2 LessThan255</span></a>
-<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="co">strange = Proof2</span></a>
-<a class="sourceLine" id="cb9-4" data-line-number="4"><span class="co">-}</span></a></code></pre></div>
-<p>~~~~~~~~~~~~~~~ Proof.lhs:89:13: Could not deduce (LessThan255 n) arising from a use of ‘Proof2’ from the context (LessThan255 n) bound by the type signature for strange :: (LessThan255 n) =&gt; Proxy n -&gt; Proof2 LessThan255 ~~~~~~~~~~~~~~</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">strange ::</span> (<span class="dt">LessThan255</span> <span class="fu">~</span> c, c n) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof2</span> c</a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">strange <span class="fu">=</span> <span class="dt">Proof2</span></a></code></pre></div>
-<p>Previous attempt to build function failed, but this one works. I don’t know if it’s related to non-injectivity or a bug.. I can report it :)</p>
-<p>When I realized this problem, I have stopped.</p>
-<p>Update. As Richard Eisenberg says:</p>
-<pre><code>By the way, the bug in the Proof2 version is a bug in GHC 7.8.3
-(only in .3 -- not in .2 or in the soon-to-be .4) that allows you
-to write unsaturated type families that don&#39;t work.
-Saying `LessThan255` without a parameter should be a syntax error,
-but that check was accidentally turned off for 7.8.3, leading to a bogus type error.</code></pre>
-<h2 id="attempt-3-carry-a-contraint-in-a-datatype">Attempt-3: carry a contraint in a datatype</h2>
-<p>Now let’s keep our ‘constraint’ in a datatype, here we have 2 proxy, one for datatype, and one for value, also a KnownNat constraint that we want to use later:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Proof3</span><span class="ot"> ::</span> (<span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb12-2" data-line-number="2">  <span class="dt">Proof3</span><span class="ot"> ::</span> <span class="dt">KnownNat</span> n <span class="ot">=&gt;</span> c n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof3</span> c</a></code></pre></div>
-<p>We can introduce a Show instance</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Show</span> (<span class="dt">Proof3</span> c) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb13-2" data-line-number="2">  show (<span class="dt">Proof3</span> _ k) <span class="fu">=</span> show <span class="fu">$</span> natVal k</a></code></pre></div>
-<p>And now we can introduce a LessThen constraint as a datatype:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="kw">data</span> <span class="dt">LessThan255D</span> (<span class="ot">n::</span><span class="dt">Nat</span>) <span class="kw">where</span> <span class="dt">LessThan255D</span><span class="ot"> ::</span> (n <span class="fu">&lt;=</span> <span class="dv">255</span>) <span class="ot">=&gt;</span> <span class="dt">LessThan255D</span> n</a></code></pre></div>
-<p>We can convert type level constrant to data easily:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="ot">c2d ::</span> <span class="dt">LessThan255</span> n <span class="ot">=&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">LessThan255D</span> n</a>
-<a class="sourceLine" id="cb15-2" data-line-number="2">c2d _ <span class="fu">=</span> <span class="dt">LessThan255D</span></a></code></pre></div>
-<p>But what about a proof, ideally we want to have following code:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="co">{-</span></a>
-<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="co">fromSome3 :: SomeNat -&gt; Maybe (Proof3 LessThan255D)</span></a>
-<a class="sourceLine" id="cb16-3" data-line-number="3"><span class="co">fromSome3 (SomeNat p)</span></a>
-<a class="sourceLine" id="cb16-4" data-line-number="4"><span class="co">   | natVal p &lt; natVal t255 = Just (Proof3 LessThan255D p)</span></a>
-<a class="sourceLine" id="cb16-5" data-line-number="5"><span class="co">   | otherwise = Nothing</span></a>
-<a class="sourceLine" id="cb16-6" data-line-number="6"><span class="co">   where t255 = Proxy :: Proxy 255</span></a>
-<a class="sourceLine" id="cb16-7" data-line-number="7"><span class="co">-}</span></a></code></pre></div>
-<pre><code>Proof.lhs:138:46:
-  Could not deduce ((n &lt;=? 255) ~ &#39;True)
-  from the context (KnownNat n)</code></pre>
-<p>It doesn’t work simply because value level check doesn’t guarantee typelevel properties.</p>
-<p>One way to solve it is to use unsafeCoerce: the idea is to use a proof for the value we know, and then coerce a type of a proof to the type of the proof related to the users value:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="ot">fromSome3 ::</span> <span class="dt">SomeNat</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Proof3</span> <span class="dt">LessThan255D</span>)</a>
-<a class="sourceLine" id="cb18-2" data-line-number="2">fromSome3 (<span class="dt">SomeNat</span> p)</a>
-<a class="sourceLine" id="cb18-3" data-line-number="3">   <span class="fu">|</span> natVal p <span class="fu">&lt;</span> natVal t255 <span class="fu">=</span> <span class="dt">Just</span> (fake (c2d t255) p)</a>
-<a class="sourceLine" id="cb18-4" data-line-number="4">   <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb18-5" data-line-number="5">   <span class="kw">where</span> t255 <span class="fu">=</span> <span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">255</span></a>
-<a class="sourceLine" id="cb18-6" data-line-number="6"><span class="ot">         fake ::</span> <span class="dt">KnownNat</span> n <span class="ot">=&gt;</span> c p <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proof3</span> c</a>
-<a class="sourceLine" id="cb18-7" data-line-number="7">         fake k p <span class="fu">=</span> <span class="dt">Proof3</span> (unsafeCoerce<span class="ot"> k ::</span> c n) p</a></code></pre></div>
-<p>It’s a nice solution, it’s unsafe as typechecker does not check that our predicate <code>(natVal (p::Proxy n) &lt; natVal (t255::Proxy 255))</code> implies the safety of a coerce from <code>LessThan255 ~ 255 -&gt; LessThan255 ~ p</code>.</p>
-<p>There is one more solution that is really typesafe, but has a big complexity, and require a bounded set of values:</p>
-<p>We can try to check is equal to one specific value from the set.</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="ot">guessProof ::</span> (<span class="dt">KnownNat</span> n, n <span class="fu">&lt;=</span> <span class="dv">255</span>) <span class="ot">=&gt;</span> <span class="dt">SomeNat</span> <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Proof3</span> <span class="dt">LessThan255D</span>)</a>
-<a class="sourceLine" id="cb19-2" data-line-number="2">guessProof (<span class="dt">SomeNat</span> p) n <span class="fu">=</span> <span class="kw">case</span> sameNat p n <span class="kw">of</span></a>
-<a class="sourceLine" id="cb19-3" data-line-number="3">    <span class="dt">Just</span> _  <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">Proof3</span> <span class="dt">LessThan255D</span> n</a>
-<a class="sourceLine" id="cb19-4" data-line-number="4">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
-<p>Now we can build all set of values that are good:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="kw">type</span> family <span class="dt">Guesses</span> (<span class="ot">n::</span><span class="dt">Nat</span>)<span class="ot"> ::</span> [<span class="dt">Nat</span>] <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-2" data-line-number="2">   <span class="dt">Guesses</span> <span class="dv">0</span> <span class="fu">=</span> <span class="ch">&#39;[0]</span></a>
-<a class="sourceLine" id="cb20-3" data-line-number="3">   <span class="dt">Guesses</span> n <span class="fu">=</span> n <span class="ch">&#39;: Guesses (n-1)</span></a></code></pre></div>
-<p>And write a code that will check all possible values:</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1"><span class="kw">class</span> <span class="dt">GuessProof</span> (<span class="ot">n ::</span> [<span class="dt">Nat</span>]) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="ot">  proof ::</span> <span class="dt">SomeNat</span> <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Proof3</span> <span class="dt">LessThan255D</span>)</a>
-<a class="sourceLine" id="cb21-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb21-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">GuessProof</span> <span class="ch">&#39;[] where</span></a>
-<a class="sourceLine" id="cb21-5" data-line-number="5">  proof _ _ <span class="fu">=</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb21-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb21-7" data-line-number="7"><span class="kw">instance</span> (<span class="dt">KnownNat</span> n, n <span class="fu">&lt;=</span> <span class="dv">255</span>, <span class="dt">GuessProof</span> ns) <span class="ot">=&gt;</span> <span class="dt">GuessProof</span> (n <span class="ch">&#39;: ns) where</span></a>
-<a class="sourceLine" id="cb21-8" data-line-number="8">  proof s p <span class="fu">=</span> guessProof s (inner p) <span class="ot">`mplus`</span> proof s (next p)</a>
-<a class="sourceLine" id="cb21-9" data-line-number="9">   <span class="kw">where</span><span class="ot"> inner ::</span> <span class="dt">Proxy</span> (n <span class="ch">&#39;: ns) -&gt; Proxy (n::Nat)</span></a>
-<a class="sourceLine" id="cb21-10" data-line-number="10">         inner _ <span class="fu">=</span> <span class="dt">Proxy</span></a>
-<a class="sourceLine" id="cb21-11" data-line-number="11"><span class="ot">         next ::</span> <span class="dt">Proxy</span> (n <span class="ch">&#39;: ns) -&gt; Proxy (ns::[Nat])</span></a>
-<a class="sourceLine" id="cb21-12" data-line-number="12">         next _ <span class="fu">=</span> <span class="dt">Proxy</span></a></code></pre></div>
-<p>It’s not very usable, have a bad complexity and require to change ghc options but it works and it’s safe.</p>
-<p>Now let’s test our code:</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">f2 ::</span> (c <span class="fu">~</span> (n <span class="fu">&lt;=</span> <span class="dv">255</span>)) <span class="ot">=&gt;</span> <span class="dt">Proof3</span> <span class="dt">LessThan255D</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb22-2" data-line-number="2">f2 (<span class="dt">Proof3</span> n p) <span class="fu">=</span> print <span class="fu">$</span> natVal p</a></code></pre></div>
-<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="ot">test1 ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb23-2" data-line-number="2">test1 <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb23-3" data-line-number="3">    n <span class="ot">&lt;- readLn ::</span> <span class="dt">IO</span> <span class="dt">Integer</span></a>
-<a class="sourceLine" id="cb23-4" data-line-number="4"></a>
-<a class="sourceLine" id="cb23-5" data-line-number="5">    <span class="kw">case</span> someNatVal n <span class="kw">of</span></a>
-<a class="sourceLine" id="cb23-6" data-line-number="6">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;Input is not a natural number!&quot;</span></a>
-<a class="sourceLine" id="cb23-7" data-line-number="7">      <span class="dt">Just</span> sn <span class="ot">-&gt;</span> <span class="kw">case</span> fromSome3 sn <span class="kw">of</span></a>
-<a class="sourceLine" id="cb23-8" data-line-number="8">                   <span class="dt">Just</span> p <span class="ot">-&gt;</span> f2 p</a>
-<a class="sourceLine" id="cb23-9" data-line-number="9">                   _ <span class="ot">-&gt;</span> error <span class="st">&quot;Input if larger than 255&quot;</span></a></code></pre></div>
-<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="ot">test2 ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb24-2" data-line-number="2">test2 <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb24-3" data-line-number="3">  n <span class="ot">&lt;- readLn ::</span> <span class="dt">IO</span> <span class="dt">Integer</span></a>
-<a class="sourceLine" id="cb24-4" data-line-number="4">  <span class="kw">case</span> someNatVal n <span class="kw">of</span></a>
-<a class="sourceLine" id="cb24-5" data-line-number="5">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;Input is not a natural number!&quot;</span></a>
-<a class="sourceLine" id="cb24-6" data-line-number="6">      <span class="dt">Just</span> sn <span class="ot">-&gt;</span> <span class="kw">case</span> proof sn (g (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dv">255</span>)) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb24-7" data-line-number="7">                   <span class="dt">Just</span> p <span class="ot">-&gt;</span> f2 p</a>
-<a class="sourceLine" id="cb24-8" data-line-number="8">                   _ <span class="ot">-&gt;</span> error <span class="st">&quot;Input if larger than 255&quot;</span></a>
-<a class="sourceLine" id="cb24-9" data-line-number="9">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb24-10" data-line-number="10"><span class="ot">    g ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (<span class="dt">Guesses</span> n)</a>
-<a class="sourceLine" id="cb24-11" data-line-number="11">    g _ <span class="fu">=</span> <span class="dt">Proxy</span></a></code></pre></div>
-<h2 id="attempt-5-singletons">Attempt 5: Singletons</h2>
-<p>This is not the only solution, one more solution was provided by Richard Eisenberg I have not found it in mailing list archives so including it here.</p>
-<p>The idea is that we may use less effective representation for typelevel naturals, i.e. unary naturals we can build a proof using singletons:</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="ot">{-# LANGUAGE TemplateHaskell, DataKinds, PolyKinds, TypeFamilies,</span></a>
-<a class="sourceLine" id="cb25-2" data-line-number="2"><span class="ot">             ScopedTypeVariables, TypeOperators, UndecidableInstances,</span></a>
-<a class="sourceLine" id="cb25-3" data-line-number="3"><span class="ot">             GADTs, RankNTypes #-}</span></a>
-<a class="sourceLine" id="cb25-4" data-line-number="4"><span class="ot">{-# OPTIONS_GHC -ftype-function-depth=300 -fcontext-stack=300 #-}</span></a>
-<a class="sourceLine" id="cb25-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb25-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Data.Singletons.TH</span></a>
-<a class="sourceLine" id="cb25-7" data-line-number="7"><span class="kw">import</span> <span class="dt">GHC.TypeLits</span> <span class="kw">hiding</span> ( <span class="dt">Nat</span> )</a>
-<a class="sourceLine" id="cb25-8" data-line-number="8"></a>
-<a class="sourceLine" id="cb25-9" data-line-number="9"><span class="fu">$</span>(singletons [d|</a>
-<a class="sourceLine" id="cb25-10" data-line-number="10">  data Nat = Zero | Succ Nat</a>
-<a class="sourceLine" id="cb25-11" data-line-number="11"></a>
-<a class="sourceLine" id="cb25-12" data-line-number="12">  leNat :: Nat -&gt; Nat -&gt; Bool</a>
-<a class="sourceLine" id="cb25-13" data-line-number="13">  leNat Zero     _        = True</a>
-<a class="sourceLine" id="cb25-14" data-line-number="14">  leNat (Succ _) Zero     = False</a>
-<a class="sourceLine" id="cb25-15" data-line-number="15">  leNat (Succ a) (Succ b) = a `leNat` b</a>
-<a class="sourceLine" id="cb25-16" data-line-number="16">  |])</a>
-<a class="sourceLine" id="cb25-17" data-line-number="17"></a>
-<a class="sourceLine" id="cb25-18" data-line-number="18"><span class="co">-- | Singletons&#39;s &#39;withSomeSing&#39; is what we want, but a bug in 7.8.3 doesn&#39;t</span></a>
-<a class="sourceLine" id="cb25-19" data-line-number="19"><span class="co">-- let it work without a specialized type for &#39;Nat&#39;s</span></a>
-<a class="sourceLine" id="cb25-20" data-line-number="20"><span class="ot">withSomeNat ::</span> <span class="dt">Nat</span> <span class="ot">-&gt;</span> (forall (<span class="ot">n ::</span> <span class="dt">Nat</span>)<span class="fu">.</span> <span class="dt">Sing</span> n <span class="ot">-&gt;</span> r) <span class="ot">-&gt;</span> r</a>
-<a class="sourceLine" id="cb25-21" data-line-number="21">withSomeNat <span class="fu">=</span> withSomeSing</a>
-<a class="sourceLine" id="cb25-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb25-23" data-line-number="23"><span class="co">-- | Conveniently generate unary naturals</span></a>
-<a class="sourceLine" id="cb25-24" data-line-number="24"><span class="kw">type</span> family <span class="dt">U</span> n <span class="kw">where</span></a>
-<a class="sourceLine" id="cb25-25" data-line-number="25">  <span class="dt">U</span> <span class="dv">0</span> <span class="fu">=</span> <span class="dt">Zero</span></a>
-<a class="sourceLine" id="cb25-26" data-line-number="26">  <span class="dt">U</span> n <span class="fu">=</span> <span class="dt">Succ</span> (<span class="dt">U</span> (n<span class="fu">-</span><span class="dv">1</span>))</a>
-<a class="sourceLine" id="cb25-27" data-line-number="27"></a>
-<a class="sourceLine" id="cb25-28" data-line-number="28"><span class="ot">toNat ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Nat</span></a>
-<a class="sourceLine" id="cb25-29" data-line-number="29">toNat n <span class="fu">|</span> n <span class="fu">&lt;</span> <span class="dv">0</span>      <span class="fu">=</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb25-30" data-line-number="30">        <span class="fu">|</span> otherwise  <span class="fu">=</span> <span class="dt">Just</span> <span class="fu">$</span> go n</a>
-<a class="sourceLine" id="cb25-31" data-line-number="31">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb25-32" data-line-number="32">    go <span class="dv">0</span> <span class="fu">=</span> <span class="dt">Zero</span></a>
-<a class="sourceLine" id="cb25-33" data-line-number="33">    go n <span class="fu">=</span> <span class="dt">Succ</span> (go (n<span class="fu">-</span><span class="dv">1</span>))</a>
-<a class="sourceLine" id="cb25-34" data-line-number="34"></a>
-<a class="sourceLine" id="cb25-35" data-line-number="35"><span class="kw">type</span> <span class="dt">Bound</span> <span class="fu">=</span> <span class="dt">U</span> <span class="dv">255</span></a>
-<a class="sourceLine" id="cb25-36" data-line-number="36"></a>
-<a class="sourceLine" id="cb25-37" data-line-number="37"><span class="co">-- easier to test in GHCi than a proper &#39;main&#39;</span></a>
-<a class="sourceLine" id="cb25-38" data-line-number="38"><span class="ot">go ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb25-39" data-line-number="39">go n <span class="fu">=</span></a>
-<a class="sourceLine" id="cb25-40" data-line-number="40">   <span class="kw">case</span> toNat n <span class="kw">of</span></a>
-<a class="sourceLine" id="cb25-41" data-line-number="41">     <span class="dt">Nothing</span>  <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;Input is not a natural number!&quot;</span></a>
-<a class="sourceLine" id="cb25-42" data-line-number="42">     <span class="dt">Just</span> nat <span class="ot">-&gt;</span> putStrLn <span class="fu">$</span> withSomeNat nat <span class="fu">$</span> \ snat <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb25-43" data-line-number="43">       <span class="kw">case</span> snat <span class="ot">`sLeNat`</span> (<span class="ot">sing ::</span> <span class="dt">Sing</span> <span class="dt">Bound</span>) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb25-44" data-line-number="44">         <span class="dt">STrue</span>  <span class="ot">-&gt;</span> f snat</a>
-<a class="sourceLine" id="cb25-45" data-line-number="45">         <span class="dt">SFalse</span> <span class="ot">-&gt;</span> <span class="st">&quot;Didn&#39;t work&quot;</span></a>
-<a class="sourceLine" id="cb25-46" data-line-number="46"></a>
-<a class="sourceLine" id="cb25-47" data-line-number="47"><span class="ot">f ::</span> forall proxy (<span class="ot">n ::</span> <span class="dt">Nat</span>)<span class="fu">.</span> (n <span class="ot">`LeNat`</span> <span class="dt">Bound</span>) <span class="fu">~</span> <span class="dt">True</span> <span class="ot">=&gt;</span> proxy n <span class="ot">-&gt;</span> <span class="dt">String</span></a>
-<a class="sourceLine" id="cb25-48" data-line-number="48">f _ <span class="fu">=</span> <span class="st">&quot;It worked!&quot;</span></a></code></pre></div>
-<h2 id="attempt-6-using-luquid-haskell">Attempt 6: Using Luquid haskell</h2>
-<p>Ranjit Jhala, provided a great solution for liquid haskell, that could be found either by <a href="http://goto.ucsd.edu:8090/index.html#?demo=permalink%2F1418064183.hs">url</a> or here:</p>
-<hr />
-<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"></a>
-<a class="sourceLine" id="cb26-2" data-line-number="2"><span class="co">{-@ LIQUID &quot;--no-termination&quot; @-}</span></a>
-<a class="sourceLine" id="cb26-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb26-4" data-line-number="4"><span class="kw">module</span> <span class="dt">Nat255</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb26-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb26-6" data-line-number="6"><span class="co">-- | Define a predicate for valid integers</span></a>
-<a class="sourceLine" id="cb26-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb26-8" data-line-number="8"><span class="co">{-@ predicate IsValid X = 0 &lt;= X &amp;&amp; X &lt; 255 @-}</span></a>
-<a class="sourceLine" id="cb26-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb26-10" data-line-number="10"><span class="co">-- | Use the predicate to define a refinement type (subset) of valid integers</span></a>
-<a class="sourceLine" id="cb26-11" data-line-number="11"></a>
-<a class="sourceLine" id="cb26-12" data-line-number="12"><span class="co">{-@ type Valid = {v:Int | IsValid v}        @-}</span></a>
-<a class="sourceLine" id="cb26-13" data-line-number="13"></a>
-<a class="sourceLine" id="cb26-14" data-line-number="14"><span class="co">-- | A function that checks whether a given Int is indeed valid</span></a>
-<a class="sourceLine" id="cb26-15" data-line-number="15"></a>
-<a class="sourceLine" id="cb26-16" data-line-number="16"><span class="co">{-@ isValid   :: n:Int -&gt; {v:Bool | Prop v &lt;=&gt; IsValid n} @-}</span></a>
-<a class="sourceLine" id="cb26-17" data-line-number="17">isValid n     <span class="fu">=</span> <span class="dv">0</span> <span class="fu">&lt;=</span> n <span class="fu">&amp;&amp;</span> n <span class="fu">&lt;</span> (<span class="dv">255</span><span class="ot"> ::</span> <span class="dt">Int</span>)</a>
-<a class="sourceLine" id="cb26-18" data-line-number="18"></a>
-<a class="sourceLine" id="cb26-19" data-line-number="19"><span class="co">-- | A function that can only be called with Valid Ints.</span></a>
-<a class="sourceLine" id="cb26-20" data-line-number="20"></a>
-<a class="sourceLine" id="cb26-21" data-line-number="21"><span class="co">{-@ workWithValidNumber :: Valid -&gt; IO () @-}</span> </a>
-<a class="sourceLine" id="cb26-22" data-line-number="22">workWithValidNumber n <span class="fu">=</span> putStrLn <span class="fu">$</span> <span class="st">&quot;This is a valid number&quot;</span> <span class="fu">++</span> show (<span class="ot">n ::</span> <span class="dt">Int</span>)</a>
-<a class="sourceLine" id="cb26-23" data-line-number="23"></a>
-<a class="sourceLine" id="cb26-24" data-line-number="24"><span class="co">-- | This is fine...</span></a>
-<a class="sourceLine" id="cb26-25" data-line-number="25">ok    <span class="fu">=</span> workWithValidNumber <span class="dv">12</span></a>
-<a class="sourceLine" id="cb26-26" data-line-number="26"></a>
-<a class="sourceLine" id="cb26-27" data-line-number="27"><span class="co">-- | ... But this is not.        </span></a>
-<a class="sourceLine" id="cb26-28" data-line-number="28">notOk <span class="fu">=</span> workWithValidNumber <span class="dv">257</span></a>
-<a class="sourceLine" id="cb26-29" data-line-number="29"></a>
-<a class="sourceLine" id="cb26-30" data-line-number="30"><span class="co">-- | Finally the top level loop that inputs a number, tests it </span></a>
-<a class="sourceLine" id="cb26-31" data-line-number="31"><span class="co">--   and calls `workWithValidNumber` if the number is valid.</span></a>
-<a class="sourceLine" id="cb26-32" data-line-number="32"></a>
-<a class="sourceLine" id="cb26-33" data-line-number="33">loop <span class="fu">=</span> <span class="kw">do</span> putStrLn <span class="st">&quot;Enter Number between 0 and 255&quot;</span></a>
-<a class="sourceLine" id="cb26-34" data-line-number="34">          n <span class="ot">&lt;- readLn ::</span> <span class="dt">IO</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb26-35" data-line-number="35">          <span class="kw">if</span> isValid n</a>
-<a class="sourceLine" id="cb26-36" data-line-number="36">             <span class="kw">then</span> workWithValidNumber n</a>
-<a class="sourceLine" id="cb26-37" data-line-number="37">             <span class="kw">else</span> putStrLn <span class="st">&quot;Humph, bad input, try again!&quot;</span> <span class="fu">&gt;&gt;</span> loop</a></code></pre></div>
-<p>I hope you have enjoyed reading this.</p>]]></summary>
-</entry>
-<entry>
-    <title>Compositional methods for numerical ODE integrators</title>
-    <link href="https://qnikst.github.io/posts/2014-08-18-compositional-methods.html" />
-    <id>https://qnikst.github.io/posts/2014-08-18-compositional-methods.html</id>
-    <published>2014-08-18T00:00:00Z</published>
-    <updated>2014-08-18T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>We show a way to improve properties of a ODE integrators, by introducing a composition of the methods with a different steps.</p>
-<!--more-->
-<p>This post is based on the work of the Ernst Harrier [<a href="http://www.springer.com/mathematics/computational+science+%26+engineering/book/978-3-540-30663-4">1</a>] and doesn’t contain any additional research work.</p>
-<p>Here we want to solve a system of equations that can we written as:</p>
-<p><span class="math display">\[ \dot{y} = f(y). \]</span></p>
-<p>In order to solve it we are introducing a mapping from an old state at <span class="math inline">\(t0\)</span> to a new one at <span class="math inline">\(t_1 = t_0 + dt\)</span>:</p>
-<p><span class="math display">\[\Phi_h: y_{n} \rightarrow  y_{n+1}\]</span></p>
-<p>In order to increase the order of the solution while preserving some desirable properties of the base method we may prepare a compositional method:</p>
-<p><span class="math display">\[\Psi_h = \Phi_{\gamma_1h} \circ \ldots \circ \Phi_{\gamma_nh},\]</span></p>
-<p>where <span class="math inline">\(\gamma_i\)</span> is a coefficient from <span class="math inline">\(\mathbb R\)</span>. This approach was studied by Suzuki, Yoshina, McLackcan in 1990th. Here we compose a base method at a different points in time.</p>
-<p>We have a theorem about this approach to compositional methods.</p>
-<p><em>Theorem</em></p>
-<blockquote>
-<p>Let <span class="math inline">\(\Phi_h\)</span> be a one-step method of order <span class="math inline">\(p\)</span>. If</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-\gamma_1 + \ldots + \gamma_s = 1 \\
-\gamma_1^{p+1} + \ldots + \gamma_s^{p+1} = 0 \\
-\end{eqnarray}
-\]</span> then the compositional method <span class="math inline">\(\Psi_h\)</span> is at least of the order <span class="math inline">\(p+1\)</span>.</p>
-</blockquote>
-<p>This gives theorem gives us a nice way to improve properties of the existing method. The question now is how to find a good coefficients <span class="math inline">\(\gamma_i\)</span>.</p>
-<p>The first notice is that equations does not have a real solution for the odd <span class="math inline">\(p\)</span>, so we can improve only solutions with even <span class="math inline">\(p\)</span>.</p>
-<p>The smallest number <span class="math inline">\(s\)</span> where a solution in reals exists is <span class="math inline">\(3\)</span>. And coefficients are defined as:</p>
-<p><span class="math display">\[ \gamma_1 = \gamma_3 = \frac{1}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
-<p><span class="math display">\[ \gamma_2 = - \frac{2^{\frac{1}{p+1}}}{2 - 2^{\frac{1}{p+1}}} \]</span></p>
-<p>This method is called tripple jump. Lets check how does it work.</p>
-<p>At first we will introduce a coefficients</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">g1 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2">g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))</a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">g2 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5">g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))</a>
-<a class="sourceLine" id="cb1-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">g3 ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8">g3 <span class="fu">=</span> g1</a></code></pre></div>
-<p>Having a method of an order 2 (for example standard Runge-Kutta method) we may use a composition a points defined by <span class="math inline">\(\gamma_i\)</span> with <span class="math inline">\(p=2\)</span>. Let step be a <span class="math inline">\(dt = 1\)</span> for simplicity.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="fu">&gt;</span><span class="ot"> t ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="fu">&gt;</span> t p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 p, g2 p, g3 p]</a>
-<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> t <span class="dv">2</span> <span class="dv">1</span></a>
-<a class="sourceLine" id="cb2-5" data-line-number="5">[<span class="fl">1.3512071919596578</span>,<span class="fu">-</span><span class="fl">1.7024143839193153</span>,<span class="fl">1.3512071919596578</span>]</a></code></pre></div>
-<p>We have 3 points. If we will take a compositional method <span class="math inline">\(\Psi\)</span> in the points we got then we will have a method of order <span class="math inline">\(3\)</span>. However if you method is symmetric then it’s order is <span class="math inline">\(4\)</span> and we can apply a tripple jump once again to our composed method.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="fu">&gt;</span><span class="ot"> ut ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="fu">&gt;</span> ut p xs <span class="fu">=</span> xs <span class="fu">&gt;&gt;=</span> (\x <span class="ot">-&gt;</span> t (p<span class="fu">+</span><span class="dv">2</span>) x)</a>
-<a class="sourceLine" id="cb3-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb3-5" data-line-number="5">[<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span></a>
-<a class="sourceLine" id="cb3-6" data-line-number="6">,<span class="fl">2.097997398066439</span>,<span class="fu">-</span><span class="fl">1.900205890992877</span>,<span class="fl">1.5081944151591316</span>,<span class="fu">-</span><span class="fl">1.665181638358605</span>,<span class="fl">1.5081944151591316</span>]</a></code></pre></div>
-<p>This is a coefficients for a compositional method of order <span class="math inline">\(5\)</span>, (<span class="math inline">\(6\)</span> due to symmetry. Applying tripple jump nce again:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> ut <span class="dv">6</span> \<span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">[<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">,<span class="fl">1.955013517256328</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>,<span class="fl">2.2309447311243717</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span></a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">,<span class="fl">2.2805800406433505</span>,<span class="fu">-</span><span class="fl">2.4631626832202618</span>,<span class="fl">2.2805800406433505</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">,<span class="fl">2.2309447311243717</span>,<span class="fu">-</span><span class="fl">2.0655753110586246</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span></a>
-<a class="sourceLine" id="cb4-7" data-line-number="7">,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span>,<span class="fl">1.955013517256328</span>,<span class="fu">-</span><span class="fl">1.8100975778074668</span></a>
-<a class="sourceLine" id="cb4-8" data-line-number="8">,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">1.77070200653487</span>,<span class="fl">1.639448210847001</span>]</a></code></pre></div>
-<p>this is a compositional method of order 8.</p>
-<p>To see a places where function will be evaluated we can use:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="fu">*</span><span class="dt">Main</span><span class="fu">&gt;</span> scanl (<span class="fu">+</span>) <span class="dv">0</span> <span class="fu">$</span> ut <span class="dv">6</span> <span class="fu">$</span> ut <span class="dv">4</span> (t <span class="dv">2</span> <span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2">[<span class="fl">0.0</span>,<span class="fl">1.639448210847001</span>,<span class="fu">-</span><span class="fl">0.131253795687869</span>,<span class="fl">1.508194415159132</span>,<span class="fu">-</span><span class="fl">0.30190316264833483</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">,<span class="fl">1.6531103546079933</span>,<span class="fu">-</span><span class="fl">0.15698722319947356</span>,<span class="fl">1.4824609876475274</span>,<span class="fu">-</span><span class="fl">0.28824101888734255</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4">,<span class="fl">1.3512071919596584</span>,<span class="fu">-</span><span class="fl">0.7143681190989661</span>,<span class="fl">1.5165766120254056</span>,<span class="fu">-</span><span class="fl">0.548998699033219</span></a>
-<a class="sourceLine" id="cb5-5" data-line-number="5">,<span class="fl">1.7315813416101316</span>,<span class="fu">-</span><span class="fl">0.7315813416101302</span>,<span class="fl">1.5489986990332203</span>,<span class="fu">-</span><span class="fl">0.5165766120254043</span></a>
-<a class="sourceLine" id="cb5-6" data-line-number="6">,<span class="fl">1.7143681190989675</span>,<span class="fu">-</span><span class="fl">0.3512071919596571</span>,<span class="fl">1.2882410188873439</span>,<span class="fu">-</span><span class="fl">0.4824609876475261</span></a>
-<a class="sourceLine" id="cb5-7" data-line-number="7">,<span class="fl">1.156987223199475</span>,<span class="fu">-</span><span class="fl">0.6531103546079919</span>,<span class="fl">1.3019031626483362</span>,<span class="fu">-</span><span class="fl">0.5081944151591307</span></a>
-<a class="sourceLine" id="cb5-8" data-line-number="8">,<span class="fl">1.1312537956878703</span>,<span class="fu">-</span><span class="fl">0.6394482108469997</span>,<span class="fl">1.0000000000000013</span>]</a></code></pre></div>
-<p>This way we may obtain a method of any order by the price of a terrible zig-zag of the step points.</p>
-<p>Another approach to a compositional method is using Suzuki`s Fractals.</p>
-<p>The same schema exists for Suzuki`s Fractals, however how we have a diffierent coefficients:</p>
-<p><span class="math display">\[
-\begin{eqnarray}
-  \gamma_1 = \gamma_2 = \gamma_4 = \gamma_5 = \frac{1}{4-4^{\frac{1}{p+1}}} \\
-  \gamma_3 = - \frac{4^{\frac{1}{p+1}}}{4-4^{\frac{1}{p+1}}}
-\end{eqnarray}
-\]</span></p>
-<p>However <span class="math inline">\(t\)</span> and <span class="math inline">\(ut\)</span> methods looks quite ugly and we may want to improve this situation.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">{-# LANGUAGE DataKinds #-}</span></a>
-<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">{-# LANGUAGE KindSignatures #-}</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></a>
-<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="ot">{-# LANGUAGE FlexibleContexts #-}</span></a>
-<a class="sourceLine" id="cb6-5" data-line-number="5"><span class="ot">{-# LANGUAGE TypeOperators #-}</span></a>
-<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span></a>
-<a class="sourceLine" id="cb6-7" data-line-number="7"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span></a>
-<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="ot">{-# LANGUAGE ConstraintKinds #-}</span></a>
-<a class="sourceLine" id="cb6-9" data-line-number="9"><span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span></a>
-<a class="sourceLine" id="cb6-10" data-line-number="10"><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></a>
-<a class="sourceLine" id="cb6-11" data-line-number="11"></a>
-<a class="sourceLine" id="cb6-12" data-line-number="12"><span class="kw">import</span> <span class="dt">GHC.TypeLits</span></a>
-<a class="sourceLine" id="cb6-13" data-line-number="13"><span class="kw">import</span> <span class="dt">GHC.Exts</span> (<span class="dt">Constraint</span>)</a>
-<a class="sourceLine" id="cb6-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
-<a class="sourceLine" id="cb6-15" data-line-number="15"></a>
-<a class="sourceLine" id="cb6-16" data-line-number="16"><span class="co">-- Coefficients</span></a>
-<a class="sourceLine" id="cb6-17" data-line-number="17"><span class="ot">g1 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb6-18" data-line-number="18">g1 p <span class="fu">=</span>  <span class="dv">1</span> <span class="fu">/</span> (<span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))</a>
-<a class="sourceLine" id="cb6-19" data-line-number="19"></a>
-<a class="sourceLine" id="cb6-20" data-line-number="20"><span class="ot">g2 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb6-21" data-line-number="21">g2 p <span class="fu">=</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)) <span class="fu">/</span> ( <span class="dv">2</span> <span class="fu">-</span> <span class="dv">2</span><span class="fu">**</span>(<span class="dv">1</span><span class="fu">/</span>(fromIntegral p<span class="fu">+</span><span class="dv">1</span>)))</a>
-<a class="sourceLine" id="cb6-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb6-23" data-line-number="23"><span class="ot">g3 ::</span> <span class="dt">Integer</span> <span class="ot">-&gt;</span> <span class="dt">Double</span></a>
-<a class="sourceLine" id="cb6-24" data-line-number="24">g3 <span class="fu">=</span> g1</a>
-<a class="sourceLine" id="cb6-25" data-line-number="25"></a>
-<a class="sourceLine" id="cb6-26" data-line-number="26"><span class="co">-- Description of the method</span></a>
-<a class="sourceLine" id="cb6-27" data-line-number="27"><span class="kw">data</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dt">RK2</span></a>
-<a class="sourceLine" id="cb6-28" data-line-number="28"></a>
-<a class="sourceLine" id="cb6-29" data-line-number="29"><span class="co">-- Description of the method order</span></a>
-<a class="sourceLine" id="cb6-30" data-line-number="30"><span class="kw">type</span> family <span class="dt">Order</span><span class="ot"> a ::</span> <span class="dt">Nat</span></a>
-<a class="sourceLine" id="cb6-31" data-line-number="31"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Order</span> <span class="dt">RK2</span> <span class="fu">=</span> <span class="dv">2</span></a>
-<a class="sourceLine" id="cb6-32" data-line-number="32"></a>
-<a class="sourceLine" id="cb6-33" data-line-number="33"><span class="co">-- Description of symmetric properties of the method</span></a>
-<a class="sourceLine" id="cb6-34" data-line-number="34"><span class="kw">type</span> family <span class="dt">IsSymmetric</span><span class="ot"> a ::</span> <span class="dt">Constraint</span></a>
-<a class="sourceLine" id="cb6-35" data-line-number="35"><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">IsSymmetric</span> <span class="dt">RK2</span> <span class="fu">=</span> ()</a>
-<a class="sourceLine" id="cb6-36" data-line-number="36"></a>
-<a class="sourceLine" id="cb6-37" data-line-number="37"><span class="co">-- One level composition</span></a>
-<a class="sourceLine" id="cb6-38" data-line-number="38"><span class="ot">buildComposePoints ::</span> forall p <span class="fu">.</span> <span class="dt">KnownNat</span> (<span class="dt">Order</span> p)</a>
-<a class="sourceLine" id="cb6-39" data-line-number="39">                   <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb6-40" data-line-number="40">buildComposePoints p dt <span class="fu">=</span> map (<span class="fu">*</span>dt) [g1 o, g2 o, g3 o]</a>
-<a class="sourceLine" id="cb6-41" data-line-number="41">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-42" data-line-number="42">    o <span class="fu">=</span> natVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Order</span> p))</a>
-<a class="sourceLine" id="cb6-43" data-line-number="43"></a>
-<a class="sourceLine" id="cb6-44" data-line-number="44"><span class="co">-- Composition for the symmetric method</span></a>
-<a class="sourceLine" id="cb6-45" data-line-number="45"><span class="ot">buildComposePointsSym ::</span> forall p n <span class="fu">.</span> (<span class="dt">UpdateCompose</span> (<span class="dt">Order</span> p <span class="fu">+</span> <span class="dv">2</span>) n, <span class="dt">IsSymmetric</span> p, <span class="dt">KnownNat</span> (<span class="dt">Order</span> p), <span class="dt">KnownNat</span> n)</a>
-<a class="sourceLine" id="cb6-46" data-line-number="46">                      <span class="ot">=&gt;</span> p <span class="ot">-&gt;</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb6-47" data-line-number="47">buildComposePointsSym p pn dt <span class="fu">=</span> update (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> ((<span class="dt">Order</span> p) <span class="fu">+</span> <span class="dv">2</span>)) pn (buildComposePoints p dt)</a>
-<a class="sourceLine" id="cb6-48" data-line-number="48"></a>
-<a class="sourceLine" id="cb6-49" data-line-number="49"><span class="kw">class</span> <span class="dt">UpdateCompose</span> (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v::</span><span class="dt">Nat</span>) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-50" data-line-number="50"><span class="ot">  update ::</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb6-51" data-line-number="51"></a>
-<a class="sourceLine" id="cb6-52" data-line-number="52"><span class="kw">class</span> <span class="dt">UpdateComposeCase</span> (<span class="ot">leq ::</span> <span class="dt">Bool</span>) (<span class="ot">k ::</span> <span class="dt">Nat</span>) (<span class="ot">v ::</span> <span class="dt">Nat</span>) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-53" data-line-number="53"><span class="ot">  updateCase ::</span> <span class="dt">Proxy</span> leq <span class="ot">-&gt;</span> <span class="dt">Proxy</span> k <span class="ot">-&gt;</span> <span class="dt">Proxy</span> v <span class="ot">-&gt;</span> [<span class="dt">Double</span>] <span class="ot">-&gt;</span> [<span class="dt">Double</span>]</a>
-<a class="sourceLine" id="cb6-54" data-line-number="54"></a>
-<a class="sourceLine" id="cb6-55" data-line-number="55"><span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> (k <span class="fu">&lt;=?</span> v) k v <span class="ot">=&gt;</span> <span class="dt">UpdateCompose</span> k v <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-56" data-line-number="56">  update <span class="fu">=</span> updateCase (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (k <span class="fu">&lt;=?</span> v))</a>
-<a class="sourceLine" id="cb6-57" data-line-number="57"></a>
-<a class="sourceLine" id="cb6-58" data-line-number="58"><span class="kw">instance</span> <span class="dt">UpdateComposeCase</span> <span class="dt">False</span> k v <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-59" data-line-number="59">  updateCase _ _ _ <span class="fu">=</span> id</a>
-<a class="sourceLine" id="cb6-60" data-line-number="60">  </a>
-<a class="sourceLine" id="cb6-61" data-line-number="61"><span class="kw">instance</span> (<span class="dt">KnownNat</span> k, <span class="dt">UpdateCompose</span> (k<span class="fu">+</span><span class="dv">2</span>) v) <span class="ot">=&gt;</span> <span class="dt">UpdateComposeCase</span> <span class="dt">True</span> k v <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-62" data-line-number="62">  updateCase _ k v ds <span class="fu">=</span> update (plus2 k) v (ds <span class="fu">&gt;&gt;=</span> \x <span class="ot">-&gt;</span> map (<span class="fu">*</span>x) [g1 o, g2 o, g3 o])</a>
-<a class="sourceLine" id="cb6-63" data-line-number="63">    <span class="kw">where</span></a>
-<a class="sourceLine" id="cb6-64" data-line-number="64">      o <span class="fu">=</span> natVal k</a>
-<a class="sourceLine" id="cb6-65" data-line-number="65"><span class="ot">      plus2 ::</span> <span class="dt">Proxy</span> n <span class="ot">-&gt;</span> <span class="dt">Proxy</span> (n<span class="fu">+</span><span class="dv">2</span>)</a>
-<a class="sourceLine" id="cb6-66" data-line-number="66">      plus2 _ <span class="fu">=</span> <span class="dt">Proxy</span></a></code></pre></div>]]></summary>
 </entry>
 
 </feed>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Metric a Haskell application</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>September 29, 2018</strong>
+    </div>
+    <h1>Metric a Haskell application</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em> unknown license </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a></div>
+</div>
+
+<p>In one of my <a href="https://qnikst.github.io/posts/2018-08-23-ht-no-more.html">recept posts</a>, I’ve mentioned gathering metrics of my Haskell application. Some people asked me about my setup so I will try to describe how I configure and structure my applications.</p>
+<p>I will try to split the description in a series of posts, in this one I’ll describe the general setup. After reading this post you’ll be able to set up the metrics system of your Haskell application (or suggest me how to do that better). At this point you’ll be able to get some information about your application and set up alerts based on that. In the following posts we will try to go deeper into each metric, check if those metrics are helpful, look if any pieces are missing and how that could be improved.</p>
+<h3 id="haskell-and-metrics.">Haskell and metrics.</h3>
+<p>Let’s spend a bit of time defining the problem we want to solve and describing its solution area. The purpose of a metrics system is to tell if your application is alive and behaves as expected. It should not give you more than statistical information about your application. We can split information into two categories:</p>
+<ol type="1">
+<li>general information: memory use, runtime system statistics.</li>
+<li>application specific information.</li>
+</ol>
+<p>The border line between those two is quite fuzzy: for example, you may have a general web-server statistics, like number of processed requests or time to reply which are application specific but applicable to any web-server. So I’d add them to the first group. But the main trap here is not to try to solve an incorrect problem; metrics may not work as an exact source of information. Nor could they be a mechanism for tracing or log server, you need other tools for thse purposes.</p>
+<p>In the Haskell ecosystem, there are a few packages providing metrics support. The one that is the best known and has a long history is <a href="https://hackage.haskell.org/package/ekg-core">EKG</a> - this package offers few metrics types and a large variety of systems that you can integrate with. While EKG is generally a good generic solution, I found that some companies are trying to move from that package. (I was not able to gather concrete reports what was a problem with it, so I will try to avoid answering that question).</p>
+<p>Otherwise we can take a specific solution that works great with a single system. In Tweag we’re used to use <a href="https://prometheus.io/">Prometheus</a>. With Prometheus you can dump your metrics to the well-maintained package that other people usually familiar with. Hackage offers an excellent library for working with Prometheus: <a href="https://hackage.haskell.org/package/prometheus-client">prometheus-client</a>. Even if you like EKG more or have projects that are using it you can use the adapter for EKG <a href="https://hackage.haskell.org/package/ekg-prometheus-adapter">ekg-prometheus-adapter</a>. I have not used that package myself but I hope that it just works, or at least it could be easily fixed.</p>
+<h3 id="setup.">Setup.</h3>
+<p>For an application setup I’m going to use Docker compose. With this approach we will be able to cover all the details and this approach may be adapted to a more complex system like Kubernetes.</p>
+<p>Let’s start writing docker compose files. I omitted all irrelevant links and configuration.</p>
+<pre class="docker"><code>version: &quot;3&quot;
+services:
+
+  haskell-app:
+    image: &lt;your-image&gt;
+    ports:
+    - '8080:8080'
+
+  node_exporter:
+    image: prom/node-exporter
+    expose:
+      - 9100
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+    - ./config/prometheus:/etc/prometheus
+    - prometheus_data:/prometheus
+    command:
+    - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+    - '9090:9090'
+    links:
+    - haskell-app
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=XxXchangemeXxX
+    depends_on:
+      - prometheus
+    ports:
+      - &quot;3000:3000&quot;
+    links:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    user: &quot;104&quot;    
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}</code></pre>
+<p>Prometheus config:</p>
+<pre class="docker"><code>global:
+    scrape_interval: 5s
+    external_labels:
+      monitor: 'my-monitor'
+scrape_configs:
+  - job_name: 'myapp'
+    static_configs:
+      - targets: 
+        - haskell-app:8080</code></pre>
+<p>It’s possible to configure Grafana declaratively as well but as I don’t have a final solution that I can use out of the box on any system I tend to setup Grafana manually. Just log into your instance and go through the onboarding process.</p>
+<p>Now we are ready to set up our Haskell application.</p>
+<p>Setup of a Haskell application may be pretty simple. To dump GHC statistics you may use <a href="https://hackage.haskell.org/package/prometheus-metrics-ghc">prometheus-metrics-ghc</a>. To make the full use of this package you need to enable gathering of runtime statistics with:</p>
+<pre class="cabal"><code>  build-depends: prometheus-metrics-ghc
+  ghc-options: &quot;-with-rtsopts=-T&quot;</code></pre>
+<p>Then add to your main:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">import</span>  <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="kw">import</span>  <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">main  ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">   register ghcMetrics</a></code></pre></div>
+<p>At this point you gather RTS stats but you don’t export you metrics yet. To export your data you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span> </a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">   register ghcMetrics</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">   Warp.run <span class="dv">9090</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="fu">$</span>   prometheus def</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">              { prometheusInstrumentPrometheus  <span class="fu">=</span><span class="dt">False</span> }</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">         <span class="fu">$</span> yourApplication</a></code></pre></div>
+<p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point you’ll have some basic information about your endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
+<p>We will cover interesting stats in the next posts but for now you may be interested in the following data:</p>
+<ul>
+<li><code>ghc_allocated_bytes_total</code> - to build a <code>rate</code> plot based on that metric</li>
+<li><code>ghc_num_gcs</code> - to build a rate plot of GCs</li>
+<li><code>ghc_mutator_wall_seconds_total/(ghc_mutator_wall_seconds_total+ghc_gc_wall_seconds_total)</code> - to understand the proportion of time spent in GC</li>
+<li>information about memory usage split by the type of memory</li>
+<li>and a number of metrics from <code>ghc_gcdetails</code> category. This data may not be very useful as it shows data since last GC, so you may report the same GC multiple times if no GC happened during the report period, or miss some reports if more that one GC happens.</li>
+</ul>
+<p>I hope that this information will be useful and will try to dig into concrete metrics examples in the following posts.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2018-09-29-metrics-haskell.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2018-09-29-metrics-haskell.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2018-09-29-metrics-haskell.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

@@ -15,10 +15,10 @@
     <id>https://qnikst.github.io/posts/2018-08-27-ht-no-more2.html</id>
     <published>2018-08-22T00:00:00Z</published>
     <updated>2018-08-22T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>After writing of the previous blog <a href="/posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. All feedback is in arbitrary order.</p>
-<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flags, as was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in a blog post, my approach will not work with this option correctly (for some reason I called that <code>-xm</code>, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to the cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of the cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
-<p>The entire thread is very entertaining and if you are interested in the topic then it’s likely that you check all comments as well.</p>
-<p>Secondly, this was a question if my reasoning was incorrect and it’s enough to leave one thread off and have better performance. We used this approach in some projects, however on the particular one results of the <code>N-1</code> threads were very depressing:</p>
+    <summary type="html"><![CDATA[<p>After writing of the previous blog <a href="/posts/2018-08-23-ht-no-more.html">post</a>, I got some interesting feedback from the working chat and <a href="https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/">r/haskell</a>. Some of the input I want to hightlight explicitly. Feedback order is arbitrary.</p>
+<p>First thing is a discussion of the explicit pinning capabilities to the cores. It’s possible using <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa">+RTS -qa</a> flag, as it was mentioned by the <a href="https://www.reddit.com/user/nh2_">nh2</a> on Reddit. As I mentioned in the previous blog post, my approach will not work with this option correctly (for some reason I have used <code>-xm</code> instead of <code>-qa</code> in that post, I’m sorry) and I’ll need to redefine more functions. But in general pinning capabilities to cores may work on all possible CPU layouts. I have not looked deep inside that issue as in most of our cases <code>-qa</code> flag gave me worse performance, so your program should have some special properties to make benefit from the hard pinning. I think it’s possible to use <code>/proc/cpuinfo</code> to make the most efforts when pinning capabilities.</p>
+<p>The entire thread is very entertaining and if you are interested in the topic then I recommend to check out ther comments as well.</p>
+<p>Secondly, there was a question if my reasoning was incorrect and it’s enough to leave one thread off and still have better performance. We used this approach in some projects, however for one particular case the results with <code>N-1</code> threads were very depressing:</p>
 <pre><code>        Cumulative quantiles per tag (N7)
         99%       98%     95%    90%    85%      80%   75%    50%
 Overall 4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1105ms
@@ -29,8 +29,8 @@ put     4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1100ms</code></pre>
 Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
 get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
 put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
-<p>There is 1 to 3 order of magnitude difference in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
-<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check that<code>RTS</code> stopped and report its status. So I have rechecked the sources and introduced few updates that let report status of running haskell command (the same way as RTS does), and do not require using FFI extension in the Haskell code.</p>]]></summary>
+<p>There is 1 to 3 orders of magnitude differences in response times, without going deeper I have decided to stick with <code>-N4</code> for now.</p>
+<p>The third, @<a href="https://github.com/TerrorJack">TerrorJack</a> adviced me to improve <a href="https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95">teardown</a> procedure in the <code>wrapper.c</code>, as it should check if<code>RTS</code> was stopped and report its status. So I have rechecked the sources and introduced few updates that allow to report status of running haskell command (the same way as RTS does), and which do not require using FFI extension in the Haskell code.</p>]]></summary>
 </entry>
 <entry>
     <title>Marrying Haskell and Hyper-Threading</title>
@@ -38,49 +38,49 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
     <id>https://qnikst.github.io/posts/2018-08-23-ht-no-more.html</id>
     <published>2018-08-22T00:00:00Z</published>
     <updated>2018-08-22T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>In this blog post, I’d like to tell one story that had happened with one Haskell application. Then explain how we can start threaded RTS, so it is aware of the CPU layout on your system. If you want to skip the story, you can proceed to the solution directly.</p>
+    <summary type="html"><![CDATA[<p>In this blog post I’d like to tell one story that had happened with one Haskell application. Then I’ll explain how can we start threaded RTS in a way so it is aware of the CPU layout of your system. If you want to skip the story you may proceed to the solution directly.</p>
 <p>Some updates to this post can be found in the <a href="./2018-08-27-ht-no-more2.html">next one</a>.</p>
-<p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load on the site and build <a href="https://overload.yandex.net/1">fantastic reports</a> (may require GitHub authorization).</p>
-<p>Results were quite interesting. At first, everything went well, and the application was able to process about <code>1k</code> requests per second, and that was enough for the expected load. However, when Yandex Tank gave a pressure about <code>2k</code> RPS, the situation became worse. Application stopped being responsive. The application was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance, and then a period of unresponsiveness.</p>
+<p>Recently I’ve written a small Haskell application that performs some cryptography routines, query management, and communication with Redis. We wanted to test the capabilities of the application and measure RPS that application can support. We used Yandex Tank for this purpose. <a href="https://yandextank.readthedocs.io/en/latest/index.html">Yandex tank</a> can generate a load for a site and build some <a href="https://overload.yandex.net/1">fantastic reports</a> (it could require GitHub authorization).</p>
+<p>Results were quite interesting. At first everything went well: the application was able to process about <code>1k</code> requests per second and that was enough for the expected load. However, when Yandex Tank gave a pressure of about <code>2k</code> RPS the situation became worse. The application stopped being responsive. It was able to process only <code>200</code> requests per second. That was troublesome. On the Yandex tank plots there was a period of reasonable performance and then a period of unresponsiveness.</p>
 <img src="../images/posts/ht-no-more/1.plot.jpg" alt="Spikes on the tank terminal report" />
 <div>
 <img src="../images/posts/ht-no-more/2.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/3.tank.report.png" width="399" style="inline"/>
 </div>
-<p>As it happens the first suspect in such cases is the Garbage Collector. You can always hear lots of scary stories about how GC could ruin your life. Keeping that in mind GC was tunned beforehand, and I prepared some metrics. However, this time situation was quite OK, garbage collector pauses were all &lt;10ms, and 99% of the total time program spent on actual work and not garbage collection. Memory usage was too big ~700Mb, and I didn’t expect that.</p>
+<p>As it happens the first suspect in such cases is the Garbage Collector. You can always hear lots of scary stories about how GC could ruin your life. Keeping that in mind GC was tuned beforehand and I had prepared some metrics. However this time the situation was quite OK: garbage collector pauses were all below 10ms and 99% of the total program time was spent on actual work and not on garbage collection. Memory usage was too big - around 700Mb and I didn’t expect that.</p>
 <figure>
 <img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" /><figcaption>GC Information</figcaption>
 </figure>
-<p>On the left plot you can see reports of the last GC, they are not very precise as they may miss some GCs or report the same GC twice. However they still tell us the order of magnutude. On the right plot we see ratio of time spent in mutator to the total running time.</p>
-<p>Other parts of the system were not under stress and were capable of the handling higher load. So the issue was with my program. Although I didn’t spend much time optimising the program, it should behave better.</p>
-<p>Another surprising fact was that the issue didn’t appear on my system that is comparable to the one where stress tests were running, and that could handle higher load. Accidentally I realised the difference, and the following dialogue took place:</p>
+<p>On the left plot you can see reports of the last GC, they are not very precise as they may miss some GCs or report the same GC twice. However they still tell us the order of magnutude. On the right plot we see the ratio of the time spent in mutator to the total running time.</p>
+<p>Other parts of the system were not under a stress and were capable of handling higher loads. So the issue was in my program. Although I didn’t spend much time optimising the program, it should behave better.</p>
+<p>Another surprising fact was that the issue didn’t appear on my system which is comparable to the one where stress tests were running, and the one that could handle higher load. Accidentally I realised the difference, and the following dialogue took place:</p>
 <blockquote>
 <p>Me: What is the CPU on the system?</p>
 <p>Admin: I7 4 cores, eight thread!</p>
 <p>Me: Ah! Add <code>GHCRTS=-N4</code> to the container’s Environment.</p>
 </blockquote>
-<p>After that single change situation drastically changed, the program was able to process 4.5k RPS (comparable to the maximum load that a single instance of Yandex.Tank can generate), now mutator time got &gt;99%, GC pauses were still ~10ms but very rare, and memory usage was about 25Mb.</p>
+<p>After that single adjustment the situation changed drastically: the program was now able to process 4.5k RPS (comparable to the maximum load that a single instance of Yandex.Tank can generate), now mutator time got &gt;99%, GC pauses were still ~10ms but very rare and memory usage was about 25Mb.</p>
 <img src="../images/posts/ht-no-more/4.gc-info.jpg" alt="GC Information" />
 <div>
 <img src="../images/posts/ht-no-more/5.tank.report.png" width="399" style="inline"/><img src=" ../images/posts/ht-no-more/6.tank.report.png" width="399" style="inline"/>
 </div>
-<p>Connect time is still terrible here, but it was fixed by reconfiguring and improving network, and is out of the scope.</p>
-<p>So this is just another story about suboptimal defaults for the runtime system. It happens that if you pass <code>+RTS -N</code> option - you tell runtime system to start the same number of capabilities as you have cores. However, <code>RTS</code> makes no difference between real and virtual cores. It appears that <code>RTS</code> could not make enough benefit from the virtual cores, and performance is not good enough in that case.</p>
-<p>While it is pretty impressive, that we can optimise the program without any changes in source code, it’s interesting, what can we do in the general case. It’s problematic that we can not set good options that work on any CPU and have decent performance. To find an answer, I’ve started the project <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">ht-no-more</a>. It lives in my playground for now, but I can extract it to the separate repo. I hope that at some point it will be mature enough to be used as a library or even land to the RTS.</p>
+<p>Connect time was still terrible in that case but it was fixed by reconfiguring and improving network which is out of scope here.</p>
+<p>So this is just another story about suboptimal defaults for the runtime system. It happens that if you pass <code>+RTS -N</code> option - you tell runtime system to start the same number of capabilities as the number of cores you have. However, <code>RTS</code> makes no difference between real and virtual cores. It appears that <code>RTS</code> could not make enough benefit from virtual cores and performance is not good enough in that case.</p>
+<p>While it is pretty impressive that we can optimise a program without any changes in source code, it’s interesting what can we do in general case. It’s problematic that we can not set good options which work on any CPU and have a decent performance. To find an answer I’ve started the project <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">ht-no-more</a>. It lives in my playground for now but I can extract it to a separate repo. I hope that at some point it will be mature enough to be used as a library or even land to into the RTS source code.</p>
 <h2 id="solution">Solution <a name="solution"></a></h2>
-<p>The idea is to gather information about the architecture during the program startup and then set up the RTS with proper configuration. We want:</p>
+<p>The idea is to gather information about the architecture during a program startup and then set up an RTS with a proper configuration. We want:</p>
 <ol type="1">
-<li>collect information about the CPU (how many real and how many virtual cores do we have);</li>
-<li>do not allow RTS to run work on the virtual cores;</li>
+<li>collect information about a CPU (how many real and how many virtual cores do we have);</li>
+<li>do not allow RTS to run work on virtual cores;</li>
 <li>make it so <code>+RTS -N</code> option still behaves well.</li>
 </ol>
 <p><em>N.B. From this place and now on we assume that we run on <code>Linux</code> only and that we have <code>procfs</code> mounted and that we can write non-portable code. Now our life is comfortable, and we can proceed with the task.</em></p>
-<p>The first question is how can we tie our process to the <code>CPU</code>. There are <a href="https://linux.die.net/man/2/sched_setaffinity">sched_getaffinity()</a> and <a href="https://linux.die.net/man/2/sched_setaffinity">sched_setaffinity()</a> calls. Those methods perform hard wiring of the process and all it’s descendent processes to the given CPUs. So we can use them to mask CPU that we are not interested in.</p>
+<p>The first question is how can we tie our process to a <code>CPU</code>. There are <a href="https://linux.die.net/man/2/sched_setaffinity">sched_getaffinity()</a> and <a href="https://linux.die.net/man/2/sched_setaffinity">sched_setaffinity()</a> calls. Those methods perform hard wiring of a process and all it’s descendent processes to given CPUs. So we can use them to mask CPUs that we are not interested in.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="dt">int</span> sched_setaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
 <a class="sourceLine" id="cb1-2" data-line-number="2">                      cpu_set_t *mask);</a>
 <a class="sourceLine" id="cb1-3" data-line-number="3"></a>
 <a class="sourceLine" id="cb1-4" data-line-number="4"><span class="dt">int</span> sched_getaffinity(pid_t pid, <span class="dt">size_t</span> cpusetsize,</a>
 <a class="sourceLine" id="cb1-5" data-line-number="5">                      cpu_set_t *mask);</a></code></pre></div>
-<p>First, we let’s write a simple <code>c</code> program that explains the API.</p>
+<p>First let’s write a simple <code>c</code> program that explains the API.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="pp">#define _GNU_SOURCE          </span><span class="co">// allow to use non-portable functions</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="pp">#include </span><span class="im">&lt;sched.h&gt;</span></a>
 <a class="sourceLine" id="cb2-3" data-line-number="3"><span class="pp">#include </span><span class="im">&lt;string.h&gt;</span></a>
@@ -95,8 +95,8 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb2-12" data-line-number="12">  <span class="dt">int</span> result = system(<span class="st">&quot;bash&quot;</span>); <span class="co">// start bash.</span></a>
 <a class="sourceLine" id="cb2-13" data-line-number="13">  <span class="cf">return</span> result;</a>
 <a class="sourceLine" id="cb2-14" data-line-number="14">}</a></code></pre></div>
-<p>In this first program, we allow an application to run only on the first CPU. We need this program later for testing purposes. I’ve used it to check if my program behaves well in the constrained case.</p>
-<p>The next question is how to check if a processor is real or virtual. The only way I’ve found it is to parse <code>/proc/cpuinfo</code> file. We are interested in <code>core id</code> entry for each processor, it tells what the index of the real core that CPU is set on is. For example on my machine I have:</p>
+<p>In this first program we allow an application to run only on the first CPU. We need this program later for testing purposes. I’ve used it to check if my program behaves well in the constrained case.</p>
+<p>The next question is how to check if a processor is real or virtual. The only way I’ve found it is to parse <code>/proc/cpuinfo</code> file. We are interested in <code>core id</code> entry for each processor: it tells what the index of the real core that CPU is set on is. For example on my machine I have:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="fu">grep</span> <span class="st">&#39;core id&#39;</span> /proc/cpuinfo </a>
 <a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">core</span> id        : 0</a>
 <a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">core</span> id        : 1</a>
@@ -161,14 +161,14 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb5-49" data-line-number="49">   fclose(cpuinfo);</a>
 <a class="sourceLine" id="cb5-50" data-line-number="50">   <span class="cf">return</span> <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb5-51" data-line-number="51">}</a></code></pre></div>
-<p>Now we are ready to build a cabal project. I’m skipping all irrelevant things, that are generated by <code>cabal init</code></p>
+<p>Now we are ready to build a cabal project. I’m skipping all irrelevant things that are generated by <code>cabal init</code></p>
 <pre class="cabal"><code>executable ht-no-more
   main-is:             wrapper.c
   other-modules:       Entry 
   build-depends:       base &gt;=4.10 &amp;&amp; &lt;4.11
   default-language:    Haskell2010
   ghc-options:         -no-hs-main</code></pre>
-<p>To highlight the important things: first of all, our main module is a <code>C</code> file. It does not work with old <code>cabal</code>’s that allowed only Haskell modules to be the main one. Then, we add <code>-no-hs-main</code> – an option that tells GHC not to create it’s own “main” and use the “main” function that we define. We define <code>Entry.hs</code> Haskell module that provides an entry function, because we no longer have one. In that module, we create a single function that tells how many capabilities RTS created.</p>
+<p>To highlight the important things: first of all, our main module is a <code>C</code> file. It does not work with old <code>cabal</code>’s that allowed only Haskell modules to be the main one. Then we add <code>-no-hs-main</code> – an option that tells GHC not to create its own “main” and use the “main” function that we define. We define <code>Entry.hs</code> Haskell module that provides an entry function because we no longer have one. In that module we create a single function that tells how many capabilities RTS have created.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">module</span> <span class="dt">Entry</span> <span class="kw">where</span></a>
 <a class="sourceLine" id="cb7-2" data-line-number="2"></a>
 <a class="sourceLine" id="cb7-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Control.Concurrent</span></a>
@@ -177,7 +177,7 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb7-6" data-line-number="6"></a>
 <a class="sourceLine" id="cb7-7" data-line-number="7"><span class="ot">entry ::</span> <span class="dt">IO</span> ()</a>
 <a class="sourceLine" id="cb7-8" data-line-number="8">entry <span class="fu">=</span> print <span class="fu">=&lt;&lt;</span> getNumCapabilities</a></code></pre></div>
-<p>The only non-trivial thing we need is to export a foreign function, compiler generates a <code>C</code> complatible object called <code>entry</code> that we can call from <code>C</code>.</p>
+<p>The only non-trivial thing we need is to export a foreign function. Compiler generates a <code>C</code> complatible object called <code>entry</code> that we can call from <code>C</code>.</p>
 <p>We follow <a href="https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ffi-chap.html#using-your-own-main">GHC User’s Guide</a> to define our main function <em>(sidenote, if you haven’t read GHC User’s Guide, please do, it’s the most authoritative and precise source of information about GHC features and extensions)</em>.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="pp">#include </span><span class="im">&quot;HsFFI.h&quot;</span></a>
 <a class="sourceLine" id="cb8-2" data-line-number="2"></a>
@@ -202,8 +202,8 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb8-21" data-line-number="21">  hs_exit();</a>
 <a class="sourceLine" id="cb8-22" data-line-number="22">  <span class="cf">return</span> <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb8-23" data-line-number="23">}</a></code></pre></div>
-<p>However, we have not done everything. If you try to compile this program and run with <code>RTS +N</code> you’ll see expected logs, but the program report that you are using the number of capabilities equal to the number of virtual cores. It happens because with <code>RTS +N</code> GHC asks the number of configured processors and creates that number of capabilities. Instead, we want the count of capabilities to be equal to the number of real cores. Furthermore, we don’t want to patch GHC just yet because our code is too hacky.</p>
-<p><code>GHC RTS</code> is linked statically with each Haskell project. It means that we can use a linker to make RTS use our method instead of the one provided with <code>GHC</code>, we are interested in redefining <code>uint32_t getNumberOfProcessors(void)</code>. For that reason, we use linker’s <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_node/ld_3.html">wrap feature</a>. If you tell linker <code>-Wl,-wrap, function</code> then for each call to the <code>function</code> it calls <code>__wrap_function</code> instead and generates <code>__real_function</code> that you can call to call the original function.</p>
+<p>However, we have not done everything. If you try to compile this program and run it with <code>RTS +N</code> you’ll see expected logs but the program reports that you are using the number of capabilities equal to the number of virtual cores. It happens because with <code>RTS +N</code> GHC asks the number of configured processors and creates that number of capabilities. Instead of this we want the count of capabilities to be equal to the number of real cores. Furthermore, we don’t want to patch GHC just yet because our code is too hacky.</p>
+<p><code>GHC RTS</code> is linked statically with each Haskell project. It means that we can use a linker to make RTS use our method instead of the one provided with <code>GHC</code>, we are interested in redefining <code>uint32_t getNumberOfProcessors(void)</code>. For that reason we use linker’s <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_node/ld_3.html">wrap feature</a>. If you tell linker <code>-Wl,-wrap, function</code> then for each call to the <code>function</code> it calls <code>__wrap_function</code> instead and generates <code>__real_function</code> that you can call to call the original function.</p>
 <p>So we write</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="dt">static</span> <span class="dt">uint32_t</span> procno = <span class="dv">0</span>;</a>
 <a class="sourceLine" id="cb9-2" data-line-number="2"></a>
@@ -217,19 +217,19 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <a class="sourceLine" id="cb9-10" data-line-number="10">     <span class="cf">return</span> procno;</a>
 <a class="sourceLine" id="cb9-11" data-line-number="11">   }</a>
 <a class="sourceLine" id="cb9-12" data-line-number="12">}</a></code></pre></div>
-<p>So get the desired result. We change cabal to provide required options to the build:</p>
+<p>to get the desired result. We change cabal to provide required options to the build:</p>
 <pre class="cabal"><code>  ghc-options:         -no-hs-main
                        -threaded
                        -optl-Wl,-wrap,getNumberOfProcessors</code></pre>
 <p>You can find the full code on <a href="https://github.com/qnikst/haskell-fun/tree/master/ht-no-more">GitHub</a>. There is still much work for this project before you can use it for your application.</p>
-<p>There is some further work.</p>
+<p>There is some further work which could be done:</p>
 <ol type="1">
-<li>the code could be cleared and prettified;</li>
-<li>the code could be made portable and be able to run on all OSes GHC can run on;</li>
+<li>The code could be cleaned and prettified;</li>
+<li>The code could be made portable and be able to run on all OSes GHC can run on;</li>
 <li>The current approach may be not sub-optimal, maybe it’s enough to redefine <code>getNumberOfProcessors</code> alone without calling <code>sched_setaffinity</code>.</li>
-<li>I didn’t test the interference with other functions; for example, if you run a program with <code>-xm</code> flag (that pins capability to CPU) may fail.</li>
+<li>I didn’t test the interference with other functions; for example, if you run a program with <code>-xm</code> flag (that pins capability to CPU) it may fail.</li>
 <li>It’s possible to extend this solution and set better GC options based on CPU info</li>
-<li>I’m curious if it is possible to write this program as a library and reuse in the other projects.</li>
+<li>I’m curious if it is possible to write this program as a library and reuse in other projects.</li>
 </ol>
 <p>All feedback is welcome.</p>]]></summary>
 </entry>

@@ -1,21 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-    <title>Qnikst blog RSS feed - Post tagged web</title>
-    <link href="https://qnikst.github.io/tags/web.xml" rel="self" />
-    <link href="https://qnikst.github.io" />
-    <id>https://qnikst.github.io/tags/web.xml</id>
-    <author>
-        <name>Alexander Vershilov</name>
-        <email>alexander.vershilov@gmail.com</email>
-    </author>
-    <updated>2018-10-09T00:00:00Z</updated>
-    <entry>
-    <title>Writing a simple web-application</title>
-    <link href="https://qnikst.github.io/posts/2018-10-09-starting-webapp.html" />
-    <id>https://qnikst.github.io/posts/2018-10-09-starting-webapp.html</id>
-    <published>2018-10-09T00:00:00Z</published>
-    <updated>2018-10-09T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>In the <a href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html">last post</a>, I’ve talked about adding metrics to a Haskell application. Unfortunately that post didn’t have a full code example and contained only minor pieces of the code. So it could be hard to write your own application based on that post. So I decided to prepare a full example that can be looked at and reused in later posts and projects. You can find the source code on <a href="https://github.com/qnikst/sample-site">GitHub</a>. The app is a very simple skeleton so if you have experience with writing those feel free to skip this post.</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Writing a simple web-application</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>October  9, 2018</strong>
+    </div>
+    <h1>Writing a simple web-application</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/haskell.html">haskell</a>, <a href="../tags/web.html">web</a>, <a href="../tags/metrics.html">metrics</a></div>
+</div>
+
+<p>In the <a href="https://qnikst.github.io/posts/2018-10-29-metrics-haskell.html">last post</a>, I’ve talked about adding metrics to a Haskell application. Unfortunately that post didn’t have a full code example and contained only minor pieces of the code. So it could be hard to write your own application based on that post. So I decided to prepare a full example that can be looked at and reused in later posts and projects. You can find the source code on <a href="https://github.com/qnikst/sample-site">GitHub</a>. The app is a very simple skeleton so if you have experience with writing those feel free to skip this post.</p>
 <p>I’ll take <a href="https://www.techempower.com/benchmarks/">the techempower benchmark</a> as a site specification. The API is simple enough to represent exciting features and doesn’t take much time to write. I’m not going to compete against other implementations of that benchmark (at least I think so at the time of writing this post). Today I’m going to make a skeleton of the site and one endpoint only.</p>
 <p>I’ll take servant as a web framework, to my taste it is the best framework you can use unless you have exceptional needs. The main feature of the servant framework is that it allows to generate and test much code for free, without much extra cost.</p>
 <p>Servant framework has a very nice tutorial and documentation that can be found at <a href="https://haskell-servant.readthedocs.io/en/stable/">read-the-doc site</a> .</p>
@@ -29,7 +46,7 @@
 <a class="sourceLine" id="cb1-7" data-line-number="7"><span class="st">    \ For each request, an object mapping the key message \</span></a>
 <a class="sourceLine" id="cb1-8" data-line-number="8"><span class="st">    \ to \&quot;Hello, World!\&quot; must be instantiated.&quot;</span></a>
 <a class="sourceLine" id="cb1-9" data-line-number="9">  <span class="fu">:&gt;</span> <span class="st">&quot;json&quot;</span></a>
-<a class="sourceLine" id="cb1-10" data-line-number="10">  <span class="fu">:&gt;</span> <span class="dt">Get</span> &#39;[<span class="dt">JSON</span>] <span class="dt">Message</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-10" data-line-number="10">  <span class="fu">:&gt;</span> <span class="dt">Get</span> '[<span class="dt">JSON</span>] <span class="dt">Message</span></a></code></pre></div>
 <p>I prefer to keep a type synonym for each endpoint (or endpoint structure) as that would allow using that type in the other parts of the program for code generation.</p>
 <p>This type explains how a handler does its work and <code>:&gt;</code> splits the type into URL pieces. This type tells that application can handle Get requests to the URL <code>/json</code> if accept type is <code>application/json</code> and when doing that it returns a <code>Message.</code></p>
 <p>The additional <code>Description</code> part comes from the <a href="http://hackage.haskell.org/package/servant-swagger">servant-swagger</a> package. A few more extra lines provide additional information about our API:</p>
@@ -74,11 +91,11 @@
 <a class="sourceLine" id="cb4-8" data-line-number="8">  run</a></code></pre></div>
 <p>Now we can have an application that returns us <code>{message:&quot;Hello, World!&quot;}</code> on <code>json</code> URL and swagger UI on <code>swagger-ui/</code>. With that interface you can explore site API:</p>
 <div>
-<img src="../images/posts/web-app-1/0.swagger-ui-1.png" width="80%" style="inline"/>
+<img src="../images/posts/web-app-1/0.swagger-ui-1.png" width="80%" style="inline" />
 </div>
 <p>Send requests and observe results</p>
 <div>
-<img src="../images/posts/web-app-1/1.swagger-ui-2.png" width="80%" style="inline"/>
+<img src="../images/posts/web-app-1/1.swagger-ui-2.png" width="80%" style="inline" />
 </div>
 <p>And all that comes for free.</p>
 <p>There are a few more things I’d like to discuss before moving to metrics:</p>
@@ -94,74 +111,72 @@
 <ol type="1">
 <li>Main screen: <br /> main screen lists all instances with Haskell application to filter on. If specific instance is chosen then all the following plots show information for that instance only.
 <div style="margin: 10px 0;">
-<img src="../images/posts/web-app-1/3.grafana-1.png" width="100%" style="inline"/>
+<img src="../images/posts/web-app-1/3.grafana-1.png" width="100%" style="inline" />
 </div></li>
 <li>CPU panel:<br /> shows rate of CPU seconds spent by the program. Basically it says whaf fraction of a secod the program worked during 1s of clock time. You can realize how active your application was. <code>Mutator CPU time</code> shows how much CPU time you’ve spent doing actual work. If total CPU time is much higher than Mutator CPU time, then you are likely to have problems with GC.
 <div style="margin: 10px 0; ">
-<img src="../images/posts/web-app-1/4.grafana-1.png" width="100%" style="inline"/>
+<img src="../images/posts/web-app-1/4.grafana-1.png" width="100%" style="inline" />
 </div></li>
 <li>Memory panel:<br /> shows the rate of allocations and copying data during GC. This panel is for general information because it’s not easier to use other controller to get information about memory usage of the given instance.
 <div style="margin: 10px 0;">
-<img src="../images/posts/web-app-1/5.grafana-1.png" width="100%" style="inline"/>
+<img src="../images/posts/web-app-1/5.grafana-1.png" width="100%" style="inline" />
 </div></li>
 <li>GC information:<br /> data that shows GC information that is provided by the runtime system. It provides total number of GCs and major GCs and their rate. Proportion of time spent in GC to the total running time, if this metric grows higher than 0.1 then it means that you are spending one tenth of your time in GCs and that is not good. Proportion of the time that capabilities spent synchronising to the time they did actual work, if this value grows high then you have problems.
 <div style="margin: 10px 0;">
-<img src="../images/posts/web-app-1/6.grafana-1.png" width="100%" style="inline"/>
+<img src="../images/posts/web-app-1/6.grafana-1.png" width="100%" style="inline" />
 </div>
 In addition the structure of the heap is explained and we plot how many values of different types (from GC perspective) we have.
 <div style="margin: 10px 0;">
-<img src="../images/posts/web-app-1/7.grafana-1.png" width="100%" style="inline"/>
+<img src="../images/posts/web-app-1/7.grafana-1.png" width="100%" style="inline" />
 </div></li>
 </ol>
 <p>Config itself can be taken from <a href="https://raw.githubusercontent.com/qnikst/sample-site/master/deploy/docker/rts.json">GitHub</a>.</p>
-<p>Unfortunately GC information tells us information about the last GC only so everything that had happened between scribe intervals will be missing from our data. In the next post I’m going to run some benchmarks of the application (and potentially introduce other endpoints) and discuss if missing information is actually a problem and what can be done about that.</p>]]></summary>
-</entry>
-<entry>
-    <title>Using mathjax latex formula with Hakyll-4</title>
-    <link href="https://qnikst.github.io/posts/2013-02-04-hakyll-latex.html" />
-    <id>https://qnikst.github.io/posts/2013-02-04-hakyll-latex.html</id>
-    <published>2013-02-04T00:00:00Z</published>
-    <updated>2013-02-04T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Update: Hakyll API changed in 4.10 version, so the code below would require changes. See <a href="https://github.com/qnikst/qnikst.github.com/commit/5b6673237388c64a194ea9bc264b14c860880f35#diff-98a3ddc5c474fd14c4ee9401c03197a1">commit</a> as example of the changes.</p>
-<p>Recently I’ve checked a list of manuals for pandoc and latex, but they were quite outdated.</p>
-<p>The problems that by default pandoc tries to use utf only to render formulas but it doesn’t work in many cases. Best solution would be <a href="http://www.mathjax.org/">mathjax</a> as it will work in majority of brousers unlike mathml.</p>
-<p>To set up hakyll to use latex one needs to set pandoc compiler options:</p>
-<pre><code>    -- ...
-    compile \$ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
-    -- ...
+<p>Unfortunately GC information tells us information about the last GC only so everything that had happened between scribe intervals will be missing from our data. In the next post I’m going to run some benchmarks of the application (and potentially introduce other endpoints) and discuss if missing information is actually a problem and what can be done about that.</p>
 
-pandocOptions :: WriterOptions
-pandocOptions = defaultHakyllWriterOptions{ writerHTMLMathMethod = MathJax &quot;&quot; }</code></pre>
-<p>But you will have to add mathjax url to pages where you have math, and do nothing at pages without. So you can add a special marker to page header</p>
-<pre><code>----
-....
-mathjax: on
----</code></pre>
-<p>and then add a special context that will check marker it sill populate field mathjax with either script url or nothing</p>
-<pre><code>mathCtx :: Context a
-mathCtx = field &quot;mathjax&quot; $ \item -&gt; do
-    metadata &lt;- getMetadata $ itemIdentifier item
-    return $ if &quot;mathjax&quot; `M.member` metadata
-                  then &quot;&lt;script type=\&quot;text/javascript\&quot; src=\&quot;http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\&quot;&gt;&lt;/script&gt;&quot;
-                  else &quot;&quot;</code></pre>
-<p>now you need to add $mathjax$ value to your tempate and add math context to your context (I’ve used default.html)</p>
-<pre><code>&lt;head&gt;
-    ...
-    &lt;script src=&quot;/js/bootstrap.min.js&quot;&gt;&lt;/script&gt;
-    $mathjax$
-&lt;/head&gt;</code></pre>
-<pre><code>  match &quot;posts/*&quot; $ do
-      route $ setExtension &quot;.html&quot;
-      compile $ pandocCompilerWith defaultHakyllReaderOptions pandocOptions 
-         &gt;&gt;= saveSnapshot &quot;content&quot;
-         &gt;&gt;= return . fmap demoteHeaders
-         &gt;&gt;= loadAndApplyTemplate &quot;templates/post.html&quot; (postCtx tags)
-         &gt;&gt;= loadAndApplyTemplate &quot;templates/default.html&quot; (mathCtx `mappend` defaultContext)
-         &gt;&gt;= relativizeUrls</code></pre>
-<p>that’s all</p>
-<p>Example:</p>
-<p><span class="math display">\[M_1=\sqrt{\dfrac{(1-q_1)(1-q_2)}{2\beta_1(q_1-q_2)}}\,H_2^{1/4}\,,\qquad
-M_2=\sqrt{\dfrac{(1+q_1)(1+q_2)}{2\beta_2(q_2-q_1)}}\,H_2^{1/4}\,,\]</span> and <span class="math display">\[{\gamma}_3=\dfrac{2\varkappa H_2^{1/4}}{\sqrt{2(\beta_1-\beta_2)(q_2-q_1)}}\,.\]</span> Such as <span class="math inline">\(C_1=0\)</span> and <span class="math display">\[\dot{q}_k=\{H,q_k\}=-\dfrac{4\beta_1p_2M_1(1+q_k)}{{\gamma}_3}-\dfrac{4\beta_2{\gamma}_1M_2(1-q_k)}{{\gamma}_3}\,,\]</span></p>]]></summary>
-</entry>
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2018-10-09-starting-webapp.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2018-10-09-starting-webapp.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2018-10-09-starting-webapp.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
 
-</feed>
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
