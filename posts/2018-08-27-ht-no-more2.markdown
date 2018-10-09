@@ -1,0 +1,68 @@
+----
+title: Marrying Haskell and Hyper-Threading (Post Scriptum)
+author: Alexander Vershilov
+date: 2018-08-22
+tags: Haskell, C, RTS, benchmarks
+----
+
+After writing of the previous blog [post][ppost], I got some interesting
+feedback from the working chat and [r/haskell][reddit]. Some
+of the input I want to hightlight explicitly. All feedback is in
+arbitrary order.
+
+First thing is a discussion of the explicit pinning capabilities to
+the cores. It's possible using [+RTS -qa][rts-qa] flags, as was
+mentioned by the [nh2] on Reddit. As I mentioned in a blog post,
+my approach will not work with this option correctly (for some reason
+I called that `-xm`, I'm sorry) and I'll need to redefine more functions.
+But in general pinning capabilities to the cores may work on all possible
+CPU layouts. I have not looked deep inside that issue as in most of
+the cases `-qa` flag gave me worse performance, so your program should
+have some special properties to make benefit from the hard pinning.
+I think it's possible to use `/proc/cpuinfo` to make the most efforts
+when pinning capabilities.
+
+The entire thread is very entertaining and if you are interested
+in the topic then it's likely that you check all comments as well.
+
+
+Secondly, this was a question if my reasoning was incorrect and it's enough
+to leave one thread off and have better performance. We used this
+approach in some projects, however on the particular one results of
+the `N-1` threads were very depressing:
+
+
+```
+        Cumulative quantiles per tag (N7)
+        99%       98%     95%    90%    85%      80%   75%    50%
+Overall 4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1105ms
+get     4600ms   4390ms   3980ms 3550ms 3410ms 3290ms 3210ms 1145ms
+put     4600ms   4380ms   3980ms 3540ms 3400ms 3280ms 3210ms 1100ms
+```
+
+
+```
+        Cumulative quantiles per tag (N4)
+        99%       98%     95%      90%    85%     80%   75%    50%
+Overall  139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
+get      139ms    104ms     37ms   18ms   12ms    9ms    7ms    2ms
+put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms
+```
+
+There is 1 to 3 order of magnitude difference in response times,
+without going deeper I have decided to stick with `-N4` for now.
+
+The third, @[TerrorJack][terrorjack] adviced me to improve [teardown][teardown]
+procedure in the `wrapper.c`, as it should check that` RTS` stopped and report 
+its status. So I have rechecked the sources and introduced few updates
+that let report status of running haskell command (the same way as RTS does),
+and do not require using FFI extension in the Haskell code.
+
+
+[ppost]: /posts/2018-08-23-ht-no-more.html
+[reddit]: https://www.reddit.com/r/haskell/comments/99rihw/qnikst_blog_marrying_haskell_and_hyperthreading/
+[trac]: https://ghc.haskell.org/trac/ghc/ticket/1022
+[rts-qa]: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/using-concurrent.html#rts-flag--qa
+[teardown]: https://github.com/ghc/ghc/blob/1c2c2d3dfd4c36884b22163872feb87122b4528d/rts/RtsMain.c#L70-L95
+[terrorjack]: https://github.com/TerrorJack
+[nh2]: https://www.reddit.com/user/nh2_

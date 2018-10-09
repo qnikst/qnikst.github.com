@@ -28,8 +28,6 @@ body {
 #content {
   max-width: 800px;
   padding:  5px;
-}
-#content p {
   font-size: 1.5em;
 }
 
