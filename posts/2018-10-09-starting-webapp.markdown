@@ -16,7 +16,7 @@ You can find the source code on [GitHub](https://github.com/qnikst/sample-site).
 The app is a very simple skeleton so if you have experience
 with writing those feel free to skip this post.
 
-I'll take [the famous benchmark](https://www.techempower.com/benchmarks/)
+I'll take [the techempower benchmark](https://www.techempower.com/benchmarks/)
 as a site specification. The API is simple enough to represent
 exciting features and doesn't take much time to write. I'm not
 going to compete against other implementations of that
