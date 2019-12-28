@@ -35,7 +35,7 @@ code.sourceCode {
   border: solid black;
   border-width: 1px 1px 1px 5px;
   display: block;
-  border-color: black black black green;
+  border-color: black transparent black green;
   padding: 5px;
   padding-bottom: 7px;
   margin: 15px;
