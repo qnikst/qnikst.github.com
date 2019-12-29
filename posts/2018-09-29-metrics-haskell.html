@@ -103,23 +103,23 @@ scrape_configs:
 <pre class="cabal"><code>  build-depends: prometheus-metrics-ghc
   ghc-options: &quot;-with-rtsopts=-T&quot;</code></pre>
 <p>Then add to your main:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">import</span>  <span class="dt">Prometheus</span></a>
-<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="kw">import</span>  <span class="dt">Prometheus.Metric.GHC</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">main  ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">   register ghcMetrics</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1"></a><span class="kw">import</span>  <span class="dt">Prometheus</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="kw">import</span>  <span class="dt">Prometheus.Metric.GHC</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a></span>
+<span id="cb4-4"><a href="#cb4-4"></a><span class="ot">main  ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-5"><a href="#cb4-5"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-6"><a href="#cb4-6"></a>   register ghcMetrics</span></code></pre></div>
 <p>At this point you gather RTS stats but you don’t export you metrics yet. To export your data you may want to use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus">wai-middleware-prometheus</a>. This package allows you to provide metrics inside any <code>wai</code>/<code>warp</code> application.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Prometheus</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4"></a>
-<a class="sourceLine" id="cb5-5" data-line-number="5">main <span class="fu">=</span> <span class="kw">do</span> </a>
-<a class="sourceLine" id="cb5-6" data-line-number="6">   register ghcMetrics</a>
-<a class="sourceLine" id="cb5-7" data-line-number="7">   Warp.run <span class="dv">9090</span></a>
-<a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="fu">$</span>   prometheus def</a>
-<a class="sourceLine" id="cb5-9" data-line-number="9">              { prometheusInstrumentPrometheus  <span class="fu">=</span><span class="dt">False</span> }</a>
-<a class="sourceLine" id="cb5-10" data-line-number="10">         <span class="fu">$</span> yourApplication</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a><span class="kw">import</span> <span class="dt">Network.Wai.Middleware.Prometheus</span></span>
+<span id="cb5-2"><a href="#cb5-2"></a><span class="kw">import</span> <span class="dt">Prometheus</span></span>
+<span id="cb5-3"><a href="#cb5-3"></a><span class="kw">import</span> <span class="dt">Prometheus.Metric.GHC</span></span>
+<span id="cb5-4"><a href="#cb5-4"></a></span>
+<span id="cb5-5"><a href="#cb5-5"></a>main <span class="ot">=</span> <span class="kw">do</span> </span>
+<span id="cb5-6"><a href="#cb5-6"></a>   register ghcMetrics</span>
+<span id="cb5-7"><a href="#cb5-7"></a>   Warp.run <span class="dv">9090</span></span>
+<span id="cb5-8"><a href="#cb5-8"></a>        <span class="op">$</span>   prometheus def</span>
+<span id="cb5-9"><a href="#cb5-9"></a>              { prometheusInstrumentPrometheus  <span class="ot">=</span><span class="dt">False</span> }</span>
+<span id="cb5-10"><a href="#cb5-10"></a>         <span class="op">$</span> yourApplication</span></code></pre></div>
 <p>Or use <a href="https://hackage.haskell.org/package/wai-middleware-prometheus-1.0.0/docs/Network-Wai-Middleware-Prometheus.html#v:metricsApp">metricsApp</a> function if you don’t have any web application. And Prometheus will scrape that data from your application. At this point you’ll have some basic information about your endpoints and GC stats. And you can add your application-specific data using Prometheus interface.</p>
 <p>We will cover interesting stats in the next posts but for now you may be interested in the following data:</p>
 <ul>

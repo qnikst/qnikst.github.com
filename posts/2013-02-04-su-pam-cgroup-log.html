@@ -41,12 +41,12 @@
 <ol start="2" type="1">
 <li>Пишем простой баш скрипт: в этом сприпте мы создаём каталог для пользователя (если его нет и помещаем туда родительскую задачу (ту, пользуется средствами pam)</li>
 </ol>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></a>
-<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">#!/bin/sh</span></a>
-<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></a>
-<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></a>
-<a class="sourceLine" id="cb2-5" data-line-number="5">   <span class="fu">mkdir</span> <span class="va">${p}</span></a>
-<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1"></a><span class="ex">localhost</span> qnikst <span class="co"># cat /usr/local/bin/pam_exec_test.sh </span></span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="co">#!/bin/sh</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="va">p=</span>/sys/fs/cgroup/su-log/<span class="va">${PAM_RUSER}</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="bu">[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span><span class="bu"> ]</span> <span class="kw">&amp;&amp;</span> <span class="kw">\</span></span>
+<span id="cb2-5"><a href="#cb2-5"></a>   <span class="fu">mkdir</span> <span class="va">${p}</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="bu">echo</span> <span class="va">${PPID}</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">${p}</span><span class="st">&quot;</span>/tasks</span></code></pre></div>
 <ol start="3" type="1">
 <li>пишем правило для pam.d (логи опциональны)</li>
 </ol>

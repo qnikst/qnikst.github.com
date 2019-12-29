@@ -33,95 +33,95 @@
 </div>
 
 <p>We introduce a binary tree like data structure with next structure.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (head, length, drop, take, lookup, null)</a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Data.Function</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="kw">import</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">hiding</span> (empty)</a>
-<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="co">--        [Node (current value) l v r eq]</span></a>
-<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="co">--                              | | |  +------------------------------------+</span></a>
-<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="co">--        +---------------------+ | +------------------+                    |</span></a>
-<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="co">--        |                       |                    |                    |</span></a>
-<a class="sourceLine" id="cb1-12" data-line-number="12"><span class="co">--        +                       |                    +                    |</span></a>
-<a class="sourceLine" id="cb1-13" data-line-number="13"><span class="co">--  element less            value or nothing        elements that        elements that</span></a>
-<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span></a>
-<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="co">--                              node                current              as prefix</span></a>
-<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="co">-- </span></a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a></span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (head, length, drop, take, lookup, null)</span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="kw">import</span> <span class="dt">Data.Function</span></span>
+<span id="cb1-5"><a href="#cb1-5"></a><span class="kw">import</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">hiding</span> (empty)</span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a></span>
+<span id="cb1-8"><a href="#cb1-8"></a><span class="co">--        [Node (current value) l v r eq]</span></span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="co">--                              | | |  +------------------------------------+</span></span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="co">--        +---------------------+ | +------------------+                    |</span></span>
+<span id="cb1-11"><a href="#cb1-11"></a><span class="co">--        |                       |                    |                    |</span></span>
+<span id="cb1-12"><a href="#cb1-12"></a><span class="co">--        +                       |                    +                    |</span></span>
+<span id="cb1-13"><a href="#cb1-13"></a><span class="co">--  element less            value or nothing        elements that        elements that</span></span>
+<span id="cb1-14"><a href="#cb1-14"></a><span class="co">--  than current            if it intermideate      are more then        have &lt;current value&gt;</span></span>
+<span id="cb1-15"><a href="#cb1-15"></a><span class="co">--                              node                current              as prefix</span></span>
+<span id="cb1-16"><a href="#cb1-16"></a><span class="co">-- </span></span></code></pre></div>
 <p>Top level item represent empty value and can have a value.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="fu">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a><span class="kw">type</span> <span class="dt">PrefixMap</span> a <span class="ot">=</span> (<span class="dt">Maybe</span> a, <span class="dt">PMap</span> a)</span></code></pre></div>
 <p>Inner tree is either an empty value or node, that has left/right children and maybe can have a value and next element</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">data</span> <span class="dt">PMap</span>  a <span class="fu">=</span> <span class="dt">E</span></a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">             <span class="fu">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)</a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">             <span class="co">{-   current    less      value        more    eq   -}</span></a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">             <span class="kw">deriving</span> (<span class="dt">Show</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">data</span> <span class="dt">PMap</span>  a <span class="ot">=</span> <span class="dt">E</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a>             <span class="op">|</span> <span class="dt">N</span> <span class="dt">ByteString</span> (<span class="dt">PMap</span> a) (<span class="dt">Maybe</span> a) (<span class="dt">PMap</span> a) (<span class="dt">PMap</span> a)</span>
+<span id="cb3-3"><a href="#cb3-3"></a>             <span class="co">{-   current    less      value        more    eq   -}</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a>             <span class="kw">deriving</span> (<span class="dt">Show</span>)</span></code></pre></div>
 <p>Having PrefixMap as a additional layer we can assume, that we have a non-null prefix on each level.</p>
 <p>Introduce simple builders</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">empty ::</span> <span class="dt">PrefixMap</span> a</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">empty <span class="fu">=</span> (<span class="dt">Nothing</span>, <span class="dt">E</span>)</a>
-<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">node b a <span class="fu">|</span> null b    <span class="fu">=</span> (<span class="dt">Just</span> a, <span class="dt">E</span>) </a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">         <span class="fu">|</span> otherwise <span class="fu">=</span> (<span class="dt">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="dt">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1"></a><span class="ot">empty ::</span> <span class="dt">PrefixMap</span> a</span>
+<span id="cb4-2"><a href="#cb4-2"></a>empty <span class="ot">=</span> (<span class="dt">Nothing</span>, <span class="dt">E</span>)</span>
+<span id="cb4-3"><a href="#cb4-3"></a></span>
+<span id="cb4-4"><a href="#cb4-4"></a><span class="ot">node ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a</span>
+<span id="cb4-5"><a href="#cb4-5"></a>node b a <span class="op">|</span> <span class="fu">null</span> b    <span class="ot">=</span> (<span class="dt">Just</span> a, <span class="dt">E</span>) </span>
+<span id="cb4-6"><a href="#cb4-6"></a>         <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> (<span class="dt">Nothing</span>, <span class="dt">N</span> b <span class="dt">E</span>  (<span class="dt">Just</span> a)  <span class="dt">E</span> <span class="dt">E</span>)</span></code></pre></div>
 <p>Now inserting elements it’s a bit tricky and may be simplified in the way of removing not needed insances</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2">insert b a (v,n) <span class="fu">|</span> null b    <span class="fu">=</span> (<span class="dt">Just</span> a, n)</a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">                 <span class="fu">|</span> otherwise <span class="fu">=</span> (v, inner b a n)</a></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a</a>
-<a class="sourceLine" id="cb6-2" data-line-number="2">inner b a <span class="dt">E</span> <span class="fu">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="dt">Just</span> a) <span class="dt">E</span> <span class="dt">E</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3">inner b a n<span class="fu">@</span>(<span class="dt">N</span> b' l v r e) <span class="fu">|</span> null b     <span class="fu">=</span> n</a>
-<a class="sourceLine" id="cb6-4" data-line-number="4">                           <span class="fu">|</span> otherwise  <span class="fu">=</span> </a>
-<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="kw">case</span> comparing head b b' <span class="kw">of</span></a>
-<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="dt">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' (inner b a l) v r e   <span class="co">-- value less then current</span></a>
-<a class="sourceLine" id="cb6-7" data-line-number="7">    <span class="dt">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' l v (inner b a r) e   <span class="co">-- value more then current</span></a>
-<a class="sourceLine" id="cb6-8" data-line-number="8">    <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b' <span class="co">-- value has common part</span></a>
-<a class="sourceLine" id="cb6-9" data-line-number="9">              c <span class="fu">=</span> take x b</a>
-<a class="sourceLine" id="cb6-10" data-line-number="10">              c'<span class="fu">=</span> take x b'</a>
-<a class="sourceLine" id="cb6-11" data-line-number="11">              n' <span class="fu">=</span> <span class="dt">N</span> (drop x b') <span class="dt">E</span> v <span class="dt">E</span> e</a>
-<a class="sourceLine" id="cb6-12" data-line-number="12">          <span class="kw">in</span> <span class="kw">if</span> on (<span class="fu">==</span>) length c b'       <span class="co">-- b' isPrefix of b</span></a>
-<a class="sourceLine" id="cb6-13" data-line-number="13">                 <span class="kw">then</span> </a>
-<a class="sourceLine" id="cb6-14" data-line-number="14">                  <span class="kw">if</span> on (<span class="fu">==</span>) length c b    <span class="co">-- b' == b </span></a>
-<a class="sourceLine" id="cb6-15" data-line-number="15">                      <span class="kw">then</span> <span class="dt">N</span> c l (<span class="dt">Just</span> <span class="fu">$!</span> a <span class="ot">`fq`</span> v) r e</a>
-<a class="sourceLine" id="cb6-16" data-line-number="16">                      <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (drop x b) a e) <span class="co">-- [b &lt; b']</span></a>
-<a class="sourceLine" id="cb6-17" data-line-number="17">                 <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span></a>
-<a class="sourceLine" id="cb6-18" data-line-number="18">                  <span class="kw">if</span> on (<span class="fu">==</span>) length c b</a>
-<a class="sourceLine" id="cb6-19" data-line-number="19">                      <span class="kw">then</span> <span class="dt">N</span> c' l (<span class="dt">Just</span> a) r n'</a>
-<a class="sourceLine" id="cb6-20" data-line-number="20">                      <span class="kw">else</span> <span class="dt">N</span> c  l <span class="dt">Nothing</span>  r (inner (drop x b) a n')</a>
-<a class="sourceLine" id="cb6-21" data-line-number="21">  <span class="kw">where</span> </a>
-<a class="sourceLine" id="cb6-22" data-line-number="22">    fq a _ <span class="fu">=</span> a</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a><span class="ot">insert ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a</span>
+<span id="cb5-2"><a href="#cb5-2"></a>insert b a (v,n) <span class="op">|</span> <span class="fu">null</span> b    <span class="ot">=</span> (<span class="dt">Just</span> a, n)</span>
+<span id="cb5-3"><a href="#cb5-3"></a>                 <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> (v, inner b a n)</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1"></a><span class="ot">inner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">PMap</span> a</span>
+<span id="cb6-2"><a href="#cb6-2"></a>inner b a <span class="dt">E</span> <span class="ot">=</span> <span class="dt">N</span> b <span class="dt">E</span> (<span class="dt">Just</span> a) <span class="dt">E</span> <span class="dt">E</span></span>
+<span id="cb6-3"><a href="#cb6-3"></a>inner b a n<span class="op">@</span>(<span class="dt">N</span> b' l v r e) <span class="op">|</span> <span class="fu">null</span> b     <span class="ot">=</span> n</span>
+<span id="cb6-4"><a href="#cb6-4"></a>                           <span class="op">|</span> <span class="fu">otherwise</span>  <span class="ot">=</span> </span>
+<span id="cb6-5"><a href="#cb6-5"></a>  <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span></span>
+<span id="cb6-6"><a href="#cb6-6"></a>    <span class="dt">LT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' (inner b a l) v r e   <span class="co">-- value less then current</span></span>
+<span id="cb6-7"><a href="#cb6-7"></a>    <span class="dt">GT</span> <span class="ot">-&gt;</span> <span class="dt">N</span> b' l v (inner b a r) e   <span class="co">-- value more then current</span></span>
+<span id="cb6-8"><a href="#cb6-8"></a>    <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="ot">=</span> commonPart b b' <span class="co">-- value has common part</span></span>
+<span id="cb6-9"><a href="#cb6-9"></a>              c <span class="ot">=</span> <span class="fu">take</span> x b</span>
+<span id="cb6-10"><a href="#cb6-10"></a>              c'<span class="ot">=</span> <span class="fu">take</span> x b'</span>
+<span id="cb6-11"><a href="#cb6-11"></a>              n' <span class="ot">=</span> <span class="dt">N</span> (<span class="fu">drop</span> x b') <span class="dt">E</span> v <span class="dt">E</span> e</span>
+<span id="cb6-12"><a href="#cb6-12"></a>          <span class="kw">in</span> <span class="kw">if</span> on (<span class="op">==</span>) <span class="fu">length</span> c b'       <span class="co">-- b' isPrefix of b</span></span>
+<span id="cb6-13"><a href="#cb6-13"></a>                 <span class="kw">then</span> </span>
+<span id="cb6-14"><a href="#cb6-14"></a>                  <span class="kw">if</span> on (<span class="op">==</span>) <span class="fu">length</span> c b    <span class="co">-- b' == b </span></span>
+<span id="cb6-15"><a href="#cb6-15"></a>                      <span class="kw">then</span> <span class="dt">N</span> c l (<span class="dt">Just</span> <span class="op">$!</span> a <span class="ot">`fq`</span> v) r e</span>
+<span id="cb6-16"><a href="#cb6-16"></a>                      <span class="kw">else</span> <span class="dt">N</span> c l v r (inner (<span class="fu">drop</span> x b) a e) <span class="co">-- [b &lt; b']</span></span>
+<span id="cb6-17"><a href="#cb6-17"></a>                 <span class="kw">else</span> <span class="co">-- [ c &lt; b ]</span></span>
+<span id="cb6-18"><a href="#cb6-18"></a>                  <span class="kw">if</span> on (<span class="op">==</span>) <span class="fu">length</span> c b</span>
+<span id="cb6-19"><a href="#cb6-19"></a>                      <span class="kw">then</span> <span class="dt">N</span> c' l (<span class="dt">Just</span> a) r n'</span>
+<span id="cb6-20"><a href="#cb6-20"></a>                      <span class="kw">else</span> <span class="dt">N</span> c  l <span class="dt">Nothing</span>  r (inner (<span class="fu">drop</span> x b) a n')</span>
+<span id="cb6-21"><a href="#cb6-21"></a>  <span class="kw">where</span> </span>
+<span id="cb6-22"><a href="#cb6-22"></a>    fq a _ <span class="ot">=</span> a</span></code></pre></div>
 <p>lookup function</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">lookup<span class="ot"> ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">lookup b (v, n) <span class="fu">|</span> null b <span class="fu">=</span> v </a>
-<a class="sourceLine" id="cb7-3" data-line-number="3">                <span class="fu">|</span> otherwise <span class="fu">=</span> lookinner b n</a></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="ot">lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">lookinner b <span class="dt">E</span> <span class="fu">=</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb8-3" data-line-number="3">lookinner b (<span class="dt">N</span> b' l v r e) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb8-4" data-line-number="4">  <span class="kw">case</span> comparing head b b' <span class="kw">of</span></a>
-<a class="sourceLine" id="cb8-5" data-line-number="5">    <span class="dt">LT</span> <span class="ot">-&gt;</span> lookinner b l</a>
-<a class="sourceLine" id="cb8-6" data-line-number="6">    <span class="dt">GT</span> <span class="ot">-&gt;</span> lookinner b r</a>
-<a class="sourceLine" id="cb8-7" data-line-number="7">    <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="fu">=</span> commonPart b b'</a>
-<a class="sourceLine" id="cb8-8" data-line-number="8">          <span class="kw">in</span> <span class="kw">if</span> x <span class="fu">==</span> length b'</a>
-<a class="sourceLine" id="cb8-9" data-line-number="9">                <span class="kw">then</span> <span class="kw">if</span> x <span class="fu">==</span> length b <span class="kw">then</span> v <span class="kw">else</span> lookinner (drop x b) e</a>
-<a class="sourceLine" id="cb8-10" data-line-number="10">                <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">commonPart a b <span class="fu">=</span> go <span class="dv">0</span></a>
-<a class="sourceLine" id="cb9-3" data-line-number="3">  <span class="kw">where</span> </a>
-<a class="sourceLine" id="cb9-4" data-line-number="4"><span class="ot">    go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb9-5" data-line-number="5">    go x <span class="fu">|</span> x <span class="fu">==</span> y                <span class="fu">=</span> x</a>
-<a class="sourceLine" id="cb9-6" data-line-number="6">         <span class="fu">|</span> on (<span class="fu">==</span>) (findex x) a b <span class="fu">=</span> go (x<span class="fu">+</span><span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb9-7" data-line-number="7">         <span class="fu">|</span> otherwise             <span class="fu">=</span> x</a>
-<a class="sourceLine" id="cb9-8" data-line-number="8">    y <span class="fu">=</span> on min length a b</a>
-<a class="sourceLine" id="cb9-9" data-line-number="9">    findex <span class="fu">=</span> flip index</a>
-<a class="sourceLine" id="cb9-10" data-line-number="10">    <span class="ot">{-# INLINE findex #-}</span></a>
-<a class="sourceLine" id="cb9-11" data-line-number="11"></a>
-<a class="sourceLine" id="cb9-12" data-line-number="12">comparing <span class="fu">=</span> on compare</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1"></a><span class="fu">lookup</span><span class="ot"> ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PrefixMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</span>
+<span id="cb7-2"><a href="#cb7-2"></a><span class="fu">lookup</span> b (v, n) <span class="op">|</span> <span class="fu">null</span> b <span class="ot">=</span> v </span>
+<span id="cb7-3"><a href="#cb7-3"></a>                <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> lookinner b n</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1"></a><span class="ot">lookinner ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">PMap</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</span>
+<span id="cb8-2"><a href="#cb8-2"></a>lookinner b <span class="dt">E</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb8-3"><a href="#cb8-3"></a>lookinner b (<span class="dt">N</span> b' l v r e) <span class="ot">=</span></span>
+<span id="cb8-4"><a href="#cb8-4"></a>  <span class="kw">case</span> comparing <span class="fu">head</span> b b' <span class="kw">of</span></span>
+<span id="cb8-5"><a href="#cb8-5"></a>    <span class="dt">LT</span> <span class="ot">-&gt;</span> lookinner b l</span>
+<span id="cb8-6"><a href="#cb8-6"></a>    <span class="dt">GT</span> <span class="ot">-&gt;</span> lookinner b r</span>
+<span id="cb8-7"><a href="#cb8-7"></a>    <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="kw">let</span> x <span class="ot">=</span> commonPart b b'</span>
+<span id="cb8-8"><a href="#cb8-8"></a>          <span class="kw">in</span> <span class="kw">if</span> x <span class="op">==</span> <span class="fu">length</span> b'</span>
+<span id="cb8-9"><a href="#cb8-9"></a>                <span class="kw">then</span> <span class="kw">if</span> x <span class="op">==</span> <span class="fu">length</span> b <span class="kw">then</span> v <span class="kw">else</span> lookinner (<span class="fu">drop</span> x b) e</span>
+<span id="cb8-10"><a href="#cb8-10"></a>                <span class="kw">else</span> <span class="dt">Nothing</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1"></a><span class="ot">commonPart ::</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">ByteString</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb9-2"><a href="#cb9-2"></a>commonPart a b <span class="ot">=</span> go <span class="dv">0</span></span>
+<span id="cb9-3"><a href="#cb9-3"></a>  <span class="kw">where</span> </span>
+<span id="cb9-4"><a href="#cb9-4"></a><span class="ot">    go ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb9-5"><a href="#cb9-5"></a>    go x <span class="op">|</span> x <span class="op">==</span> y                <span class="ot">=</span> x</span>
+<span id="cb9-6"><a href="#cb9-6"></a>         <span class="op">|</span> on (<span class="op">==</span>) (findex x) a b <span class="ot">=</span> go (x<span class="op">+</span><span class="dv">1</span>)</span>
+<span id="cb9-7"><a href="#cb9-7"></a>         <span class="op">|</span> <span class="fu">otherwise</span>             <span class="ot">=</span> x</span>
+<span id="cb9-8"><a href="#cb9-8"></a>    y <span class="ot">=</span> on <span class="fu">min</span> <span class="fu">length</span> a b</span>
+<span id="cb9-9"><a href="#cb9-9"></a>    findex <span class="ot">=</span> <span class="fu">flip</span> <span class="fu">index</span></span>
+<span id="cb9-10"><a href="#cb9-10"></a>    <span class="ot">{-# INLINE findex #-}</span></span>
+<span id="cb9-11"><a href="#cb9-11"></a></span>
+<span id="cb9-12"><a href="#cb9-12"></a>comparing <span class="ot">=</span> on <span class="fu">compare</span></span></code></pre></div>
 <p>Check if we are right</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="fu">=</span> </a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">  <span class="kw">let</span> x <span class="fu">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (pack x) (pack x) o) empty ls</a>
-<a class="sourceLine" id="cb10-3" data-line-number="3">  <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="fu">==</span><span class="st">&quot;&quot;</span>) <span class="fu">||</span> pack l <span class="ot">`lookup`</span> x <span class="fu">==</span> <span class="dt">Just</span> (pack l)) ls</a>
-<a class="sourceLine" id="cb10-4" data-line-number="4"></a>
-<a class="sourceLine" id="cb10-5" data-line-number="5">main <span class="fu">=</span> quickCheck prop_InsertList</a></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1"></a>prop_InsertList (<span class="ot">ls::</span>[<span class="dt">String</span>]) <span class="ot">=</span> </span>
+<span id="cb10-2"><a href="#cb10-2"></a>  <span class="kw">let</span> x <span class="ot">=</span> Prelude.foldl (\o x <span class="ot">-&gt;</span> insert (<span class="fu">pack</span> x) (<span class="fu">pack</span> x) o) empty ls</span>
+<span id="cb10-3"><a href="#cb10-3"></a>  <span class="kw">in</span> Prelude.all (\l <span class="ot">-&gt;</span> (l<span class="op">==</span><span class="st">&quot;&quot;</span>) <span class="op">||</span> <span class="fu">pack</span> l <span class="ot">`lookup`</span> x <span class="op">==</span> <span class="dt">Just</span> (<span class="fu">pack</span> l)) ls</span>
+<span id="cb10-4"><a href="#cb10-4"></a></span>
+<span id="cb10-5"><a href="#cb10-5"></a>main <span class="ot">=</span> quickCheck prop_InsertList</span></code></pre></div>
 <p>What interesting is what properties to we have, ideally we can rewrite code thinking of a N c l v r e as a Tree (M v e)</p>
 <p>Caveats:</p>
 <ul>

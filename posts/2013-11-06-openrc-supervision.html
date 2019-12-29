@@ -41,7 +41,7 @@
 <li>Process fail to work as expected.</li>
 </ol>
 <p>In the most systems only first meaning is addressed, however it’s not very carefull and in systems where <em>reliance</em> is required we need to use additional tools to support 2.</p>
-<p>Another set of problem is about how we will decide if we want to restart service and run cleanup actions. And this problem is not easy at all, i.e. we may want to stop restarting service if it fails constantly, or increase timeout in restarts and so on.</p>
+<p>Another set of problem is about how we will decide if we want to restart service and run cleanup actions. And this problem is not easy at all, i.e.  we may want to stop restarting service if it fails constantly, or increase timeout in restarts and so on.</p>
 <p>Also we may want additional features like say, remote access/control to supervised services, additinal notification.</p>
 <p>And it’s clear that it’s insane to support all required tools inside one service management package, and there the solution will be: ‘give a user possibility to delegate supervision problem to the standalone application’.</p>
 <p>So the solution would be the following:</p>

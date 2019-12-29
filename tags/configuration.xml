@@ -27,35 +27,35 @@
 <li>project-wide: <code>~/.git/config</code></li>
 </ol>
 <p>Besides, it takes <code>--config</code> option that overrides config search entirely. We can’t use <code>--config</code> because that overrides project specific options, we can’t update user-wide file with nix, so the only option left is the system-wide config. So we need to understand what is <code>(prefix)</code>. Man pages tell that it’s a value of the <code>PREFIX</code> environment option. Let’s check nixpkgs:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode nix"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1">    <span class="st">&quot;prefix=</span><span class="dt">\$</span><span class="st">{out}&quot;</span></a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode nix"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1"></a>    <span class="st">&quot;prefix=</span><span class="dt">\$</span><span class="st">{out}&quot;</span></span></code></pre></div>
 <p>https://github.com/NixOS/nixpkgs/blob/54ba2c9afca07b0f14763b3697d00b637b2461e0/pkgs/applications/version-management/git-and-tools/git/default.nix#L86</p>
 <p>It seems that nix installs that, but let us check it:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">strace</span> git config <span class="op">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fu">grep</span> gitconfig</a>
-<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ex">access</span>(<span class="st">&quot;/etc//gitconfig&quot;</span>, R_OK)         = <span class="ex">-1</span> ENOENT (No such file or directory)</a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1"></a><span class="ex">strace</span> git config <span class="op">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fu">grep</span> gitconfig</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="ex">access</span>(<span class="st">&quot;/etc//gitconfig&quot;</span>, R_OK)         = <span class="ex">-1</span> ENOENT (No such file or directory)</span></code></pre></div>
 <p>Seems not to be what we were expecting. The story continues, we need to understand where does git looks for a config. You can find it on GitHub (modulo the version that I’ve used, but it’s irrelevant for the code I’m interested in) <a href="https://github.com/git/git/blob/7e8bfb0412581daf8f3c89909f1d37844e8610dd/config.c#L1634-L1640" class="uri">https://github.com/git/git/blob/7e8bfb0412581daf8f3c89909f1d37844e8610dd/config.c#L1634-L1640</a></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="dt">const</span> <span class="dt">char</span> *git_etc_gitconfig(<span class="dt">void</span>)</a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">{</a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">	<span class="dt">static</span> <span class="dt">const</span> <span class="dt">char</span> *system_wide;</a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">	<span class="cf">if</span> (!system_wide)</a>
-<a class="sourceLine" id="cb3-5" data-line-number="5">		system_wide = system_path(ETC_GITCONFIG);</a>
-<a class="sourceLine" id="cb3-6" data-line-number="6">	<span class="cf">return</span> system_wide;</a>
-<a class="sourceLine" id="cb3-7" data-line-number="7">}</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1"></a><span class="dt">const</span> <span class="dt">char</span> *git_etc_gitconfig(<span class="dt">void</span>)</span>
+<span id="cb3-2"><a href="#cb3-2"></a>{</span>
+<span id="cb3-3"><a href="#cb3-3"></a>	<span class="dt">static</span> <span class="dt">const</span> <span class="dt">char</span> *system_wide;</span>
+<span id="cb3-4"><a href="#cb3-4"></a>	<span class="cf">if</span> (!system_wide)</span>
+<span id="cb3-5"><a href="#cb3-5"></a>		system_wide = system_path(ETC_GITCONFIG);</span>
+<span id="cb3-6"><a href="#cb3-6"></a>	<span class="cf">return</span> system_wide;</span>
+<span id="cb3-7"><a href="#cb3-7"></a>}</span></code></pre></div>
 <p>Okay, what is <code>ETC_GITCONFIG</code> <a href="https://github.com/git/git/blob/1f1cddd558b54bb0ce19c8ace353fd07b758510d/configure.ac#L387-L391" class="uri">https://github.com/git/git/blob/1f1cddd558b54bb0ce19c8ace353fd07b758510d/configure.ac#L387-L391</a></p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ex">GIT_PARSE_WITH_SET_MAKE_VAR</span>(gitconfig, ETC_GITCONFIG,</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">			<span class="ex">Use</span> VALUE instead of /etc/gitconfig as the</a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">			<span class="ex">global</span> git configuration file.</a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">			<span class="ex">If</span> VALUE is not fully qualified it will be interpreted</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">			<span class="fu">as</span> a path relative to the computed prefix at runtime.)</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1"></a><span class="ex">GIT_PARSE_WITH_SET_MAKE_VAR</span>(gitconfig, ETC_GITCONFIG,</span>
+<span id="cb4-2"><a href="#cb4-2"></a>			<span class="ex">Use</span> VALUE instead of /etc/gitconfig as the</span>
+<span id="cb4-3"><a href="#cb4-3"></a>			<span class="ex">global</span> git configuration file.</span>
+<span id="cb4-4"><a href="#cb4-4"></a>			<span class="ex">If</span> VALUE is not fully qualified it will be interpreted</span>
+<span id="cb4-5"><a href="#cb4-5"></a>			<span class="fu">as</span> a path relative to the computed prefix at runtime.)</span></code></pre></div>
 <p>Finally, after searching what <code>GIT_PARSE_WITH_SET_MAKE_VAR</code> means, we can find that we need to pass <code>--with-gitconfig=name</code> as a parameter to the configure.</p>
 <p>So now we need to patch nix package for <code>git</code> to do that. As usual, we want to make it declaratively and easy to change without redoing the work that NixOS maintainers already did like applying patches and packaging.</p>
 <p>Everything described above can be done pretty quickly in <code>nix</code>, in my <code>homster/git/default.nix</code> I can override default package for git as:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode nix"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ex">git.overrideAttrs</span> (old: {</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2">   <span class="ex">configureFlags</span> = [ <span class="st">&quot;--with-gitconfig=</span><span class="va">$out</span><span class="st">/etc/gitconfig ];</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="st">})</span></a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode nix"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1"></a><span class="ex">git.overrideAttrs</span> (old: {</span>
+<span id="cb5-2"><a href="#cb5-2"></a>   <span class="ex">configureFlags</span> = [ <span class="st">&quot;--with-gitconfig=</span><span class="va">$out</span><span class="st">/etc/gitconfig ];</span></span>
+<span id="cb5-3"><a href="#cb5-3"></a><span class="st">})</span></span></code></pre></div>
 <p><code>nix</code> interprets the <code>$out</code> variable and substitutes exact hash there. Then we can copy our file to the right place and get a new system-wide configuration that is controlled by us.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ex">strace</span> git config <span class="op">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fu">grep</span> gitconfig</a>
-<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ex">access</span>(<span class="st">&quot;/nix/store/66hi8rssnvhlxbwjg3qkc4bcs76fp8np-git-2.16.4/etc/gitconfig&quot;</span>, R_OK) = <span class="ex">0</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="ex">openat</span>(AT_FDCWD, <span class="st">&quot;/nix/store/66hi8rssnvhlxbwjg3qkc4bcs76fp8np-git-2.16.4/etc/gitconfig&quot;</span>, O_RDONLY) = <span class="ex">3</span></a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1"></a><span class="ex">strace</span> git config <span class="op">2&gt;&amp;1</span> <span class="kw">|</span> <span class="fu">grep</span> gitconfig</span>
+<span id="cb6-2"><a href="#cb6-2"></a><span class="ex">access</span>(<span class="st">&quot;/nix/store/66hi8rssnvhlxbwjg3qkc4bcs76fp8np-git-2.16.4/etc/gitconfig&quot;</span>, R_OK) = <span class="ex">0</span></span>
+<span id="cb6-3"><a href="#cb6-3"></a><span class="ex">openat</span>(AT_FDCWD, <span class="st">&quot;/nix/store/66hi8rssnvhlxbwjg3qkc4bcs76fp8np-git-2.16.4/etc/gitconfig&quot;</span>, O_RDONLY) = <span class="ex">3</span></span></code></pre></div>
 <p>exactly what is needed.</p>]]></summary>
 </entry>
 
