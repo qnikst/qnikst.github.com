@@ -32,16 +32,16 @@
     <div class="keywords"><strong>Keywords:</strong> </div>
 </div>
 
-<p>Today I want to continue describing how did we make our services fast enough. In the contest service, one obvious bottleneck is the database. When many users send requests, we have to generate lots of connections and perform many queries. The obvious solution here is to introduce a caching mechanism. In this post, I’m going to describe some solutions available in the Haskell ecosystem and our solution, that is quite interesting.</p>
+<p>Today I want to continue describing how we have made our services fast enough. In the contest service, one obvious bottleneck is the database. When many users send requests, we have to generate lots of connections and perform many queries. The obvious solution here is to introduce a caching mechanism. In this post, I’m going to describe some solutions available in the Haskell ecosystem and our solution, that is quite interesting.</p>
 <p>Firstly we define options we need:</p>
 <ul>
 <li>We need a caching mechanism that saves us from queries to the database.</li>
 <li>A cache should be memory bounded, so our application does not consume all the memory.</li>
 </ul>
-<p>Besides, we want to be able to set up sound strategies for the cache eviction, but we let’s talk on that before providing our solution.</p>
+<p>Besides, we want to be able to set up sound strategies for the cache eviction, and but we will discuss that that before providing our solution.</p>
 <h2 id="option-one-use-lru-cache.">Option one: use LRU-cache.</h2>
-<p>The simplest option is to take some <a href="https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)">LRU cache</a>. This approach keeps memory bound by allowing an only fixed amount of items in the cache. And it provides a strategy for increasing hit-rate by keeping least recently used items in the cache.</p>
-<p>The best Haskell package for the LRU cache I’ve found so far is <a href="https://hackage.haskell.org/package/lrucaching">lrucaching</a>. This package based on the <a href="https://hackage.haskell.org/package/psqueues">psqueues</a> that provides the fastest immutable priority queues in the Haskell ecosystem. How the pseudo-code can look like:</p>
+<p>The simplest option is to take some <a href="https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)">LRU cache</a>. This approach keeps memory bound by allowing only fixed amount of items in the cache. And it provides a strategy for increasing hit-rate by keeping least recently used items in the cache.</p>
+<p>The best Haskell package for the LRU cache I’ve found so far is <a href="https://hackage.haskell.org/package/lrucaching">lrucaching</a>. This package is based on the <a href="https://hackage.haskell.org/package/psqueues">psqueues</a> that provides the fastest immutable priority queues in the Haskell ecosystem. How the pseudo-code can look like:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1"></a>   result <span class="ot">&lt;-</span> atomicModifyIORef' ref <span class="op">$</span> \cache <span class="ot">-&gt;</span>  <span class="co">{-1-}</span></span>
 <span id="cb1-2"><a href="#cb1-2"></a>     <span class="kw">case</span> <span class="fu">lookup</span> key cache <span class="kw">of</span>          <span class="co">{- 2-}</span></span>
 <span id="cb1-3"><a href="#cb1-3"></a>       <span class="dt">Nothing</span>              <span class="ot">-&gt;</span> (cache, <span class="dt">Left</span> key)</span>
@@ -53,15 +53,15 @@
 <span id="cb1-9"><a href="#cb1-9"></a>         (insert key value cache, ())</span>
 <span id="cb1-10"><a href="#cb1-10"></a>       <span class="fu">pure</span> result</span>
 <span id="cb1-11"><a href="#cb1-11"></a>    <span class="dt">Just</span> result <span class="ot">-&gt;</span> <span class="fu">pure</span> result</span></code></pre></div>
-<p>Here we first check if the value is in the cache and if not. We use <code>atomicModifyIORef'</code> call that is a <code>CAS</code> operation that is quite fast but we may run several retries under contention. Then we perform a query and save the result of the computation in the cache if needed, or just return a cached result otherwise.</p>
-<p>The solution is nice and simple. We use it in several places in the codebase. However, we have a problem with this solution. If many threads come for the same key, then all the requests do not find the key and execute a query to the database. So this approach does not save the first requests burst that is the most dangerous for our service. So we want to solve a problem of such bursts, we want to increase chances that if two requests come for the same key simultaneously, then only one request to the database is made.</p>
+<p>Here we first check if the value is in the cache or it’s not. We use <code>atomicModifyIORef'</code> call that is a <code>CAS</code> operation that is quite fast but we may run several retries under contention. Then we perform a query and save the result of the computation in the cache if needed, or just return a cached result otherwise.</p>
+<p>The solution is nice and simple. We use it in several places in the codebase. However, we have a problem with this solution. If many threads come for the same key, then all the requests do not find the key and execute a query to the database. So this approach does not save us from the first requests burst that is the most dangerous for our service. So we want to solve a problem of such bursts, we want to increase chances that if two requests come for the same key simultaneously, then only one request to the database is made.</p>
 <p>The simplest but not affordable solution is to introduce a critical section, so only one request is run at a time:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a>withMVar lock <span class="op">$</span> \_ <span class="ot">-&gt;</span> <span class="kw">do</span></span>
 <span id="cb2-2"><a href="#cb2-2"></a>   atomicallyModifyIORef ref <span class="op">$</span> <span class="op">...</span></span></code></pre></div>
 <p>This solution is too coarse; we still want requests for the different thread to be run simultaneously. We can achieve that by keeping a lock in the cache. Still, if we go this way solution exceeds the complexity budget quite fast: you’ll need STM solution with explicit locking careful exception handing. You can try to implement that yourself.</p>
-<p>The interesting this is that the GHC runtime system already provides the tooling that is enough to build such cache without an explicit lock. When thunk that is evaluated all other threads accessing that thunk block on evaluation and automatically get a result once it’s evaluated. Now let’s check our solution.</p>
+<p>The interesting thing is that the GHC runtime system already provides the tooling that is enough to build such cache without an explicit lock. When thunk that is evaluated all other threads accessing that thunk block on evaluation and automatically get a result once it’s evaluated. Now let’s check our solution.</p>
 <h2 id="option-two-haskell-runtime-based-solution.">Option two: Haskell runtime based solution.</h2>
-<p>Before describing the solution, let’s talk a bit more on the cache eviction. On the early stages of our system, we have decided that cached values may be updated, but it’s ok to keep value in the cache for a limited time. So LRU cache doesn’t work here, as naive variant does not provide such a gurantee: value may live in the cache forever. So instead, we keep the unlimited amount of value but remove values that are too old. We are using psqueues package still.</p>
+<p>Before describing the solution, let’s talk a bit more on the cache eviction. On the early stages of our system, we have decided that cached values may be updated, but it’s ok to keep value in the cache for a limited time. So LRU cache doesn’t work here, as naive variant does not provide such a guarantee: value may live in the cache forever. So instead, we keep the unlimited amount of values but remove values that are too old. We are using psqueues package still.</p>
 <p>So the cache itself provides the following interface:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">data</span> <span class="dt">Handle</span> key result <span class="ot">=</span> <span class="dt">Handle</span></span>
 <span id="cb3-2"><a href="#cb3-2"></a>  { requestOrInternal</span>
@@ -71,7 +71,7 @@
 <span id="cb3-6"><a href="#cb3-6"></a>    <span class="ot">-&gt;</span> <span class="dt">IO</span> result</span>
 <span id="cb3-7"><a href="#cb3-7"></a>  , <span class="op">...</span></span>
 <span id="cb3-8"><a href="#cb3-8"></a>  }</span></code></pre></div>
-<p>The meaning is the following: we provide current time, key, and a function that generates a value in case if the key is not found. And this function returns a result (or throws an exception). Handle provides us with a way to change the actual implementation without changing the interface and code that uses, you may read more on that approach in the following posts <a href="https://www.schoolofhaskell.com/user/meiersi/the-service-pattern">1</a>, <a href="https://jaspervdj.be/posts/2018-03-08-handle-pattern.html">2</a>.</p>
+<p>The meaning is the following: we provide current time, key, and a function that generates a value in case if the key is not found. And this function returns a result (or throws an exception). Handle provides us with a way to change the actual implementation without changing the interface and code that uses it, you may read more on that approach in the following posts <a href="https://www.schoolofhaskell.com/user/meiersi/the-service-pattern">1</a>, <a href="https://jaspervdj.be/posts/2018-03-08-handle-pattern.html">2</a>.</p>
 <p>Now, to the actual implementation. Let’s introduce that line by line:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1"></a><span class="ot">new ::</span> <span class="dt">IO</span> (<span class="dt">Handle</span> a b)</span>
 <span id="cb4-2"><a href="#cb4-2"></a>new <span class="ot">=</span> <span class="kw">do</span></span>
@@ -111,7 +111,7 @@
 <span id="cb7-6"><a href="#cb7-6"></a>        <span class="dt">Right</span> x <span class="ot">-&gt;</span> <span class="fu">pure</span> x</span>
 <span id="cb7-7"><a href="#cb7-7"></a>    )</span>
 <span id="cb7-8"><a href="#cb7-8"></a>    m_result</span></code></pre></div>
-<p>We analyze the result, as you remember in a case if we have <code>Nothing</code> there we should all our request, and we do that on line <code>{-1-}</code>. We bind the result of our request to the <code>result</code> name (this is exactly the value we have already put in the cache). It keeps either exception value or the result. Otherwise, there is a result (or a thread working on generating that result). We need to force that <code>(evaluate (getLazy r))</code>. In a case, if the value is already evaluated, we get the result immediately. Otherwise, we block on evaluation, and the Haskell runtime handles it. We have 2 options afterwards, either the query results in an exception, then we rethrow it, or we get a result.</p>
+<p>We analyze the result, as you remember in a case if we have <code>Nothing</code> there we should perfom our request, and we do that on line <code>{-1-}</code>. We bind the result of our request to the <code>result</code> name (this is exactly the value we have already put in the cache). It keeps either exception value or the result. Otherwise, there is a result (or a thread working on generating that result). We need to force that <code>(evaluate (getLazy r))</code>. In a case when the value is already evaluated, we get the result immediately. Otherwise, we block on evaluation, and the Haskell runtime handles it. We have 2 options afterwards, either the query results in an exception, then we rethrow it, or we get a result.</p>
 <p>Now we need to do some cleanup, we do not want to keep exception result in the case, so we clean the cache in this case:</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1"></a>  result <span class="ot">&lt;-</span> <span class="kw">case</span> eresult <span class="kw">of</span></span>
 <span id="cb8-2"><a href="#cb8-2"></a>    <span class="dt">Left</span> (<span class="ot">s::</span><span class="dt">SomeException</span>) <span class="ot">-&gt;</span> <span class="kw">do</span></span>
@@ -119,7 +119,7 @@
 <span id="cb8-4"><a href="#cb8-4"></a>      throwIO s</span>
 <span id="cb8-5"><a href="#cb8-5"></a>    <span class="dt">Right</span> x <span class="ot">-&gt;</span> <span class="fu">pure</span> x</span></code></pre></div>
 <p>We must keep value with an exception in the cache first: this way all the threads that made the same request while our thread is performing request raise an exception.</p>
-<p>The last step is to try to clean the oldest value. There may be better strategies for cleaning, but this strategy is straightforward and works:</p>
+<p>The last step is to try to clean the oldest value. There may be better strategies for cleaning, but this strategy is straightforward and it works:</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1"></a>  atomicModifyIORef' ref <span class="op">$</span> swap <span class="op">.</span> PSQ.alterMin</span>
 <span id="cb9-2"><a href="#cb9-2"></a>    (\<span class="kw">case</span></span>
 <span id="cb9-3"><a href="#cb9-3"></a>      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> ((), <span class="dt">Nothing</span>)</span>
@@ -131,7 +131,7 @@
 <p>This solution worked just fine for 1.5 years under heavy usage, and we have experienced 2 bugs there:</p>
 <ul>
 <li>One found during early testing stage (it even didn’t hit repository branch): the requirement to use <code>Lazy</code> wrapper</li>
-<li>Another found after a year of usage in production when it exception happened in request f. Previously there we kept <code>Lazy result</code> in the cache, instead of <code>Lazy (Either SomeException result)</code>. As a result, in a case on an exception in f, nobody can populate the value in the cache. And other threads wait forever on update. This unfortunate event has hit 2 users :(.</li>
+<li>Another one found after a year of usage in production when it exception happened in request f. Previously there we kept <code>Lazy result</code> in the cache, instead of <code>Lazy (Either SomeException result)</code>. As a result, in case of an exception in f, nobody can populate the value in the cache. And other threads wait forever on update. This unfortunate event has hit 2 users :(.</li>
 </ul>
 
 <hr />

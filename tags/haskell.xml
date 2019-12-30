@@ -41,7 +41,7 @@
 <span id="cb2-3"><a href="#cb2-3"></a><span class="kw">data</span> <span class="dt">RestrictQueryParams</span></span>
 <span id="cb2-4"><a href="#cb2-4"></a>  <span class="kw">deriving</span> <span class="dt">Typeable</span></span></code></pre></div>
 <p>Note it doesn’t have type constructor there this construction may live on the type level only.</p>
-<p>Nest step is implementing <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server.html#t:HasServer"><code>HasServer</code></a> instance. This instance describes how we parse the request and how we work with the response.</p>
+<p>Next step is implementing <a href="https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server.html#t:HasServer"><code>HasServer</code></a> instance. This instance describes how we parse the request and how we work with the response.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">instance</span></span>
 <span id="cb3-2"><a href="#cb3-2"></a> (<span class="dt">HasServer</span> api context) <span class="co">{-1-}</span></span>
 <span id="cb3-3"><a href="#cb3-3"></a> <span class="ot">=&gt;</span> <span class="dt">HasServer</span> (<span class="dt">RestrictQueryParams</span> <span class="op">:&gt;</span> api) context <span class="kw">where</span> <span class="co">{-2-}</span></span>
