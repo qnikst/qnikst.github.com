@@ -78,7 +78,7 @@ data RestrictQueryParams
 
 Note it doesn't have type constructor there this construction may live on the type level only.
 
-Nest step is implementing
+Next step is implementing
 [`HasServer`](https://hackage.haskell.org/package/servant-server-0.16.2/docs/Servant-Server.html#t:HasServer) instance.
 This instance describes how we parse the request and how we work with the response. 
 
