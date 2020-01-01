@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Using compact regions</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>January  2, 2020</strong>
+    </div>
+    <h1>Using compact regions</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will be not much code and numbers, just general thoughts. In our contests application, we need additional restrictions:</p>
+<blockquote>
+<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only from restricted set of networks.</p>
+</blockquote>
+<p>So we needed a built-in IP filtering app, such that for a given contest may check whether the user can access it. After the competition has finished, the user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests runnning at the same time.</p>
+<p>There are a few additional constraints:</p>
+<ul>
+<li>Configuration should be updateable, as sometimes the site doesn’t know all it’s IPs.</li>
+<li>Sometimes some people can pass contest from the other site, for example at the moment of the competition they moved to some other school or training.</li>
+<li>The solution should not harm contest without the checks and general properties.</li>
+<li>The check should not access the database.</li>
+</ul>
+<p>We need the last constraint as additional protection from the DDOS attacks: we don’t do any work if IP is not allowed and do not consume system resources. Actually it was the first internal reason for the IP filtering, but the feature was very helpful for the organizers, so they decided to use that for the main events.</p>
+<p>Leaving aside technical details aside, we may think that for each user we can map his login on contest id, and id of the site without access to the database. So basically we need to write a function:</p>
+<pre><code>check :: ContestId -&gt; SchoolId -&gt; IP4 -&gt; Bool</code></pre>
+<p>That will check if user has an access. Note missing <code>IO</code> or any other context here.</p>
+<p>The simplest solution is to have a</p>
+<p><code>HashMap (ContestId, SchoolId) [Net4Addr]</code></p>
+<p>or</p>
+<p><code>HashMap ContestId (HashMap SchoolId) [Net4Addr]</code>.</p>
+<p>The latter one allows faster-path for the case if the contest is not filtered.</p>
+<p>Is there any problem with this case? There is. The hashmap structure is very “branchy” tree, and if it’s quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping large (from half to serveral Gb tries in memory). However, it may still negatively affect the performance of the service, and we want to have better story especially if it’s cheap.</p>
+<p>What other languages do in this case? There are several ways forward use some in-memory db, or external cache like redis, both solutions provides much more functionality than needed for this use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem, bug such solution may be complicated, and we lose the ability to use first-class language features.</p>
+<p>We want something better. And there is a solution: compact regions. Interested reader may check</p>
+<ul>
+<li>compact structure Edward Z. Yang, Giovanni Campagna, Ömer Ağacan, Ahmed El-Hassany, Abhishek Kulkarni, Ryan Newton. “<em>Efficient communication and Collection with Compact Normal Forms</em>”. In Proceedings of the 20th ACM SIGPLAN International Conference on Functional Programming. September 2015. http://ezyang.com/compact.html</li>
+<li><a href="http://hackage.haskell.org/package/compact">compact</a> on hackage.</li>
+</ul>
+<p>The compact region is a region that contains a Haskell structure inside, but it is stored in the contiguous blocks of memory, it doesn’t have any references outside of the region. So it can be seen as a single object for the garbage collector. And it doesn’t affect the GC. Programmer may still access stored value and use all the haskell features when working with it.</p>
+<p>The simplest solution may be as simple as:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a>mkCheck</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="ot">  ::</span> <span class="dt">IO</span> (<span class="dt">HashMap</span> <span class="dt">ContestId</span> (<span class="dt">HashMap</span> <span class="dt">SchoolId</span> (<span class="dt">Vector</span> <span class="dt">Net4Addr</span>)))</span>
+<span id="cb2-3"><a href="#cb2-3"></a>  <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">Handle</span>, <span class="dt">UpdateHandle</span>)</span>
+<span id="cb2-4"><a href="#cb2-4"></a>mkCheck mkCache <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb2-5"><a href="#cb2-5"></a>  ref <span class="ot">&lt;-</span> newIORef <span class="op">=&lt;&lt;</span> compact mkCache                          <span class="co">{- 1 -}</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a>  <span class="kw">let</span> hdl <span class="ot">=</span> <span class="dt">Handle</span> { lookupSchool <span class="ot">=</span> \cid key <span class="ot">-&gt;</span></span>
+<span id="cb2-7"><a href="#cb2-7"></a>        runExceptT <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb2-8"><a href="#cb2-8"></a>          storage <span class="ot">&lt;-</span> liftIO <span class="op">$</span> getCompact <span class="op">$</span> readIORef ref       <span class="co">{- 2 -}</span></span>
+<span id="cb2-9"><a href="#cb2-9"></a>          c_storage <span class="ot">&lt;-</span> HM.lookup cid storage <span class="op">?!</span> <span class="dt">NoRestriction</span>  <span class="co">{- 3 -}</span></span>
+<span id="cb2-10"><a href="#cb2-10"></a>          V.toList <span class="op">&lt;$&gt;</span> HM.lookup key c_storage <span class="op">?!</span> <span class="dt">Missing</span>      <span class="co">{- 4 -}</span></span>
+<span id="cb2-11"><a href="#cb2-11"></a>   <span class="fu">pure</span> (hdl</span>
+<span id="cb2-12"><a href="#cb2-12"></a>    , <span class="dt">UpdateHandle</span> <span class="op">$</span> mkCache <span class="op">&gt;&gt;=</span> compact <span class="op">&gt;&gt;=</span> writeIORef ref)   <span class="co">{- 5 -}</span></span></code></pre></div>
+<p>Here we create a cache with update function. We take a cache population functio as a paremeter. Then we create a cache <code>{- 1 -}</code> and create compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the like <code>{-5-}</code> we return an update function that builds new value of the cache when is called.</p>
+<p>So basically the only lines that were added to the naive algorithm are <code>1,2,5</code>, the rest of the algorithm remains unchanged.</p>
+<p>Note. There may be other architectural choices how to provide an access to the API and to it’s updates, but I doubt they are very solution depenent, so I’d like to avoid API discussion.</p>
+<p>So now let’s discuss this solution. During first tests on data that we have gathered from the previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for the single contests, and we know it will grow. After compacting it was 98304b only (repored by <code>compactSize</code> function). Isn’t it quite nice, especially we when have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
+<p>Are there any other costs? There are: during the update, we update the full structure even in the case we could update it partially. There are more elaborated solutions that can avoid this problem. But we decided to run the nex event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
+<p>After examining the feedback and results of the contest we have decided to decrease update time to one minute, and make cache structure more complex:</p>
+<ul>
+<li>introduce network pools that are allowed for all sites in the contest. It makes sense as many schools work via shared proxy servers.</li>
+<li>Store configuration per site, so when we add the site to the contest, we add that with configured networks.</li>
+<li>Have an overlay per contest, per site.</li>
+</ul>
+<p>After all those changes, it was not feasible to build a new structure each minute, especially because it’s known that most of the time structure does not change. Compact regions provide a way to add structure to the region:</p>
+<pre><code>compactAdd :: Compact b -&gt; a -&gt; IO (Compact a)</code></pre>
+<p>this function takes compact region with reference to the value of type b, adds the value of type <code>a</code>, and returns a reference to value <code>a</code> in the region. So if we want to update a region we can write:</p>
+<pre><code>compactAdd b (update (getCompact b))</code></pre>
+<p>If a structure update keeps old parts of the structure untouched as much as possible, then we will store only updated parts. And for most of the persistent immutable structures (e.g. <code>HashMap</code>), we have that already.</p>
+<p>But if we go this way we will never free old parts of the structures that are no longer used and introduce memory leak. To avoid that problem, we need to add some strategy when to rebuild the structure from scratch. So we will call <code>compactAdd</code> often and sometimes call compact. I’ve decided to keep the following policy:</p>
+<blockquote>
+<p>“rebuild the structure if the size of the value is twice as big as it was when the initial version was built”.</p>
+</blockquote>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a>c <span class="ot">&lt;-</span> compact <span class="op">=&lt;&lt;</span> makeCache</span>
+<span id="cb5-2"><a href="#cb5-2"></a>ref <span class="ot">&lt;-</span> newIORef c</span>
+<span id="cb5-3"><a href="#cb5-3"></a>old_size <span class="ot">&lt;-</span> newIORef <span class="op">=&lt;&lt;</span> compact c <span class="co">{-1-}</span></span>
+<span id="cb5-4"><a href="#cb5-4"></a><span class="kw">let</span> update <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-5"><a href="#cb5-5"></a>      prev_compact <span class="ot">&lt;-</span> readIORef ref</span>
+<span id="cb5-6"><a href="#cb5-6"></a>      current_size <span class="ot">&lt;-</span> compactSize prev_compact</span>
+<span id="cb5-7"><a href="#cb5-7"></a>      prev_size <span class="ot">&lt;-</span> readIORef old_size</span>
+<span id="cb5-8"><a href="#cb5-8"></a>      <span class="kw">let</span> inplace <span class="ot">=</span> prev_size <span class="op">*</span> <span class="dv">2</span> <span class="op">&gt;</span> current_size <span class="co">{-2-}</span></span>
+<span id="cb5-9"><a href="#cb5-9"></a>      <span class="op">...</span> new_cache</span>
+<span id="cb5-10"><a href="#cb5-10"></a>      <span class="kw">if</span> inplace</span>
+<span id="cb5-11"><a href="#cb5-11"></a>      <span class="kw">then</span> compactAdd prev_compact new_cache <span class="op">&gt;&gt;=</span> writeIORef ref <span class="co">{-3-}</span></span>
+<span id="cb5-12"><a href="#cb5-12"></a>      <span class="kw">else</span> <span class="kw">do</span></span>
+<span id="cb5-13"><a href="#cb5-13"></a>        z <span class="ot">&lt;-</span> compact new_cache  <span class="co">{-4-}</span></span>
+<span id="cb5-14"><a href="#cb5-14"></a>        new_size <span class="ot">&lt;-</span> compactSize z  <span class="co">{-5-}</span></span>
+<span id="cb5-15"><a href="#cb5-15"></a>        writeIORef old_size new_size </span>
+<span id="cb5-16"><a href="#cb5-16"></a>        setGauge metric_size <span class="op">$</span> <span class="fu">realToFrac</span> new_size  <span class="co">{-6-}</span></span>
+<span id="cb5-17"><a href="#cb5-17"></a>        writeIORef ref z</span></code></pre></div>
+<p>On the line <code>{-1-}</code> we store initial size in addition to the reference to cache itself.</p>
+<p>On the line <code>{-2-}</code> we apply our strategy and decide if we want to update inplace or build a new compact region.</p>
+<p>On the line <code>{-3-}</code> we store update to the structure in the current region</p>
+<p>On the lines <code>{-4,5-}</code> we rebuld a new cache and on the line <code>{-6-}</code> we store the size to the metrics, so we can check if everything goes well or not.</p>
+<p>But it’s not everything we need to check how updates take place, assume you have <code>HashMap</code>. You update a value at the given key with <code>id</code> function, you’ll get the equal value, but from the low-level perspective you’ll get a new structure, and it matters when you’ll store that value to compact. So we track if there were updates and if not we explicitly return the same structure and do not update reference at all.</p>
+<p>With all the changes, the structure works quite nice. At some point, I’d like to put that as a library. Unfortunately, I’m not sure if I know how to generalize from the project-specific parts.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2020-01-02-using-compacts.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2020-01-02-using-compacts.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2020-01-02-using-compacts.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

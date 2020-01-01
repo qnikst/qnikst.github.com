@@ -8,8 +8,100 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2019-12-30T00:00:00Z</updated>
+    <updated>2020-01-02T00:00:00Z</updated>
     <entry>
+    <title>Using compact regions</title>
+    <link href="https://qnikst.github.io/posts/2020-01-02-using-compacts.html" />
+    <id>https://qnikst.github.io/posts/2020-01-02-using-compacts.html</id>
+    <published>2020-01-02T00:00:00Z</published>
+    <updated>2020-01-02T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will be not much code and numbers, just general thoughts. In our contests application, we need additional restrictions:</p>
+<blockquote>
+<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only from restricted set of networks.</p>
+</blockquote>
+<p>So we needed a built-in IP filtering app, such that for a given contest may check whether the user can access it. After the competition has finished, the user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests runnning at the same time.</p>
+<p>There are a few additional constraints:</p>
+<ul>
+<li>Configuration should be updateable, as sometimes the site doesn’t know all it’s IPs.</li>
+<li>Sometimes some people can pass contest from the other site, for example at the moment of the competition they moved to some other school or training.</li>
+<li>The solution should not harm contest without the checks and general properties.</li>
+<li>The check should not access the database.</li>
+</ul>
+<p>We need the last constraint as additional protection from the DDOS attacks: we don’t do any work if IP is not allowed and do not consume system resources. Actually it was the first internal reason for the IP filtering, but the feature was very helpful for the organizers, so they decided to use that for the main events.</p>
+<p>Leaving aside technical details aside, we may think that for each user we can map his login on contest id, and id of the site without access to the database. So basically we need to write a function:</p>
+<pre><code>check :: ContestId -&gt; SchoolId -&gt; IP4 -&gt; Bool</code></pre>
+<p>That will check if user has an access. Note missing <code>IO</code> or any other context here.</p>
+<p>The simplest solution is to have a</p>
+<p><code>HashMap (ContestId, SchoolId) [Net4Addr]</code></p>
+<p>or</p>
+<p><code>HashMap ContestId (HashMap SchoolId) [Net4Addr]</code>.</p>
+<p>The latter one allows faster-path for the case if the contest is not filtered.</p>
+<p>Is there any problem with this case? There is. The hashmap structure is very “branchy” tree, and if it’s quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping large (from half to serveral Gb tries in memory). However, it may still negatively affect the performance of the service, and we want to have better story especially if it’s cheap.</p>
+<p>What other languages do in this case? There are several ways forward use some in-memory db, or external cache like redis, both solutions provides much more functionality than needed for this use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem, bug such solution may be complicated, and we lose the ability to use first-class language features.</p>
+<p>We want something better. And there is a solution: compact regions. Interested reader may check</p>
+<ul>
+<li>compact structure Edward Z. Yang, Giovanni Campagna, Ömer Ağacan, Ahmed El-Hassany, Abhishek Kulkarni, Ryan Newton. “<em>Efficient communication and Collection with Compact Normal Forms</em>”. In Proceedings of the 20th ACM SIGPLAN International Conference on Functional Programming. September 2015. http://ezyang.com/compact.html</li>
+<li><a href="http://hackage.haskell.org/package/compact">compact</a> on hackage.</li>
+</ul>
+<p>The compact region is a region that contains a Haskell structure inside, but it is stored in the contiguous blocks of memory, it doesn’t have any references outside of the region. So it can be seen as a single object for the garbage collector. And it doesn’t affect the GC. Programmer may still access stored value and use all the haskell features when working with it.</p>
+<p>The simplest solution may be as simple as:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a>mkCheck</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="ot">  ::</span> <span class="dt">IO</span> (<span class="dt">HashMap</span> <span class="dt">ContestId</span> (<span class="dt">HashMap</span> <span class="dt">SchoolId</span> (<span class="dt">Vector</span> <span class="dt">Net4Addr</span>)))</span>
+<span id="cb2-3"><a href="#cb2-3"></a>  <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">Handle</span>, <span class="dt">UpdateHandle</span>)</span>
+<span id="cb2-4"><a href="#cb2-4"></a>mkCheck mkCache <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb2-5"><a href="#cb2-5"></a>  ref <span class="ot">&lt;-</span> newIORef <span class="op">=&lt;&lt;</span> compact mkCache                          <span class="co">{- 1 -}</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a>  <span class="kw">let</span> hdl <span class="ot">=</span> <span class="dt">Handle</span> { lookupSchool <span class="ot">=</span> \cid key <span class="ot">-&gt;</span></span>
+<span id="cb2-7"><a href="#cb2-7"></a>        runExceptT <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb2-8"><a href="#cb2-8"></a>          storage <span class="ot">&lt;-</span> liftIO <span class="op">$</span> getCompact <span class="op">$</span> readIORef ref       <span class="co">{- 2 -}</span></span>
+<span id="cb2-9"><a href="#cb2-9"></a>          c_storage <span class="ot">&lt;-</span> HM.lookup cid storage <span class="op">?!</span> <span class="dt">NoRestriction</span>  <span class="co">{- 3 -}</span></span>
+<span id="cb2-10"><a href="#cb2-10"></a>          V.toList <span class="op">&lt;$&gt;</span> HM.lookup key c_storage <span class="op">?!</span> <span class="dt">Missing</span>      <span class="co">{- 4 -}</span></span>
+<span id="cb2-11"><a href="#cb2-11"></a>   <span class="fu">pure</span> (hdl</span>
+<span id="cb2-12"><a href="#cb2-12"></a>    , <span class="dt">UpdateHandle</span> <span class="op">$</span> mkCache <span class="op">&gt;&gt;=</span> compact <span class="op">&gt;&gt;=</span> writeIORef ref)   <span class="co">{- 5 -}</span></span></code></pre></div>
+<p>Here we create a cache with update function. We take a cache population functio as a paremeter. Then we create a cache <code>{- 1 -}</code> and create compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the like <code>{-5-}</code> we return an update function that builds new value of the cache when is called.</p>
+<p>So basically the only lines that were added to the naive algorithm are <code>1,2,5</code>, the rest of the algorithm remains unchanged.</p>
+<p>Note. There may be other architectural choices how to provide an access to the API and to it’s updates, but I doubt they are very solution depenent, so I’d like to avoid API discussion.</p>
+<p>So now let’s discuss this solution. During first tests on data that we have gathered from the previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for the single contests, and we know it will grow. After compacting it was 98304b only (repored by <code>compactSize</code> function). Isn’t it quite nice, especially we when have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
+<p>Are there any other costs? There are: during the update, we update the full structure even in the case we could update it partially. There are more elaborated solutions that can avoid this problem. But we decided to run the nex event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
+<p>After examining the feedback and results of the contest we have decided to decrease update time to one minute, and make cache structure more complex:</p>
+<ul>
+<li>introduce network pools that are allowed for all sites in the contest. It makes sense as many schools work via shared proxy servers.</li>
+<li>Store configuration per site, so when we add the site to the contest, we add that with configured networks.</li>
+<li>Have an overlay per contest, per site.</li>
+</ul>
+<p>After all those changes, it was not feasible to build a new structure each minute, especially because it’s known that most of the time structure does not change. Compact regions provide a way to add structure to the region:</p>
+<pre><code>compactAdd :: Compact b -&gt; a -&gt; IO (Compact a)</code></pre>
+<p>this function takes compact region with reference to the value of type b, adds the value of type <code>a</code>, and returns a reference to value <code>a</code> in the region. So if we want to update a region we can write:</p>
+<pre><code>compactAdd b (update (getCompact b))</code></pre>
+<p>If a structure update keeps old parts of the structure untouched as much as possible, then we will store only updated parts. And for most of the persistent immutable structures (e.g. <code>HashMap</code>), we have that already.</p>
+<p>But if we go this way we will never free old parts of the structures that are no longer used and introduce memory leak. To avoid that problem, we need to add some strategy when to rebuild the structure from scratch. So we will call <code>compactAdd</code> often and sometimes call compact. I’ve decided to keep the following policy:</p>
+<blockquote>
+<p>“rebuild the structure if the size of the value is twice as big as it was when the initial version was built”.</p>
+</blockquote>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a>c <span class="ot">&lt;-</span> compact <span class="op">=&lt;&lt;</span> makeCache</span>
+<span id="cb5-2"><a href="#cb5-2"></a>ref <span class="ot">&lt;-</span> newIORef c</span>
+<span id="cb5-3"><a href="#cb5-3"></a>old_size <span class="ot">&lt;-</span> newIORef <span class="op">=&lt;&lt;</span> compact c <span class="co">{-1-}</span></span>
+<span id="cb5-4"><a href="#cb5-4"></a><span class="kw">let</span> update <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-5"><a href="#cb5-5"></a>      prev_compact <span class="ot">&lt;-</span> readIORef ref</span>
+<span id="cb5-6"><a href="#cb5-6"></a>      current_size <span class="ot">&lt;-</span> compactSize prev_compact</span>
+<span id="cb5-7"><a href="#cb5-7"></a>      prev_size <span class="ot">&lt;-</span> readIORef old_size</span>
+<span id="cb5-8"><a href="#cb5-8"></a>      <span class="kw">let</span> inplace <span class="ot">=</span> prev_size <span class="op">*</span> <span class="dv">2</span> <span class="op">&gt;</span> current_size <span class="co">{-2-}</span></span>
+<span id="cb5-9"><a href="#cb5-9"></a>      <span class="op">...</span> new_cache</span>
+<span id="cb5-10"><a href="#cb5-10"></a>      <span class="kw">if</span> inplace</span>
+<span id="cb5-11"><a href="#cb5-11"></a>      <span class="kw">then</span> compactAdd prev_compact new_cache <span class="op">&gt;&gt;=</span> writeIORef ref <span class="co">{-3-}</span></span>
+<span id="cb5-12"><a href="#cb5-12"></a>      <span class="kw">else</span> <span class="kw">do</span></span>
+<span id="cb5-13"><a href="#cb5-13"></a>        z <span class="ot">&lt;-</span> compact new_cache  <span class="co">{-4-}</span></span>
+<span id="cb5-14"><a href="#cb5-14"></a>        new_size <span class="ot">&lt;-</span> compactSize z  <span class="co">{-5-}</span></span>
+<span id="cb5-15"><a href="#cb5-15"></a>        writeIORef old_size new_size </span>
+<span id="cb5-16"><a href="#cb5-16"></a>        setGauge metric_size <span class="op">$</span> <span class="fu">realToFrac</span> new_size  <span class="co">{-6-}</span></span>
+<span id="cb5-17"><a href="#cb5-17"></a>        writeIORef ref z</span></code></pre></div>
+<p>On the line <code>{-1-}</code> we store initial size in addition to the reference to cache itself.</p>
+<p>On the line <code>{-2-}</code> we apply our strategy and decide if we want to update inplace or build a new compact region.</p>
+<p>On the line <code>{-3-}</code> we store update to the structure in the current region</p>
+<p>On the lines <code>{-4,5-}</code> we rebuld a new cache and on the line <code>{-6-}</code> we store the size to the metrics, so we can check if everything goes well or not.</p>
+<p>But it’s not everything we need to check how updates take place, assume you have <code>HashMap</code>. You update a value at the given key with <code>id</code> function, you’ll get the equal value, but from the low-level perspective you’ll get a new structure, and it matters when you’ll store that value to compact. So we track if there were updates and if not we explicitly return the same structure and do not update reference at all.</p>
+<p>With all the changes, the structure works quite nice. At some point, I’d like to put that as a library. Unfortunately, I’m not sure if I know how to generalize from the project-specific parts.</p>]]></summary>
+</entry>
+<entry>
     <title>Runtime based caching</title>
     <link href="https://qnikst.github.io/posts/2019-09-30-runtime-based-caching.html" />
     <id>https://qnikst.github.io/posts/2019-09-30-runtime-based-caching.html</id>
@@ -754,77 +846,6 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <li><p>remove <code>install-includes</code> stanza - now sdist works.</p></li>
 </ol>
 <p>Enjoy again!</p>]]></summary>
-</entry>
-<entry>
-    <title>Things to know about exception handling.</title>
-    <link href="https://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html" />
-    <id>https://qnikst.github.io/posts/2015-06-03-interesting-exceptions.html</id>
-    <published>2015-06-03T00:00:00Z</published>
-    <updated>2015-06-03T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Let’s take a look at the simple pattern, in this pattern we want to write an endless program for some purpose:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1"></a>runit f <span class="ot">=</span> f <span class="ot">`onException`</span> (<span class="fu">putStrLn</span> <span class="st">&quot;exception!&quot;</span> <span class="op">&gt;&gt;</span> runit f)</span></code></pre></div>
-<p>Do you see a huge problem here? And this problem is not with code accuracy, inability to gracefully exit or something like that. There is another problem in this pattern. If you don’t then continue reading.</p>
-<p>Assume <code>f</code> is some simple function that loops (for example <code>let f = forever yield</code>). Try to answer the following questions</p>
-<ol type="1">
-<li><p>what will happen if you run <code>runit f</code> in a separate thread (<code>forkIO $ runit f</code>)?</p></li>
-<li><p>what will happen if you send an exception to the forked thread?</p></li>
-<li><p>what will happen if you send another exception to that thread?</p></li>
-</ol>
-<p>Now you can try to check your guesses in ghci. If everything is ok then there is nothing new to read for you. However if you are lazy (and didn’t try to answer or run the code), you can continue.</p>
-<p>Let’s try to test:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a><span class="op">&gt;</span> <span class="op">:</span>m <span class="dt">Control.Exception</span> <span class="dt">Control.Concurrent</span> <span class="dt">GHC.Conc</span> <span class="dt">Control.Monad</span></span>
-<span id="cb2-2"><a href="#cb2-2"></a><span class="op">&gt;</span> <span class="kw">let</span> runit f <span class="ot">=</span> f <span class="ot">`onException`</span> (<span class="fu">putStrLn</span> <span class="st">&quot;exception!&quot;</span> <span class="op">&gt;&gt;</span> runit f)</span>
-<span id="cb2-3"><a href="#cb2-3"></a><span class="op">&gt;</span> x <span class="ot">&lt;-</span> forkIO <span class="op">$</span> runit <span class="op">$</span> forever yield</span>
-<span id="cb2-4"><a href="#cb2-4"></a><span class="op">&gt;</span> x</span>
-<span id="cb2-5"><a href="#cb2-5"></a><span class="dt">ThreadId</span> <span class="dv">154</span></span>
-<span id="cb2-6"><a href="#cb2-6"></a><span class="op">&gt;</span> threadStatus x</span>
-<span id="cb2-7"><a href="#cb2-7"></a><span class="dt">ThreadRunning</span></span></code></pre></div>
-<p>Ok everything as expected, thread is running and consuming 100% of one CPU. Now go to the step 2.:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="op">&gt;</span> throwTo x (<span class="fu">userError</span> <span class="st">&quot;foo&quot;</span>)</span>
-<span id="cb3-2"><a href="#cb3-2"></a>exc<span class="op">&gt;</span> eption<span class="op">!</span></span>
-<span id="cb3-3"><a href="#cb3-3"></a><span class="op">&gt;</span> threadStatus x</span>
-<span id="cb3-4"><a href="#cb3-4"></a><span class="dt">ThreadRunning</span></span></code></pre></div>
-<p>Exception is caught, everything is OK. Now go to the 3.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1"></a><span class="op">&gt;</span> throwTo x (<span class="fu">userError</span> <span class="st">&quot;foo&quot;</span>)</span></code></pre></div>
-<p>Hah.. It just hangs!!! We can interrupt it and check thread status</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a><span class="op">&gt;</span> threadStatus x</span>
-<span id="cb5-2"><a href="#cb5-2"></a><span class="dt">ThreadRunning</span></span></code></pre></div>
-<p>This is definitely not what could be expected. Lets try to understand what had happened.</p>
-<p>As you know exception sending is synchronous in a sense, that <code>throwTo</code> call will not exit unless exception will be delivered to the thread (or the thread dies).</p>
-<p>Quote from <a href="https://hackage.haskell.org/package/base-4.7.0.2/docs/Control-Concurrent.html">haddock</a>:</p>
-<blockquote>
-<p>Exception delivery synchronizes between the source and target thread: <code>throwTo</code> does not return until the exception has been raised in the target thread. The calling thread can thus be certain that the target thread has received the exception. Exception delivery is also atomic with respect to other exceptions. Atomicity is a useful property to have when dealing with race conditions: e.g. if there are two threads that can kill each other, it is guaranteed that only one of the threads will get to kill the other.</p>
-</blockquote>
-<p>It’s definitely not an issue of non-reaching safepoint, that is also possible. Another quote:</p>
-<blockquote>
-<p>In GHC, an exception can only be raised when a thread reaches a safe point, where a safe point is where memory allocation occurs. Some loops do not perform any memory allocation inside the loop and therefore cannot be interrupted by a <code>throwTo</code>.</p>
-</blockquote>
-<p>It could be a case if <code>f</code> would be something like <code>f = return $ last [1..]</code> compiled with optimizations turned on. But as we have seen the first exception was delivered successfully. And also we are not in a <em>FFI</em> call. The only left possibility is that the thread is in a masked state. Let’s check it:</p>
-<pre><code>&gt; x &lt;- forkIO $ runit (getMaskingState &gt;&gt;= print  &gt;&gt; forever yield)
-Unmasked
-Prelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; throwTo x (userError &quot;bar&quot;)
-exceptiPrelude Control.Exception Control.Concurrent GHC.Conc Control.Monad&gt; on!
-MaskedInterruptible</code></pre>
-<p>Yes, everything happened as we were expecting the thread is now in a masked state, and so exception can’t be delivered. But why? Maybe we need to take a look at <code>Control.Exception</code> module documentation? You may try, but at least in base-4.8.0 (and in the previous versions) these details were not documented.</p>
-<p>But we can try to find out solution somewhere else, for example in RTS documentation:</p>
-<blockquote>
-<p>A thread can request that asynchronous exceptions not be delivered (“masked”) for the duration of an I/O computation. The primitives</p>
-<p>maskAsyncExceptions# :: IO a -&gt; IO a</p>
-<p>and</p>
-<p>maskUninterruptible# :: IO a -&gt; IO a</p>
-<p>are used for this purpose. During a masked section, asynchronous exceptions may be unmasked again temporarily:</p>
-<p>unmaskAsyncExceptions# :: IO a -&gt; IO a</p>
-<p>Furthermore, asynchronous exceptions are masked automatically during the execution of an exception handler. All three of these primitives leave a continuation on the stack which reverts to the previous state (masked interruptible, masked non-interruptible, or unmasked) on exit.</p>
-</blockquote>
-<p>Looks like a reason of our problem. Unfortunatelly it’s not in the documentation that usual user would read, but a nice thing to know.</p>
-<p>And original code should look like the following:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1"></a>runit f <span class="ot">=</span> mask <span class="op">$</span> \release <span class="ot">-&gt;</span> <span class="kw">do</span></span>
-<span id="cb7-2"><a href="#cb7-2"></a>  ev <span class="ot">&lt;-</span> try <span class="op">$</span> release f</span>
-<span id="cb7-3"><a href="#cb7-3"></a>  <span class="kw">case</span> ev <span class="kw">of</span></span>
-<span id="cb7-4"><a href="#cb7-4"></a>    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> <span class="st">&quot;exception&quot;</span> <span class="op">&gt;&gt;</span> release (runit f)</span>
-<span id="cb7-5"><a href="#cb7-5"></a>    <span class="dt">Right</span> x <span class="ot">-&gt;</span> <span class="fu">return</span> x</span></code></pre></div>
-<p>You’ll need to pass exception type you are interested in or use <code>catches</code>.</p>
-<p>I hope you enjoyed reading this, despite a terrible English that I have.</p>]]></summary>
 </entry>
 
 </feed>
