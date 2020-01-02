@@ -6,18 +6,18 @@ tag: Haskell, work
 ----
 
 Today I'd like to talk more about the tricks we've used in our codebase. 
-I'd like to speak about compact regions. There will be not much code and numbers, just general thoughts.
+I'd like to speak about compact regions. There will not be much code and numbers, just general thoughts.
 In our contests application, we need additional restrictions:
 
-> there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only from restricted set of networks.
+> there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only for a restricted set of networks.
 
-So we needed a built-in IP filtering app, such that for a given contest may check whether the user can access it.
+So we needed a built-in IP filtering app, such that for a given contest can check whether the user can access it.
 After the competition has finished, the user may have access to his results from any IP. And there can
-be concurrent restricted and unrestricted contests runnning at the same time.
+be concurrent restricted and unrestricted contests running at the same time.
 
 There are a few additional constraints:
 
-  * Configuration should be updateable, as sometimes the site doesn't know all it's IPs.
+  * Configuration should be updatable, as sometimes the site doesn't know all it's IPs.
   * Sometimes some people can pass contest from the other site, for example at the moment of the competition they moved to some other school or training.
   * The solution should not harm contest without the checks and general properties.
   * The check should not access the database.
@@ -26,7 +26,7 @@ We need the last constraint as additional protection from the DDOS attacks: we d
 Actually it was the first internal reason for the IP filtering, but the feature was very helpful
 for the organizers, so they decided to use that for the main events.
 
-Leaving aside technical details aside, we may think that for each user we can map his login on contest id,
+Leaving technical details aside, we may think that for each user we can map his login to contest id,
 and id of the site without access to the database. So basically we need to write a function:
 ```
 check :: ContestId -> SchoolId -> IP4 -> Bool
@@ -43,12 +43,12 @@ or
 
 The latter one allows faster-path for the case if the contest is not filtered.
 
-Is there any problem with this case? There is. The hashmap structure is very "branchy" tree,
+Is there any problem with this case? There is. The hashmap structure is a very "branchy" tree,
 and if it's quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping
-large (from half to serveral Gb tries in memory). However, it may still negatively
-affect the performance of the service, and we want to have better story especially if it's cheap.
+large (from half to several Gb tries in memory). However, it may still negatively
+affect the performance of the service, and we want to have better story, especially if it's cheap.
 
-What other languages do in this case? There are several ways forward use some in-memory db,
+What other languages do in this case? There are several ways: straightforward use some in-memory db,
 or external cache like redis, both solutions provides much more functionality than needed for
 this use-case. Another solution is to use off-heap data structures. In this case the
 data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem,
@@ -79,7 +79,7 @@ mkCheck mkCache = do
     , UpdateHandle $ mkCache >>= compact >>= writeIORef ref)   {- 5 -}
 ```
 
-Here we create a cache with update function. We take a cache population functio as a paremeter.
+Here we create a cache with update function. We take a cache population function as a parameter.
 Then we create a cache `{- 1 -}` and create compact region out of that. We store the region in
 `IORef` basic mutable variable with atomic CAS updates.
 When we read the value `{-2-}` we get it our of IORef and get it from the compact and can work
@@ -90,18 +90,18 @@ So basically the only lines that were added to the naive algorithm are `1,2,5`, 
 algorithm remains unchanged.
 
 Note. There may be other architectural choices how to provide an access to the API and to it's
-updates, but I doubt they are very solution depenent, so I'd like to avoid API discussion.
+updates, but I doubt they are very solution dependent, so I'd like to avoid API discussion.
 
 So now let's discuss this solution. During first tests on data that we have gathered from the
 previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize).
 That is a tiny number, but the numbers were for the single contests, and we know it will grow.
-After compacting it was 98304b only (repored by `compactSize` function). Isn't it quite nice, especially
+After compacting it was 98304b only (reported by `compactSize` function). Isn't it quite nice, especially
 we when have that for free? The rest of the algorithm remains unchanged: the only difference is
 a call to `compact` function during the update and `getCompact` at the beginning of the lookup.
 
 Are there any other costs? There are:
 during the update, we update the full structure even in the case we could update it partially.
-There are more elaborated solutions that can avoid this problem. But we decided to run the nex
+There are more elaborated solutions that can avoid this problem. But we decided to run the next
 event using the current one: we just set update function to run once per 10 minutes.
 And everything went fine, except that 10 minutes was two high value to wait when you add changes.
 
@@ -161,7 +161,7 @@ On the line `{-2-}` we apply our strategy and decide if we want to update inplac
 
 On the line `{-3-}` we store update to the structure in the current region
 
-On the lines `{-4,5-}` we rebuld a new cache and on the line `{-6-}` we store the size to the metrics, so we can check if everything goes well or not.
+On the lines `{-4,5-}` we rebuild a new cache and on the line `{-6-}` we store the size to the metrics, so we can check if everything goes well or not.
 
 But it's not everything we need to check how updates take place, assume you have `HashMap`.
 You update a value at the given key with `id` function, you'll get the equal value, but
