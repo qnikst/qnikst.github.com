@@ -32,20 +32,20 @@
     <div class="keywords"><strong>Keywords:</strong> </div>
 </div>
 
-<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will be not much code and numbers, just general thoughts. In our contests application, we need additional restrictions:</p>
+<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will not be much code and numbers, just general thoughts. In our contests application, we need additional restrictions:</p>
 <blockquote>
-<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only from restricted set of networks.</p>
+<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only for a restricted set of networks.</p>
 </blockquote>
-<p>So we needed a built-in IP filtering app, such that for a given contest may check whether the user can access it. After the competition has finished, the user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests runnning at the same time.</p>
+<p>So we needed a built-in IP filtering app, such that for a given contest can check whether the user can access it. After the competition has finished, the user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests running at the same time.</p>
 <p>There are a few additional constraints:</p>
 <ul>
-<li>Configuration should be updateable, as sometimes the site doesn’t know all it’s IPs.</li>
+<li>Configuration should be updatable, as sometimes the site doesn’t know all it’s IPs.</li>
 <li>Sometimes some people can pass contest from the other site, for example at the moment of the competition they moved to some other school or training.</li>
 <li>The solution should not harm contest without the checks and general properties.</li>
 <li>The check should not access the database.</li>
 </ul>
 <p>We need the last constraint as additional protection from the DDOS attacks: we don’t do any work if IP is not allowed and do not consume system resources. Actually it was the first internal reason for the IP filtering, but the feature was very helpful for the organizers, so they decided to use that for the main events.</p>
-<p>Leaving aside technical details aside, we may think that for each user we can map his login on contest id, and id of the site without access to the database. So basically we need to write a function:</p>
+<p>Leaving technical details aside, we may think that for each user we can map his login to contest id, and id of the site without access to the database. So basically we need to write a function:</p>
 <pre><code>check :: ContestId -&gt; SchoolId -&gt; IP4 -&gt; Bool</code></pre>
 <p>That will check if user has an access. Note missing <code>IO</code> or any other context here.</p>
 <p>The simplest solution is to have a</p>
@@ -53,8 +53,8 @@
 <p>or</p>
 <p><code>HashMap ContestId (HashMap SchoolId) [Net4Addr]</code>.</p>
 <p>The latter one allows faster-path for the case if the contest is not filtered.</p>
-<p>Is there any problem with this case? There is. The hashmap structure is very “branchy” tree, and if it’s quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping large (from half to serveral Gb tries in memory). However, it may still negatively affect the performance of the service, and we want to have better story especially if it’s cheap.</p>
-<p>What other languages do in this case? There are several ways forward use some in-memory db, or external cache like redis, both solutions provides much more functionality than needed for this use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem, bug such solution may be complicated, and we lose the ability to use first-class language features.</p>
+<p>Is there any problem with this case? There is. The hashmap structure is a very “branchy” tree, and if it’s quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping large (from half to several Gb tries in memory). However, it may still negatively affect the performance of the service, and we want to have better story, especially if it’s cheap.</p>
+<p>What other languages do in this case? There are several ways: straightforward use some in-memory db, or external cache like redis, both solutions provides much more functionality than needed for this use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem, bug such solution may be complicated, and we lose the ability to use first-class language features.</p>
 <p>We want something better. And there is a solution: compact regions. Interested reader may check</p>
 <ul>
 <li>compact structure Edward Z. Yang, Giovanni Campagna, Ömer Ağacan, Ahmed El-Hassany, Abhishek Kulkarni, Ryan Newton. “<em>Efficient communication and Collection with Compact Normal Forms</em>”. In Proceedings of the 20th ACM SIGPLAN International Conference on Functional Programming. September 2015. http://ezyang.com/compact.html</li>
@@ -74,11 +74,11 @@
 <span id="cb2-10"><a href="#cb2-10"></a>          V.toList <span class="op">&lt;$&gt;</span> HM.lookup key c_storage <span class="op">?!</span> <span class="dt">Missing</span>      <span class="co">{- 4 -}</span></span>
 <span id="cb2-11"><a href="#cb2-11"></a>   <span class="fu">pure</span> (hdl</span>
 <span id="cb2-12"><a href="#cb2-12"></a>    , <span class="dt">UpdateHandle</span> <span class="op">$</span> mkCache <span class="op">&gt;&gt;=</span> compact <span class="op">&gt;&gt;=</span> writeIORef ref)   <span class="co">{- 5 -}</span></span></code></pre></div>
-<p>Here we create a cache with update function. We take a cache population functio as a paremeter. Then we create a cache <code>{- 1 -}</code> and create compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the like <code>{-5-}</code> we return an update function that builds new value of the cache when is called.</p>
+<p>Here we create a cache with update function. We take a cache population function as a parameter. Then we create a cache <code>{- 1 -}</code> and create compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the like <code>{-5-}</code> we return an update function that builds new value of the cache when is called.</p>
 <p>So basically the only lines that were added to the naive algorithm are <code>1,2,5</code>, the rest of the algorithm remains unchanged.</p>
-<p>Note. There may be other architectural choices how to provide an access to the API and to it’s updates, but I doubt they are very solution depenent, so I’d like to avoid API discussion.</p>
-<p>So now let’s discuss this solution. During first tests on data that we have gathered from the previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for the single contests, and we know it will grow. After compacting it was 98304b only (repored by <code>compactSize</code> function). Isn’t it quite nice, especially we when have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
-<p>Are there any other costs? There are: during the update, we update the full structure even in the case we could update it partially. There are more elaborated solutions that can avoid this problem. But we decided to run the nex event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
+<p>Note. There may be other architectural choices how to provide an access to the API and to it’s updates, but I doubt they are very solution dependent, so I’d like to avoid API discussion.</p>
+<p>So now let’s discuss this solution. During first tests on data that we have gathered from the previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for the single contests, and we know it will grow. After compacting it was 98304b only (reported by <code>compactSize</code> function). Isn’t it quite nice, especially we when have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
+<p>Are there any other costs? There are: during the update, we update the full structure even in the case we could update it partially. There are more elaborated solutions that can avoid this problem. But we decided to run the next event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
 <p>After examining the feedback and results of the contest we have decided to decrease update time to one minute, and make cache structure more complex:</p>
 <ul>
 <li>introduce network pools that are allowed for all sites in the contest. It makes sense as many schools work via shared proxy servers.</li>
@@ -114,7 +114,7 @@
 <p>On the line <code>{-1-}</code> we store initial size in addition to the reference to cache itself.</p>
 <p>On the line <code>{-2-}</code> we apply our strategy and decide if we want to update inplace or build a new compact region.</p>
 <p>On the line <code>{-3-}</code> we store update to the structure in the current region</p>
-<p>On the lines <code>{-4,5-}</code> we rebuld a new cache and on the line <code>{-6-}</code> we store the size to the metrics, so we can check if everything goes well or not.</p>
+<p>On the lines <code>{-4,5-}</code> we rebuild a new cache and on the line <code>{-6-}</code> we store the size to the metrics, so we can check if everything goes well or not.</p>
 <p>But it’s not everything we need to check how updates take place, assume you have <code>HashMap</code>. You update a value at the given key with <code>id</code> function, you’ll get the equal value, but from the low-level perspective you’ll get a new structure, and it matters when you’ll store that value to compact. So we track if there were updates and if not we explicitly return the same structure and do not update reference at all.</p>
 <p>With all the changes, the structure works quite nice. At some point, I’d like to put that as a library. Unfortunately, I’m not sure if I know how to generalize from the project-specific parts.</p>
 
