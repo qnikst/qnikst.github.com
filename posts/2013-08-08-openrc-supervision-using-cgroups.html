@@ -29,7 +29,7 @@
     </div>
     <h1>Supervision in pure OpenRC using cgroup subsystem.</h1>
     <div class="post-author">by <em>Alexander Vershilov</em> <a href="https://creativecommons.org/licenses/by/3.0"><img src="https://i.creativecommons.org/l/by/3.0/88x31.png" /></a> </div>
-    <div class="keywords"><strong>Keywords:</strong> <a href="../tags/OpenRC.html">OpenRC</a>, <a href="../tags/gentoo.html">gentoo</a>, <a href="../tags/programming.html">programming</a>, <a href="../tags/linux.html">linux</a>, <a href="../tags/supervision.html">supervision</a></div>
+    <div class="keywords"><strong>Keywords:</strong> <a title="All pages tagged 'OpenRC'." href="../tags/OpenRC.html">OpenRC</a>, <a title="All pages tagged 'gentoo'." href="../tags/gentoo.html">gentoo</a>, <a title="All pages tagged 'programming'." href="../tags/programming.html">programming</a>, <a title="All pages tagged 'linux'." href="../tags/linux.html">linux</a>, <a title="All pages tagged 'supervision'." href="../tags/supervision.html">supervision</a></div>
 </div>
 
 <div style="float:right;width:200px;font-size:0.5em;">
@@ -64,8 +64,17 @@ Openrc 0.12
 <p>Here are improvements and files that should be added to OpenRC to provide the required functionality.</p>
 <h4 id="restart-daemon">Restart daemon</h4>
 <p>First we need to create a daemon to restart a services, because we can’t start service from agent, as it has <code>PF_NO_SETAFFINITY</code> flag and thus cgroups will not work for any of its children. So let’s have a very simple daemon, it will be extended in the next posts</p>
-<p>#!/bin/sh if [ $# -lt 1 ] ; then echo “usage is $0 <path to fifo>” exit 1 fi</p>
-<p>while [ -p $1 ] ; do while read line ; do echo “rc-service $line”; done &lt;$1 done</p>
+<pre><code> #!/bin/sh
+ if [ $# -lt 1 ] ; then
+    echo &quot;usage is $0 &lt;path to fifo&gt;&quot; 
+    exit 1
+ fi
+ 
+ while [ -p $1 ] ; do 
+    while read line ; do
+       echo &quot;rc-service $line&quot;;
+    done &lt;$1
+ done</code></pre>
 <h4 id="release-notify-agent-improvement">Release notify agent improvement</h4>
 <p>The current release notify agent is very simple; so we extend it to support user hooks. There are some different ways to do it:</p>
 <ol type="1">
@@ -81,71 +90,67 @@ Openrc 0.12
 </code></pre>
 <p>This approach doesn’t scale on a multiple hooks but it may be improved after discussion with upstream. Each script can return $RC_CGROUP_CONTINUE exit code, so cgroup will not be deleted after a hook.</p>
 <p>Here is a script itself (newer version can be found on <a href="https://github.com/qnikst/openrc/blob/cgroups.release_notification/sh/cgroup-release-agent.sh.in">github</a>):</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1"></a><span class="va">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin</span>
-<span id="cb2-2"><a href="#cb2-2"></a><span class="va">cgroup=</span>/sys/fs/cgroup/openrc</span>
-<span id="cb2-3"><a href="#cb2-3"></a><span class="va">cgroup_rmdir=</span>1</span>
-<span id="cb2-4"><a href="#cb2-4"></a><span class="va">RC_SVCNAME=$1</span></span>
-<span id="cb2-5"><a href="#cb2-5"></a><span class="va">RC_CGROUP_CONTINUE=</span>3; </span>
-<span id="cb2-6"><a href="#cb2-6"></a><span class="bu">export</span> <span class="va">RC_CGROUP_CONTINUE</span> <span class="va">RC_SVCNAME</span> <span class="va">PATH</span>;</span>
-<span id="cb2-7"><a href="#cb2-7"></a></span>
-<span id="cb2-8"><a href="#cb2-8"></a><span class="kw">if</span><span class="bu"> [</span> <span class="ot">-n</span> <span class="st">&quot;</span><span class="va">${RC_SVCNAME}</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></span>
-<span id="cb2-9"><a href="#cb2-9"></a>  <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="va">${RC_SVCNAME}</span>.cgroup-release</span>
-<span id="cb2-10"><a href="#cb2-10"></a>  [ <span class="ex">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> ] <span class="kw">||</span> <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;</span>
-<span id="cb2-11"><a href="#cb2-11"></a>  <span class="kw">if</span><span class="bu"> [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></span>
-<span id="cb2-12"><a href="#cb2-12"></a>    <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> <span class="ex">cleanup</span> <span class="st">&quot;</span><span class="va">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span> <span class="va">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="va">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;</span>
-<span id="cb2-13"><a href="#cb2-13"></a>  <span class="kw">fi</span></span>
-<span id="cb2-14"><a href="#cb2-14"></a><span class="kw">fi</span></span>
-<span id="cb2-15"><a href="#cb2-15"></a></span>
-<span id="cb2-16"><a href="#cb2-16"></a><span class="kw">if</span><span class="bu"> [</span> <span class="va">${cgroup_rmdir}</span> <span class="ot">-eq</span> 1<span class="bu"> ]</span> <span class="kw">&amp;&amp;</span><span class="bu"> [</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${cgroup}</span><span class="st">/</span><span class="va">$1</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></span>
-<span id="cb2-17"><a href="#cb2-17"></a>  <span class="kw">for</span> <span class="ex">c</span> in /sys/fs/cgroup/*/<span class="st">&quot;openrc_</span><span class="va">$1</span><span class="st">&quot;</span> <span class="kw">;</span> <span class="kw">do</span></span>
-<span id="cb2-18"><a href="#cb2-18"></a>    <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">${c}</span><span class="st">&quot;</span></span>
-<span id="cb2-19"><a href="#cb2-19"></a>  <span class="kw">done</span>;</span>
-<span id="cb2-20"><a href="#cb2-20"></a>  <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">$cgroup</span><span class="st">/</span><span class="va">${1}</span><span class="st">&quot;</span></span>
-<span id="cb2-21"><a href="#cb2-21"></a><span class="kw">fi</span></span></code></pre></div>
-<p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1"></a><span class="co">#!/bin/sh</span></span>
-<span id="cb3-2"><a href="#cb3-2"></a><span class="co"># This script is run for service that need to be restarted</span></span>
-<span id="cb3-3"><a href="#cb3-3"></a><span class="co"># if it's last process leaves cgroup.</span></span>
-<span id="cb3-4"><a href="#cb3-4"></a></span>
-<span id="cb3-5"><a href="#cb3-5"></a><span class="va">action=$1</span></span>
-<span id="cb3-6"><a href="#cb3-6"></a><span class="va">service=$2</span></span>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1"></a><span class="va">PATH=</span>/bin:/usr/bin:/sbin:/usr/sbin</span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="va">cgroup=</span>/sys/fs/cgroup/openrc</span>
+<span id="cb3-3"><a href="#cb3-3"></a><span class="va">cgroup_rmdir=</span>1</span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="va">RC_SVCNAME=$1</span></span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="va">RC_CGROUP_CONTINUE=</span>3; </span>
+<span id="cb3-6"><a href="#cb3-6"></a><span class="bu">export</span> <span class="va">RC_CGROUP_CONTINUE</span> <span class="va">RC_SVCNAME</span> <span class="va">PATH</span>;</span>
 <span id="cb3-7"><a href="#cb3-7"></a></span>
-<span id="cb3-8"><a href="#cb3-8"></a><span class="kw">if</span><span class="bu"> [</span> cleanup <span class="ot">=</span> <span class="st">&quot;</span><span class="va">$action</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></span>
-<span id="cb3-9"><a href="#cb3-9"></a></span>
-<span id="cb3-10"><a href="#cb3-10"></a>    <span class="ex">rc-service</span> <span class="va">$service</span> status <span class="op">&gt;</span> /dev/null</span>
-<span id="cb3-11"><a href="#cb3-11"></a>    <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span></span>
-<span id="cb3-12"><a href="#cb3-12"></a>        32<span class="kw">)</span> </span>
-<span id="cb3-13"><a href="#cb3-13"></a>        <span class="ex">/etc/init.d/</span><span class="va">${service}</span> <span class="ex">-d</span> restart</span>
-<span id="cb3-14"><a href="#cb3-14"></a>        <span class="bu">exit</span> <span class="va">$RC_CGROUP_CONTINUE</span></span>
-<span id="cb3-15"><a href="#cb3-15"></a>                <span class="kw">;;</span></span>
-<span id="cb3-16"><a href="#cb3-16"></a>        *<span class="kw">)</span> </span>
-<span id="cb3-17"><a href="#cb3-17"></a>            <span class="bu">return</span> 0<span class="kw">;;</span></span>
-<span id="cb3-18"><a href="#cb3-18"></a>    <span class="kw">esac</span></span>
-<span id="cb3-19"><a href="#cb3-19"></a><span class="kw">fi</span></span></code></pre></div>
+<span id="cb3-8"><a href="#cb3-8"></a><span class="kw">if</span><span class="bu"> [</span> <span class="ot">-n</span> <span class="st">&quot;</span><span class="va">${RC_SVCNAME}</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a>  <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/<span class="va">${RC_SVCNAME}</span>.cgroup-release</span>
+<span id="cb3-10"><a href="#cb3-10"></a>  [ <span class="ex">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> ] <span class="kw">||</span> <span class="va">hook=</span>@SYSCONFDIR@/conf.d/cgroups/cgroup-release;</span>
+<span id="cb3-11"><a href="#cb3-11"></a>  <span class="kw">if</span><span class="bu"> [</span> <span class="ot">-x</span> <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a>    <span class="st">&quot;</span><span class="va">$hook</span><span class="st">&quot;</span> <span class="ex">cleanup</span> <span class="st">&quot;</span><span class="va">$RC_SVCNAME</span><span class="st">&quot;</span> <span class="kw">||</span> <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span> <span class="va">$RC_CGROUP_CONTINUE</span><span class="kw">)</span> <span class="va">cgroup_rmdir=</span>0<span class="kw">;;</span> <span class="kw">esac</span> ;</span>
+<span id="cb3-13"><a href="#cb3-13"></a>  <span class="kw">fi</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a><span class="kw">fi</span></span>
+<span id="cb3-15"><a href="#cb3-15"></a></span>
+<span id="cb3-16"><a href="#cb3-16"></a><span class="kw">if</span><span class="bu"> [</span> <span class="va">${cgroup_rmdir}</span> <span class="ot">-eq</span> 1<span class="bu"> ]</span> <span class="kw">&amp;&amp;</span><span class="bu"> [</span> <span class="ot">-d</span> <span class="st">&quot;</span><span class="va">${cgroup}</span><span class="st">/</span><span class="va">$1</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></span>
+<span id="cb3-17"><a href="#cb3-17"></a>  <span class="kw">for</span> <span class="ex">c</span> in /sys/fs/cgroup/*/<span class="st">&quot;openrc_</span><span class="va">$1</span><span class="st">&quot;</span> <span class="kw">;</span> <span class="kw">do</span></span>
+<span id="cb3-18"><a href="#cb3-18"></a>    <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">${c}</span><span class="st">&quot;</span></span>
+<span id="cb3-19"><a href="#cb3-19"></a>  <span class="kw">done</span>;</span>
+<span id="cb3-20"><a href="#cb3-20"></a>  <span class="fu">rmdir</span> <span class="st">&quot;</span><span class="va">$cgroup</span><span class="st">/</span><span class="va">${1}</span><span class="st">&quot;</span></span>
+<span id="cb3-21"><a href="#cb3-21"></a><span class="kw">fi</span></span></code></pre></div>
+<p>Restart service script. This script simply checks service state and if it’s 32 (service failed) then start a new instance and set <code>$RC_CGROUP_CONTINUE</code></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1"></a><span class="co">#!/bin/sh</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="co"># This script is run for service that need to be restarted</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="co"># if it's last process leaves cgroup.</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a></span>
+<span id="cb4-5"><a href="#cb4-5"></a><span class="va">action=$1</span></span>
+<span id="cb4-6"><a href="#cb4-6"></a><span class="va">service=$2</span></span>
+<span id="cb4-7"><a href="#cb4-7"></a></span>
+<span id="cb4-8"><a href="#cb4-8"></a><span class="kw">if</span><span class="bu"> [</span> cleanup <span class="ot">=</span> <span class="st">&quot;</span><span class="va">$action</span><span class="st">&quot;</span><span class="bu"> ]</span> ; <span class="kw">then</span></span>
+<span id="cb4-9"><a href="#cb4-9"></a></span>
+<span id="cb4-10"><a href="#cb4-10"></a>    <span class="ex">rc-service</span> <span class="va">$service</span> status <span class="op">&gt;</span> /dev/null</span>
+<span id="cb4-11"><a href="#cb4-11"></a>    <span class="kw">case</span> <span class="va">$?</span><span class="kw"> in</span></span>
+<span id="cb4-12"><a href="#cb4-12"></a>        32<span class="kw">)</span> </span>
+<span id="cb4-13"><a href="#cb4-13"></a>        <span class="ex">/etc/init.d/</span><span class="va">${service}</span> <span class="ex">-d</span> restart</span>
+<span id="cb4-14"><a href="#cb4-14"></a>        <span class="bu">exit</span> <span class="va">$RC_CGROUP_CONTINUE</span></span>
+<span id="cb4-15"><a href="#cb4-15"></a>                <span class="kw">;;</span></span>
+<span id="cb4-16"><a href="#cb4-16"></a>        *<span class="kw">)</span> </span>
+<span id="cb4-17"><a href="#cb4-17"></a>            <span class="bu">return</span> 0<span class="kw">;;</span></span>
+<span id="cb4-18"><a href="#cb4-18"></a>    <span class="kw">esac</span></span>
+<span id="cb4-19"><a href="#cb4-19"></a><span class="kw">fi</span></span></code></pre></div>
 <h3 id="other-solutions">Other solutions</h3>
 <p>Generic supervision is quite a complicated problem as there are many conditions when we may suppose that our service failed, like:</p>
 <ul>
-<li>main process dies;
-<ul>
+<li>main process dies;</li>
 <li>all service children die;</li>
 <li>service does not write logs for some time;</li>
 <li>large resource memory/cpu consuming;</li>
 <li>service does not respond to control call;</li>
 <li>log fd is closed.</li>
-</ul></li>
 </ul>
 <p>Some of the options can be translated to another, like large resource consuming can be translated to process death by setting correct limits. And process death (and in some cases even children deaths) can be tracked by log fd (in case of a process in background).</p>
 <p>More complex hooks may be also needed, when deciding what to do with failed service, e.g. do not restart if it has failed many times in a short period of time.</p>
 <p>So with all required features will be very complicated. So non-specialized subsystems address only a part of a problem domain. Here are some other examples of supervision systems:</p>
 <ul>
-<li>monit (full featured)
-<ul>
+<li>monit (full featured)</li>
 <li>s6 (pid, fd based)</li>
 <li>daemon-tools</li>
 <li>angel</li>
 <li>systemd (pid, cgroups based)</li>
 <li>upstart (pid based)</li>
-</ul></li>
 </ul>
 <h2 id="future-work">Future work</h2>
 <ol type="1">

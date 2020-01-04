@@ -77,11 +77,9 @@
 <p>Enjoy!</p>
 <p>Update: problem with <code>sdist</code> can be worked around by using a buildinfo trick</p>
 <ol type="1">
-<li><p>create <code>foreign.buildinfo</code> file with the following contents:</p>
-<pre><code>   install-includes: Lib_stub.h</code></pre></li>
-<li><p>add section to cabal:</p>
-<pre><code>extra-tmp-files: foreign.buildinfo</code></pre></li>
-<li><p>remove <code>install-includes</code> stanza - now sdist works.</p></li>
+<li>create <code>foreign.buildinfo</code> file with the following contents: <code>install-includes: Lib_stub.h</code></li>
+<li>add section to cabal: <code>extra-tmp-files: foreign.buildinfo</code></li>
+<li>remove <code>install-includes</code> stanza - now sdist works.</li>
 </ol>
 <p>Enjoy again!</p>
 

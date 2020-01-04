@@ -8,42 +8,92 @@
         <name>Alexander Vershilov</name>
         <email>alexander.vershilov@gmail.com</email>
     </author>
-    <updated>2020-01-02T00:00:00Z</updated>
+    <updated>2020-07-04T00:00:00Z</updated>
     <entry>
+    <title>A fork of Haskell prometheus-client</title>
+    <link href="https://qnikst.github.io/posts/2020-07-04-prometheus.html" />
+    <id>https://qnikst.github.io/posts/2020-07-04-prometheus.html</id>
+    <published>2020-07-04T00:00:00Z</published>
+    <updated>2020-07-04T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>For the last few months, I slowly work on improving the <a href="https://github.com/qnikst/prometheus-haskell">prometheus-client</a> library. And I’d like to share some details of that work. Maybe it will be interesting for you or you can suggest some ideas or code.</p>
+<p>What are the problems with the library? Prometheus is designed for simplicity and speed. In general, a developer should never think whether to add a new metric or not. It should be safe to add it (unless it has labels with very high cardinality). Unfortunately, Haskell library does not afford that. In the past, I’ve experienced severe speed degradations with metrics enabled and that lead to disabling them for an extended period. Today, we have carefully analysed the speed and slowly adding metrics one-by-one measuring performance and improving the library if needed. Besides, prometheus itself is not ideal for some kinds of metrics, but more on that later.</p>
+<p>When doing changes, I’ve followed the following rules:</p>
+<ul>
+<li>metrics should not allocate (as long as it’s possible), there are a lot of allocations in Haskell programs anyway, but there is no reason to increase them especially when measuring anything in a tight loop</li>
+<li>Metrics should use atomic instructions and be non-blocking as much as possible, and run in in understandable blocks of time.</li>
+</ul>
+<p>To solve that problem, I’ve introduced variants of counter and gauge for integral values. It’s a pity that you have to to use floating points in a place where only have only integer values. Prometheus documentation tells it’s ok, because you’ll not have rounding errors up to the very high amounts, and this way you may have the same structures for both integers and floats. It’s a valid point. Still it’s possible to experiment. If we take integers, then we can use atomic instructions <code>fetchAddIntArray#</code>, <code>fetchSubIntArray#</code>, <code>atomicWriteIntArray#</code> (or ones from atomic-primops package) and use them. The current implementation also uses CAS instructions, but it does it on the boxed values, so for each write to the storage, you allocate additional structures, with the current approach you should not. On basic experiments using a single thread, <code>IntCounter</code> and <code>IntGauge</code> give 10-20% speedup, and that implementation does not introduce additional allocations, so why not get the benefit for free? Interestingly, the go library claims the same performance as Int* approach, it’s done by packing floats in int and performing CAS operations on ints, looks a bit weird but it works.</p>
+<p>But why such a small speedup matter? Evaluation time of the measured activity is usually a few magnitudes higher so, in any case, additional 20ns for an operation will be just statistical noise. That is true. But the situation starting to change when you look at the more advanced metric types, for example, a histogram is structured as a set of counter values as buckets, so for you should almost immediately get the next order of magnitude values.</p>
+<p>But in general, those structures were just a first step and experiments.</p>
+<p>The next changes are more engaging, lets take a look at some real case: we use concurrent logging mechanism, so each thread writes logs to the <code>TBQueue</code> and continues execution, background thread reads records from the queue and dumps those to the handle. The queue is bounded, so if there will be too many entries generated threads blocks on write. We have two parameters to configure:</p>
+<ul>
+<li>size of the queue</li>
+<li>how many values background thread may read from the queue in a time</li>
+</ul>
+<p>But how to configure those parameters and how to measure if everything is going ok with the process? The usual solution is to add the following metrics:</p>
+<ul>
+<li>integer counter for the number of written logs.</li>
+<li>(in our case) integer counter for the number of records written to the output</li>
+</ul>
+<div style="margin: 10px 0;">
+<img src="../images/2020-07-04/1.png" width="70%" style="inline"/>
+</div>
+<p>Based on those values, you may configure several graphs and alters, the rate of messages, the number of records in the queue. For the first value, you may get an excellent plot, but for the difference, you a line of zeros, unless something goes off. It happens because the logs are scraped in infrequently, in our case, it’s one minute, and all the values normalise in that time. So with such metrics, you can get alerting, but you don’t have insight on how exactly the system operates, and can’t use that to tune parameters. But what to do? One answer is to scrape logs more often, but that will incur high costs on the measurements tracking system and applications.</p>
+<p>To solve that tried the following decision, it’s highly experimental but already works in our production. We measure number in-flight messages as a gauge, but in addition to the current value that gauge stores maximum value in a window. The question is how to define a window, and I don’t want to track time. Hence, the window is any time between two scrapes, it’s semi optimal solution as now observer affects the system and analytical system may no longer get some values. But this approach works, and instead of a line of zeros, you may get a beautiful plot:</p>
+<div style="margin: 10px 0;">
+<img src="../images/2020-07-04/2.png" width="70%" style="inline"/>
+</div>
+<p>There are some problems with that approach: it’s not evident how to generalise this solution, so it handles other functions, not just maximum. Will be easy to handle floating points as well.</p>
+<p>But that is not all I’m also using the prometheus-client-ghc package, some time ago I had a <a href="https://qnikst.github.io/posts/2018-09-29-metrics-haskell.htm">post</a> about it. There is a problem with that package is that it reads metrics only when it’s asked by the scraper, so as a result it has total and information about the last GC. So you can calculate totals, averages and random data. It’s not so good. To solve that I’ve completely rewritten the package now it works in the following way:</p>
+<ul>
+<li>it <a href="https://github.com/qnikst/prometheus-haskell/blob/master/prometheus-metrics-ghc/cbits/gc_extra_hook.c#L105-L110">sets up a GC hook</a> that is called after each GC, so you no longer lose information about any GC</li>
+<li>It <a href="https://github.com/qnikst/prometheus-haskell/blob/master/prometheus-metrics-ghc/cbits/gc_extra_hook.c#L36">splits</a> information about each GC generation so you can analyse that separately</li>
+<li>In C code we calculate all the values, with the rapidly changing values we follow the same window approach as above, so we never lose unexpectedly long GC (that will be hidden if you show rate or average)</li>
+<li>Everything is appropriately (I hope) <a href="https://github.com/qnikst/prometheus-haskell/tree/master/prometheus-metrics-ghc#ghc-prometheurs-metrics">documented</a></li>
+</ul>
+<p>All of that functionality is battle-tested on our services and behaves quite well.</p>
+<div style="margin: 10px 0;">
+<img src="../images/2020-07-04/3.png" width="45%" style="inline"/> <img src="../images/2020-07-04/4.png" width="45%" style="inline"/>
+</div>
+<p>It’s still not ideal as it handles only two gc generations instead of any, it does not calculate histograms, but only maximum values.</p>
+<p>For the library, I have the following plans, introduce all experimental metrics like window gauge that my project needs (as this point, I see the use in a floating window gauge). After that, I’d like to go to the core library and apply the same approach to the histograms and later to the way labels managed. After that, I’m going to experiment with a way logs are exported, I expect that it’s very suboptimal and we can win a lot by a slightly different approach, but I don’t yet have evidence here. After that, I’d hope to add HDR histograms support, as the current approach renders them unusable for many cases, but that is a topic for another post.</p>
+<p><strong>Why I’m using separate repo and has not opened any PR?</strong> The main reason is that I plan to change almost entire implementation and I’m not sure that current maintainers will be happy about all the changes. Unfortunately, I need all the changes I did yesterday or in the worst case tomorrow in production, so I’ve decided to work without cooperating with upstream and save some time for me. Maybe I’m wrong, but I’m open to suggestion.</p>]]></summary>
+</entry>
+<entry>
     <title>Using compact regions</title>
     <link href="https://qnikst.github.io/posts/2020-01-02-using-compacts.html" />
     <id>https://qnikst.github.io/posts/2020-01-02-using-compacts.html</id>
     <published>2020-01-02T00:00:00Z</published>
     <updated>2020-01-02T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will not be much code and numbers, just general thoughts. In our contests application, we need additional restrictions:</p>
+    <summary type="html"><![CDATA[<p>Today I’d like to talk more about the tricks we’ve used in our codebase. I’d like to speak about compact regions. There will not be much code and numbers, just general thoughts. In our contests application we have some additional restrictions:</p>
 <blockquote>
-<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be done only for a restricted set of networks.</p>
+<p>there are several sites (places usually schools) where people can pass the contest, and for each of them access can be allowed only for a restricted set of networks.</p>
 </blockquote>
-<p>So we needed a built-in IP filtering app, such that for a given contest can check whether the user can access it. After the competition has finished, the user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests running at the same time.</p>
+<p>So we needed a built-in IP filtering app, such that for a given contest can check whether a given user has a permission to access it. After a competition has finished, its user may have access to his results from any IP. And there can be concurrent restricted and unrestricted contests running at the same time.</p>
 <p>There are a few additional constraints:</p>
 <ul>
-<li>Configuration should be updatable, as sometimes the site doesn’t know all it’s IPs.</li>
-<li>Sometimes some people can pass contest from the other site, for example at the moment of the competition they moved to some other school or training.</li>
-<li>The solution should not harm contest without the checks and general properties.</li>
-<li>The check should not access the database.</li>
+<li>Configuration should be updatable, as sometimes a site doesn’t know all of its IPs.</li>
+<li>Sometimes some people can pass contest from other site, for example at the moment of the competition they moved to some other school or training.</li>
+<li>The solution should not harm contest without such checks and having generic properties.</li>
+<li>The check should not access database.</li>
 </ul>
-<p>We need the last constraint as additional protection from the DDOS attacks: we don’t do any work if IP is not allowed and do not consume system resources. Actually it was the first internal reason for the IP filtering, but the feature was very helpful for the organizers, so they decided to use that for the main events.</p>
-<p>Leaving technical details aside, we may think that for each user we can map his login to contest id, and id of the site without access to the database. So basically we need to write a function:</p>
+<p>We need the last constraint as an additional protection from DDOS attacks: we don’t do any work if IP is not allowed and do not consume system resources. Actually at first the idea was to use IP filtering internally, but the feature was so helpful for organizers that they decided to use that for the main events.</p>
+<p>Leaving technical details aside, we may think that for each user we can map his login to a contest id and id of a site without access to a database. So basically we need to write a function:</p>
 <pre><code>check :: ContestId -&gt; SchoolId -&gt; IP4 -&gt; Bool</code></pre>
-<p>That will check if user has an access. Note missing <code>IO</code> or any other context here.</p>
+<p>That will check if a user has an access. Note missing <code>IO</code> or any other context here.</p>
 <p>The simplest solution is to have a</p>
 <p><code>HashMap (ContestId, SchoolId) [Net4Addr]</code></p>
 <p>or</p>
 <p><code>HashMap ContestId (HashMap SchoolId) [Net4Addr]</code>.</p>
 <p>The latter one allows faster-path for the case if the contest is not filtered.</p>
-<p>Is there any problem with this case? There is. The hashmap structure is a very “branchy” tree, and if it’s quite big, GC will have hard time evaluating it. It may not be a big problem: if the tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping large (from half to several Gb tries in memory). However, it may still negatively affect the performance of the service, and we want to have better story, especially if it’s cheap.</p>
-<p>What other languages do in this case? There are several ways: straightforward use some in-memory db, or external cache like redis, both solutions provides much more functionality than needed for this use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell, and it does solve the problem, bug such solution may be complicated, and we lose the ability to use first-class language features.</p>
+<p>Is there any problem with this solution? There is. The hashmap structure is a very “branchy” tree, and if it’s quite big GC will have hard time evaluating it. It may not be a big problem: if a tree changes rarely, it goes to the older generation and will affect major GC only. And in one project I had an experience with keeping a large (from half to several Gb tries in memory) hashmap. However, it may still negatively affect the performance of a service and we want to have a better story, especially if it’s cheap.</p>
+<p>What do other languages do in this case? There are several ways: straightforward use of some in-memory db or an external cache like redis, both solutions provide much more functionality than needed for our use-case. Another solution is to use off-heap data structures. In this case the data-structure does not affect GC. This solution is possible in Haskell as well, and it does solve the problem. But such a solution may be complicated, and we lose the ability to use first-class language features.</p>
 <p>We want something better. And there is a solution: compact regions. Interested reader may check</p>
 <ul>
 <li>compact structure Edward Z. Yang, Giovanni Campagna, Ömer Ağacan, Ahmed El-Hassany, Abhishek Kulkarni, Ryan Newton. “<em>Efficient communication and Collection with Compact Normal Forms</em>”. In Proceedings of the 20th ACM SIGPLAN International Conference on Functional Programming. September 2015. http://ezyang.com/compact.html</li>
 <li><a href="http://hackage.haskell.org/package/compact">compact</a> on hackage.</li>
 </ul>
-<p>The compact region is a region that contains a Haskell structure inside, but it is stored in the contiguous blocks of memory, it doesn’t have any references outside of the region. So it can be seen as a single object for the garbage collector. And it doesn’t affect the GC. Programmer may still access stored value and use all the haskell features when working with it.</p>
+<p>A compact region is a region that contains a Haskell structure inside, but which is stored in contiguous blocks of memory and this structure doesn’t have any references outside of the region. Because of this it can be seen as a single object for the garbage collector. And it doesn’t affect the GC. Programmer may still access stored value and use any Haskell features when working with it.</p>
 <p>The simplest solution may be as simple as:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a>mkCheck</span>
 <span id="cb2-2"><a href="#cb2-2"></a><span class="ot">  ::</span> <span class="dt">IO</span> (<span class="dt">HashMap</span> <span class="dt">ContestId</span> (<span class="dt">HashMap</span> <span class="dt">SchoolId</span> (<span class="dt">Vector</span> <span class="dt">Net4Addr</span>)))</span>
@@ -57,25 +107,25 @@
 <span id="cb2-10"><a href="#cb2-10"></a>          V.toList <span class="op">&lt;$&gt;</span> HM.lookup key c_storage <span class="op">?!</span> <span class="dt">Missing</span>      <span class="co">{- 4 -}</span></span>
 <span id="cb2-11"><a href="#cb2-11"></a>   <span class="fu">pure</span> (hdl</span>
 <span id="cb2-12"><a href="#cb2-12"></a>    , <span class="dt">UpdateHandle</span> <span class="op">$</span> mkCache <span class="op">&gt;&gt;=</span> compact <span class="op">&gt;&gt;=</span> writeIORef ref)   <span class="co">{- 5 -}</span></span></code></pre></div>
-<p>Here we create a cache with update function. We take a cache population function as a parameter. Then we create a cache <code>{- 1 -}</code> and create compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the like <code>{-5-}</code> we return an update function that builds new value of the cache when is called.</p>
+<p>Here we create a cache with an update function. We take a cache population function as a parameter. Then we create a cache <code>{- 1 -}</code> and create a compact region out of that. We store the region in <code>IORef</code> basic mutable variable with atomic CAS updates. When we read the value <code>{-2-}</code> we get it our of IORef and get it from the compact and can work with it as with any other Haskell value (steps <code>{-3,4-}</code>). On the line <code>{-5-}</code> we return an update function that builds a new value of the cache when is called.</p>
 <p>So basically the only lines that were added to the naive algorithm are <code>1,2,5</code>, the rest of the algorithm remains unchanged.</p>
 <p>Note. There may be other architectural choices how to provide an access to the API and to it’s updates, but I doubt they are very solution dependent, so I’d like to avoid API discussion.</p>
-<p>So now let’s discuss this solution. During first tests on data that we have gathered from the previous contests, the initial hashmap had the size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for the single contests, and we know it will grow. After compacting it was 98304b only (reported by <code>compactSize</code> function). Isn’t it quite nice, especially we when have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
-<p>Are there any other costs? There are: during the update, we update the full structure even in the case we could update it partially. There are more elaborated solutions that can avoid this problem. But we decided to run the next event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
-<p>After examining the feedback and results of the contest we have decided to decrease update time to one minute, and make cache structure more complex:</p>
+<p>So now let’s discuss this solution. During first tests on data that we have gathered from previous contests, the initial hashmap had a size of 177696b (reported by ghc-datasize). That is a tiny number, but the numbers were for single contests, and we know it will grow. After compacting it was 98304b only (reported by <code>compactSize</code> function). Isn’t it quite nice, especially when we have that for free? The rest of the algorithm remains unchanged: the only difference is a call to <code>compact</code> function during the update and <code>getCompact</code> at the beginning of the lookup.</p>
+<p>Are there any other costs? Yes, they are: during an update we update the whole structure even when we could do it only partially. There are more elaborated solutions that can avoid this problem. But we decided to run the next event using the current one: we just set update function to run once per 10 minutes. And everything went fine, except that 10 minutes was two high value to wait when you add changes.</p>
+<p>After examining the feedback and results of the contest we have decided to decrease update time to one minute and make cache structure more complex:</p>
 <ul>
 <li>introduce network pools that are allowed for all sites in the contest. It makes sense as many schools work via shared proxy servers.</li>
 <li>Store configuration per site, so when we add the site to the contest, we add that with configured networks.</li>
 <li>Have an overlay per contest, per site.</li>
 </ul>
-<p>After all those changes, it was not feasible to build a new structure each minute, especially because it’s known that most of the time structure does not change. Compact regions provide a way to add structure to the region:</p>
+<p>After all those changes, it was not feasible to build a new structure each minute, especially because it’s known that most of the time structure does not change. Compact regions provide a way to add a structure to a region:</p>
 <pre><code>compactAdd :: Compact b -&gt; a -&gt; IO (Compact a)</code></pre>
-<p>this function takes compact region with reference to the value of type b, adds the value of type <code>a</code>, and returns a reference to value <code>a</code> in the region. So if we want to update a region we can write:</p>
+<p>this function takes a compact region with a reference to a value of type b, adds a value of type <code>a</code>, and returns a reference to value <code>a</code> in the region. So if we want to update a region we can write:</p>
 <pre><code>compactAdd b (update (getCompact b))</code></pre>
 <p>If a structure update keeps old parts of the structure untouched as much as possible, then we will store only updated parts. And for most of the persistent immutable structures (e.g. <code>HashMap</code>), we have that already.</p>
-<p>But if we go this way we will never free old parts of the structures that are no longer used and introduce memory leak. To avoid that problem, we need to add some strategy when to rebuild the structure from scratch. So we will call <code>compactAdd</code> often and sometimes call compact. I’ve decided to keep the following policy:</p>
+<p>But if we go this way we will never free old parts of the structures that are no longer used and introduce a memory leak. To avoid that problem we need to add some strategy when to rebuild the structure from scratch. So we will call <code>compactAdd</code> often and sometimes call <code>compact</code>. I’ve decided to keep the following policy:</p>
 <blockquote>
-<p>“rebuild the structure if the size of the value is twice as big as it was when the initial version was built”.</p>
+<p>“rebuild the structure if the size of the value is not more than twice as big as it was when the initial version was built”.</p>
 </blockquote>
 <div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a>c <span class="ot">&lt;-</span> compact <span class="op">=&lt;&lt;</span> makeCache</span>
 <span id="cb5-2"><a href="#cb5-2"></a>ref <span class="ot">&lt;-</span> newIORef c</span>
@@ -96,10 +146,10 @@
 <span id="cb5-17"><a href="#cb5-17"></a>        writeIORef ref z</span></code></pre></div>
 <p>On the line <code>{-1-}</code> we store initial size in addition to the reference to cache itself.</p>
 <p>On the line <code>{-2-}</code> we apply our strategy and decide if we want to update inplace or build a new compact region.</p>
-<p>On the line <code>{-3-}</code> we store update to the structure in the current region</p>
+<p>On the line <code>{-3-}</code> we store update to the structure in the current region.</p>
 <p>On the lines <code>{-4,5-}</code> we rebuild a new cache and on the line <code>{-6-}</code> we store the size to the metrics, so we can check if everything goes well or not.</p>
-<p>But it’s not everything we need to check how updates take place, assume you have <code>HashMap</code>. You update a value at the given key with <code>id</code> function, you’ll get the equal value, but from the low-level perspective you’ll get a new structure, and it matters when you’ll store that value to compact. So we track if there were updates and if not we explicitly return the same structure and do not update reference at all.</p>
-<p>With all the changes, the structure works quite nice. At some point, I’d like to put that as a library. Unfortunately, I’m not sure if I know how to generalize from the project-specific parts.</p>]]></summary>
+<p>But it’s not everything we need to check how updates take place. Assume you have a <code>HashMap</code>. You update a value for a given key with the <code>id</code> function. You’ll get an equal value but from the low-level perspective you’ll get a new structure, and it matters when you’ll store that value to compact. So we track if there were updates and if not we explicitly return the same structure and do not update reference at all.</p>
+<p>With all the changes, the structure works quite nice. At some point I’d like to put that into a library. Unfortunately I’m not sure if I know how to generalize it from the project-specific parts.</p>]]></summary>
 </entry>
 <entry>
     <title>Runtime based caching</title>
@@ -218,7 +268,7 @@
     <summary type="html"><![CDATA[<p>In this post, I’d like to share one solution to the problem I had at work. It is split into three parts: <a href="#problem">the definition of the problem</a>, <a href="#boring">boring part</a> (how we can achieve the goal), and then something <a href="#fancy">fancy</a> we can have if we go further with the solution.</p>
 <h1 id="the-problem-definition"><a name="problem">The problem definition</a></h1>
 <p>TLDR we want to make our servant service to reply <code>404</code> whenever we see a particular query part in some endpoint subtree. If you are not interested in why do I need that you can proceed to the <a href="#boring">solution</a> directly.</p>
-<p>I’m working on building a few web services. One of them provides a service to run contests. In such contests lots of people come at once to solve some tasks. Thus we have a severe load in a bounded amount of time (It’s not entirely true as those contests are running all the time but the most of them are quite small). However, we have a numer of significant events with up to 20k unique visitors in just 3 hours, generating a load a bit higher than 500rps. This is not a high value but the main problem here is that any issue with availability or responsiveness hits our reputation a lot. Additionally in the past we had experienced DDOS attacks during such events. Currently our services can handle in the worth case a load at least three times higher than that but still, we are interested in reducing the surface of possible attacks. Even if we can handle many requests the network bandwidth in the cluster is not very wide, as a result it’s possible to introduce a denial of service by requesting many large files.</p>
+<p>I’m working on building a few web services. One of them provides a service to run contests. In such contests lots of people come at once to solve some tasks. Thus we have a severe load in a bounded amount of time (It’s not entirely true as those contests are running all the time but the most of them are quite small). However, we have a numer of significant events with up to 20k unique visitors in just 3 hours, generating a load a bit higher than 500rps. This is not a high value but the main problem here is that any issue with availability or responsiveness hits our reputation a lot. Additionally in the past we had experienced DDOS attacks during such events. Currently our services can handle in the worst case a load at least three times higher than that but still, we are interested in reducing the surface of possible attacks. Even if we can handle many requests the network bandwidth in the cluster is not very wide, as a result it’s possible to introduce a denial of service by requesting many large files.</p>
 <p>External CDN service (pic.1) is just a 3rd party service that provides API for uploading and removing files. Such a service takes all responsibilities for distributing data and providing the required quality of service. All you need to do in your user-facing service is to give links to this third-party service. The cost of that is that you need to upload and control files on that service explicitly.</p>
 <p><img src="/images/posts/servant/external.png"/></p>
 <p>Transparent CDN service (pic.2) is a service that acts as a distributed proxy for your service. In addition to proxying requests it stores and propagates files on its nodes based on response headers it sees. With hepl of that you can control all the data on CDN. Besides, such a service often provides a firewall and anti-DDOS services.</p>
@@ -786,65 +836,6 @@ put      139ms    105ms     37ms   17ms   12ms    8ms    6ms    2ms</code></pre>
 <p>Unfortunately the project is documented in Russian, as it was written for the Russian non-haskell community. But if anyone would be interested in extending, translation or mistakes correction. That would be awesome.</p>
 <p>Project itself can be found on:</p>
 <p><a href="https://github.com/qnikst/irc-simple.git">https://github.com/qnikst/irc-simple.git</a></p>]]></summary>
-</entry>
-<entry>
-    <title>Cabal foreign libraries</title>
-    <link href="https://qnikst.github.io/posts/2018-05-02-cabal-foreign-library.html" />
-    <id>https://qnikst.github.io/posts/2018-05-02-cabal-foreign-library.html</id>
-    <published>2018-05-02T00:00:00Z</published>
-    <updated>2018-05-02T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>In this age of the <code>stack</code> domination, not everyone remembers the role of <code>Cabal</code> and cabal-install`. And still cabal and cabal-install do progress and introduce new features, that may benefit entire ecosystem. And it’s quite unfortunate that some of the changes remain unnoticed.</p>
-<p>The big list of changes in Cabal-2.0 can be found <a href="http://coldwa.st/e/blog/2017-09-09-Cabal-2-0.html">here</a>. In this post I’d like to look into one single change: <strong>Foreign libraries support</strong>.</p>
-<p>TLDR: you can find all documentation in the cabal <a href="https://www.haskell.org/cabal/users-guide/developing-packages.html#foreign-libraries">user-guide</a>, which is a very good resource to read anyway.</p>
-<p>Let’s look into the problem solved by this feature. Sometimes we need to use Haskell in projects written in other language. This can be done either by making an Haskell executable and using some RPC to communicate between different components or by making a shared object. For a long time cabal did not support shared objects definition. Common solution for that problem was to create an <code>executable</code> section in cabal file, add <code>ghc-options</code> <code>-shared</code> and then play games with <code>-fPIC</code> support. That solution was doable but painfull and required knowledge of low level details.</p>
-<p>And finally in cabal-2.0 a support for that usecase was introduced. Now we have a new stanza, <code>foreign-library</code> which means that <code>Cabal</code> will build a standalone library to be used with foreign languages.</p>
-<p>Inside <code>foreign-library</code> block we can define <code>type</code> of the library:</p>
-<ul>
-<li><code>native-static</code> for static library (<code>.a</code>);</li>
-<li><code>native-shared</code> for the dynamic library (<code>.so</code>).</li>
-</ul>
-<p>Currently only <code>native-shared</code> are supported.</p>
-<p>If you are using windows you should remember to add <code>options: standlone</code> stanza. With this option <code>libHSrts</code> will not be required. You should not set this option otherwise.</p>
-<p>A simple example:</p>
-<p><code>foreign.cabal</code>:</p>
-<pre class="cabal"><code>foreign-library     mylib
-  type:             native-shared
-  lib-version-info: 6:3:2
-  build-depends:    base &gt;=4.9 &amp;&amp; &lt;4.10
-  hs-source-dirs:   src
-  other-modules     Lib
-  default-language: Haskell2010</code></pre>
-<p>If you have foreign exported modules, then you should also provide:</p>
-<pre class="cabal"><code>library
-  build-depends: base &gt;= 4.9 &amp;&amp; &lt;4.10
-  hs-source-dirs: src
-  other-modules:  Lib
-  install-includes: Lib_stub.h
-  default-language: Haskell2010
-</code></pre>
-<p>We need <code>Lib_stub.h</code> so header file will be installed in the system. See <a href="https://github.com/haskell/cabal/issues/5299">#5299</a>. This workaround helps with the problem but still you will not be able to call <code>cabal sdist</code> because it will try to copy autogenerated file that does not exist in filesystem.</p>
-<p><code>src/Lib.hs</code>:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">module</span> <span class="dt">Lib</span> (fac) <span class="kw">where</span></span>
-<span id="cb3-2"><a href="#cb3-2"></a></span>
-<span id="cb3-3"><a href="#cb3-3"></a>foreign export ccall<span class="ot"> fac ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
-<span id="cb3-4"><a href="#cb3-4"></a><span class="ot">fac ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
-<span id="cb3-5"><a href="#cb3-5"></a>fac n <span class="ot">=</span> <span class="fu">product</span> [<span class="dv">1</span><span class="op">..</span>n]</span></code></pre></div>
-<p>After <code>cabal install</code> you’ll get:</p>
-<pre><code>~/.cabal/
-~//cabal/libmylib.so -&gt; libmylib.so.4.2.3
-~/.cabal/libmylib.so.4 -&gt; libmylib.so.4.2.3
-~/.cabal/libmylib.so.4.2.3
-~/.cabal/lib/x86_64-linux-ghc-8.0.2/foreign-0.1.0.0-22cwmsmBVpIHoSDwDYFUR6/include/Lib_stub.h</code></pre>
-<p>Enjoy!</p>
-<p>Update: problem with <code>sdist</code> can be worked around by using a buildinfo trick</p>
-<ol type="1">
-<li><p>create <code>foreign.buildinfo</code> file with the following contents:</p>
-<pre><code>   install-includes: Lib_stub.h</code></pre></li>
-<li><p>add section to cabal:</p>
-<pre><code>extra-tmp-files: foreign.buildinfo</code></pre></li>
-<li><p>remove <code>install-includes</code> stanza - now sdist works.</p></li>
-</ol>
-<p>Enjoy again!</p>]]></summary>
 </entry>
 
 </feed>

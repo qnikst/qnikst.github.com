@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Qnikst blog - Quicksort in Haskell</title>
+    <!-- Bootstrap -->
+    <link href="../style.css" rel="stylesheet" media="screen">
+    <script src="https://code.jquery.com/jquery-latest.js"></script> 
+    <script src="../js/bootstrap.min.js"></script>
+    
+    
+</head>
+
+<body>
+  <div id="header">
+      <div id="caption"><a href="../">Qnikst's blog</a></div>
+      <div id="navigation">
+      <a href="../posts.html">Archive</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../contact.html">Contacts</a>
+      <a href="../rss.xml">RSS</a>
+      </div>
+  </div>
+
+  <div id="content">
+    <div class="page-header">
+    <div class="right">
+      <strong>October 18, 2020</strong>
+    </div>
+    <h1>Quicksort in Haskell</h1>
+    <div class="post-author">by <em>Alexander Vershilov</em>  </div>
+    <div class="keywords"><strong>Keywords:</strong> </div>
+</div>
+
+<p>Today we will write a proof of concept of quicksort in Haskell. Quicksort is a code that is usually shown as an example of the elegant Haskell code. You may see that code in the lots of presentations, one of the first implementations was implemented in <a href="https://rosettacode.org/wiki/Sorting_algorithms/Quicksort#SASL">SASL</a> in Nov 1983:</p>
+<pre><code>DEF || this rather nice solution is due to Silvio Meira
+sort () = ()
+sort (a : x) = sort {b ← x; b ≤ a}++ a:sort { b ← x; b&gt;a}</code></pre>
+<p>The code is very simple:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="ot">quicksort ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>quicksort [] <span class="ot">=</span> []</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a>quicksort (x<span class="op">:</span>xs) <span class="ot">=</span> left <span class="op">++</span> [x] <span class="op">++</span> right <span class="kw">where</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a>  left <span class="ot">=</span> quicksort (<span class="fu">filter</span> (<span class="op">&lt;=</span>x) xs)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a>  right <span class="ot">=</span> quicksort (<span class="fu">filter</span> (<span class="op">&gt;</span>x) xs)</span></code></pre></div>
+<p>Unfortunately, this is not a real quicksort as it doesn’t run in place killing all the idea. And we want to fix that!</p>
+<p>This code will be a proof of concept for two reasons:</p>
+<ol type="1">
+<li>we will not write a real quicksort implementation, you can always find how to do that in the other blog posts for example <a href="https://mmhaskell.com/blog/2019/5/13/quicksort-with-haskell">this one</a></li>
+<li>We will not try to capture all the cases and handle only the basic one.</li>
+</ol>
+<p>So what we can do? The core idea is to learn the compiler to catch the code and write real quicksort instead. But it would be very hard to solve the problem in general, so we want to teach the compiler to find pattern above and substitute better implementation instead of that code.</p>
+<p>For the better implementation we will use:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a><span class="kw">import</span> <span class="dt">Debug.Trace</span> (trace)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a><span class="kw">import</span> <span class="dt">Data.List</span> (sort)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a><span class="co">-- | implementation of the quicksort</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true"></a><span class="ot">good_sort ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true"></a>good_sort a as <span class="ot">=</span> trace <span class="st">&quot;good&quot;</span> <span class="op">$</span> <span class="fu">sort</span> (a<span class="op">:</span>as)</span></code></pre></div>
+<p><a href="https://hackage.haskell.org/package/base-4.14.0.0/docs/Debug-Trace.html#v:trace"><code>Debug.Trace.trace</code></a> is a debug function. It addition to calculating a pure value it prints a message to stdout. For our purpose, it will be enough, if we see “good” in stdout than our task is solved. In a real solution instead of <code>Data.List.sort</code> we will have <code>Data.Vector.toList . Data.Vector.modify quicksort . Data.Vector.fromList</code> with real quicksort implementation.</p>
+<p>So how we will teach compiler to make a good substitution without solving very complex optimization task? There are two ways forward:</p>
+<ol type="1">
+<li>source plugin that will analyze code, find the relevant part and do a substitution. Someday I’ll try that.</li>
+<li>Use <a href="https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/rewrite_rules.html">rewriting rules mechanism</a>. And we will use it.</li>
+</ol>
+<p>Rewriting rules is a mechanism that tells GHC how to rewrite a certain pattern in the code. This is a very powerful mechanism that is used in <a href="https://ccsweb.lanl.gov/~kei/deforestation-short-cut.pdf">deforestaion (pdf)</a> and <a href="http://fun.cs.tufts.edu/stream-fusion.pdf">stream techniques</a>, techniques that allow to remove intermediate data structures and allows programs to run without too many allocations. Unfortunately rewriting rules are very fragile it’s very hard to tell how exactly the rules will interact and it’s easy to make program much execution much worse. Fortunately, you can hit that only in very special cases with <code>vector</code>s or <code>text</code> and it’s quite easy to workaround the problem. Anyway, we will try this path.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="ot">{-# RULES</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a><span class="ot">&quot;quicksort/left&quot; [2] forall x xs . filter (&lt;=x) xs = quick_left x xs</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a><span class="ot">&quot;quicksort/right&quot; [2] forall x xs . filter (&gt;x) xs = quick_right x xs</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a><span class="ot">&quot;quicksort&quot; [2] forall x xs .</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a><span class="ot">  quicksort (quick_left x xs) .&lt;&gt; [x] .&lt;&gt; quicksort (quick_right x xs)</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a><span class="ot">     = good_sort x xs</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="ot"> #-}</span></span></code></pre></div>
+<p>Rule consist of the following parts:</p>
+<ul>
+<li>Name <code>"quicksort/left", name is shown in debug mode</code>-ddump-file-firings` when rule fires (applied).</li>
+<li>Phase <code>[2]</code>. Tells when the rule can fire. A number <code>N</code> means that it can fire starting from phase <code>N</code> and below. There are phases 2,1,0 in GHC. If you see <code>[~N]</code> it means that the rule can fire before phase <code>N</code> occur.</li>
+<li>Variables <code>forall x xs</code> we use, we can add type signatures for such variables, in that case, the rule is applied only if types match.</li>
+<li>LHS Pattern <code>filter (&lt;=x) xs</code> — if the compiler sees this pattern it rewrites it.</li>
+<li>RHS <code>quick_left x xs</code> — the code pattern is rewritten to.</li>
+</ul>
+<p>So above you see the idea, we introduce 3 patterns we rewrite, 2 clauses we rewrite into functions quick_left and quick_right and the final one that rewrites entire sort.</p>
+<p>You can see that we use <code>.&lt;&gt;</code> here, we will come to that a bit later, first let’s check what are <code>quick_left</code> and <code>quick_right</code> functions:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="ot">quick_left ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="ot">{-# NOINLINE [~1] quick_left #-}</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a>quick_left <span class="op">!</span>x <span class="op">!</span>xs <span class="ot">=</span> <span class="fu">filter</span> (<span class="op">&lt;=</span>x) xs</span></code></pre></div>
+<p><code>quick_left</code> is just a wrapper over the function we rewrite, it’s not inlinable, so it will survive on phase 2. And it can be caught by the “quicksort” rule. If it was not caught it means it was not a quicksort, so it will be inlined on phase 1, leaving the opportunity to the normal GHC rules to optimize the code.</p>
+<p>So we are trying to optimize code, but if we fail we leave that as-it-was. The code will not be the same as GHC would optimize it as some rules will not fire</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="st">&quot;filter&quot;</span>     [<span class="op">~</span><span class="dv">1</span>] <span class="kw">forall</span> p xs<span class="op">.</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true"></a>  <span class="fu">filter</span> p xs <span class="ot">=</span> build (\c n <span class="ot">-&gt;</span> <span class="fu">foldr</span> (filterFB c p) n xs)</span></code></pre></div>
+<p>after our one, so ideally we should have that on the right hand side, but there are some problems with it. For example <code>filterFB</code> is not exposed by GHC.</p>
+<p>Before going to (<code>.&lt;&gt;</code>) operator let’s see how we can debug rules, we can do that using GHC options:</p>
+<ul>
+<li><code>-ddump-rule-firings</code> — emits a message when the rule fires</li>
+<li><code>-ddump-simpl-iterations</code> — writes how the core was optimized</li>
+<li><code>-ddump-to-file</code> — write debug information to file</li>
+</ul>
+<p>When you compile GHC dumps warnings:</p>
+<pre><code>3.hs:6:1: warning: [-Winline-rule-shadowing]
+    Rule &quot;quicksort/left&quot; may never fire
+      because rule &quot;Class op &lt;=&quot; for ‘&lt;=’ might fire first
+    Probable fix: add phase [n] or [~n] to the competing rule
+  |
+6 | &quot;quicksort/left&quot; [2] forall x xs . filter (&lt;=x) xs = quick_left x xs
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</code></pre>
+<p>It tells that another rule may change the definition of <code>&lt;=x</code> so this rule will not fire. Unfortunately such rules live on phase 2, and there is no way to override it, but you can use <a href="https://gitlab.haskell.org/ghc/ghc/-/issues/4397">a trick</a> and introduce an additional function with <code>{-# NOINLINE [~1] #-}</code> and write a rule for that. And with <code>(&lt;&gt;)</code> we can to do exactly that:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a><span class="ot">(.&lt;&gt;) ::</span> [a] <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true"></a><span class="ot">{-# NOINLINE (.&lt;&gt;) #-}</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true"></a>(<span class="op">.&lt;&gt;</span>) <span class="ot">=</span> (<span class="op">&lt;&gt;</span>)</span></code></pre></div>
+<p>It happens because GHC introduces many rules that convert list operations to <code>foldr/build</code>. I think it’s possible to write a better rule that will be able to rewrite a result of the rules applications, but I failed to do that.</p>
+<p>So we change <code>&lt;&gt;</code> to <code>.&lt;&gt;</code> and now we can run the program:</p>
+<pre><code>ghc 3.hs -ddump-rule-firings \
+  -O \
+  -ddump-simpl-iterations \
+  -fforce-recomp \
+  -ddump-to-file \
+  -ddump-simpl \
+  -dcore-lint &amp;&amp; ./3
+Linking 3 ...
+good
+[1,2,3]</code></pre>
+<p>I’ve used <code>dcore-lint</code> here because those rules lead to a segfault but that happened on <code>ghc-8.8.3</code> and everything works fine on later versions.</p>
+
+<hr />
+<div id="sociallinks" class="pull-left">
+    <strong>Share on:</strong>
+  <a href="https://twitter.com/home?status=http://qnikst.github.io/posts/2020-10-18-quicksort.html" target="_blank" class="social" title="twit it">t</a>  
+  <a href="http://www.facebook.com/sharer/sharer.php?u=http://qnikst.github.io/posts/2020-10-18-quicksort.html" target="_blank" class="social" title="share on facebook">F</a> 
+  <a href="https://plus.google.com/share?url=http://qnikst.github.io/posts/2020-10-18-quicksort.html" target="_blank" class="social" title="share on g+">g</a>
+</div>
+
+<br class="clearfix" />
+<hr />
+
+
+<div id="disqus_thread"></div>
+  <script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'qnikst'; // required: replace example with your forum shortname
+
+  (function() {
+     var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+     dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js';
+     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                                                                                           
+
+  </div>
+
+  <footer>
+    powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a> &amp; <a href="http://johnmacfarlane.net/pandoc/">Pandoc</a>
+  </footer>
+
+<script type="text/javascript">
+    //      <noscript> я очень хочу вас посчитать, напишите комментарий хотя бы, пожааалуйста </noscript>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-38941774-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>
