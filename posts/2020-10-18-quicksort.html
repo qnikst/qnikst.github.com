@@ -75,7 +75,7 @@ sort (a : x) = sort {b ← x; b ≤ a}++ a:sort { b ← x; b&gt;a}</code></pre>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="ot"> #-}</span></span></code></pre></div>
 <p>Rule consist of the following parts:</p>
 <ul>
-<li>Name <code>"quicksort/left", name is shown in debug mode</code>-ddump-file-firings` when rule fires (applied).</li>
+<li>Name <code>"quicksort/left"</code>, name is shown in debug mode <code>-ddump-file-firings</code> when rule fires (applied).</li>
 <li>Phase <code>[2]</code>. Tells when the rule can fire. A number <code>N</code> means that it can fire starting from phase <code>N</code> and below. There are phases 2,1,0 in GHC. If you see <code>[~N]</code> it means that the rule can fire before phase <code>N</code> occur.</li>
 <li>Variables <code>forall x xs</code> we use, we can add type signatures for such variables, in that case, the rule is applied only if types match.</li>
 <li>LHS Pattern <code>filter (&lt;=x) xs</code> — if the compiler sees this pattern it rewrites it.</li>
