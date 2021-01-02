@@ -39,7 +39,7 @@ The simplest solution is to have a
 
 or
 
-`HashMap ContestId (HashMap SchoolId) [Net4Addr]`.
+`HashMap ContestId (HashMap SchoolId (Vector Net4Addr))`.
 
 The latter one allows faster-path for the case if the contest is not filtered.
 
@@ -89,7 +89,7 @@ On the line `{-5-}` we return an update function that builds a new value of the 
 So basically the only lines that were added to the naive algorithm are `1,2,5`, the rest of the
 algorithm remains unchanged.
 
-Note. There may be other architectural choices how to provide an access to the API and to it's
+Note. There may be other architectural choices of how to provide access to the API and to its
 updates, but I doubt they are very solution dependent, so I'd like to avoid API discussion.
 
 So now let's discuss this solution. During first tests on data that we have gathered from
